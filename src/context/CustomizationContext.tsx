@@ -26,11 +26,17 @@ export const LIQUID_DEFAULTS: LiquidSettings = {
 };
 
 const STORAGE_KEY = "liquid-glass-engine-v1";
+const THEME_KEY = "liquid-glass-theme-v1";
+
+export type Theme = "light" | "dark";
 
 type Ctx = {
   liquid: LiquidSettings;
   setLiquid: (patch: Partial<LiquidSettings>) => void;
   reset: () => void;
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+  toggleTheme: () => void;
 };
 
 const CustomizationContext = createContext<Ctx | null>(null);
