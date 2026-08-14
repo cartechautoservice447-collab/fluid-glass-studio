@@ -34,7 +34,7 @@ export function LiquidSlider({
         min={min}
         max={max}
         step={step}
-        onValueChange={([next]) => onChange(next)}
+        onValueChange={(vals) => onChange(vals[0] ?? value)}
         aria-label={label}
       />
       <p className="text-xs leading-relaxed text-muted-foreground">{hint}</p>
