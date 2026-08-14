@@ -59,16 +59,33 @@ function sanitize(raw: unknown): LiquidSettings {
 
 export function CustomizationProvider({ children }: { children: ReactNode }) {
   const [liquid, setLiquidState] = useState<LiquidSettings>(LIQUID_DEFAULTS);
+  const [theme, setTheme] = useState<Theme>("light");
 
   // Read persisted state after mount (avoids hydration mismatch).
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) setLiquidState(sanitize(JSON.parse(stored)));
+      const storedTheme = localStorage.getItem(THEME_KEY);
+      if (storedTheme === "light" || storedTheme === "dark") {
+        setTheme(storedTheme);
+      } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        setTheme("dark");
+      }
     } catch {
       /* ignore corrupt storage */
     }
   }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    document.documentElement.style.colorScheme = theme;
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch {
+      /* ignore quota errors */
+    }
+  }, [theme]);
 
   useEffect(() => {
     try {
