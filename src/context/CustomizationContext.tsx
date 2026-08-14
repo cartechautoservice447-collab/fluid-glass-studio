@@ -107,8 +107,11 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
       liquid,
       setLiquid: (patch) => setLiquidState((prev) => sanitize({ ...prev, ...patch })),
       reset: () => setLiquidState(LIQUID_DEFAULTS),
+      theme,
+      setTheme,
+      toggleTheme: () => setTheme((prev) => (prev === "dark" ? "light" : "dark")),
     }),
-    [liquid],
+    [liquid, theme],
   );
 
   return (
