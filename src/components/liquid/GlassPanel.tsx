@@ -26,7 +26,7 @@ export function GlassPanel({ children, className, draggable = false }: GlassPane
   };
 
   const gel = liquid.gel / 100;
-  const alpha = liquid.transparency ?? 0.45;
+  const alpha = (liquid.transparency ?? 45) / 100;
 
   return (
     <motion.div
@@ -61,6 +61,8 @@ export function GlassPanel({ children, className, draggable = false }: GlassPane
         className="pointer-events-none absolute inset-0 rounded-[inherit] border border-white/35 opacity-70 mix-blend-screen"
         style={{ filter: "url(#liquid-refraction)" }}
       />
+      {/* legibility veil — keeps text readable on both frosted and obsidian glass */}
+      <span aria-hidden className="liquid-veil pointer-events-none absolute inset-0 rounded-[inherit]" />
       <div className="relative z-10">{children}</div>
     </motion.div>
   );

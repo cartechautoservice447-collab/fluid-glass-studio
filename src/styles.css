@@ -301,3 +301,11 @@
 .liquid-panel .text-accent-foreground {
   color: var(--panel-fg-accent);
 }
+
+.liquid-veil {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.dark .liquid-veil {
+  background: rgba(6, 10, 26, 0.28);
+}
