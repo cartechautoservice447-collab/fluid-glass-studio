@@ -141,15 +141,15 @@
   --liquid-bounce: 260;
   --liquid-bounce-damping: 18;
 
-  --glass-tint: oklch(0.99 0.01 250);
-  --glass-tint-2: oklch(0.86 0.06 240);
+  --glass-tint: oklch(1 0 0);
+  --glass-tint-2: oklch(0.95 0.03 245);
   --glass-shade: oklch(0.25 0.07 265);
   --liquid-sheen: oklch(1 0 0);
 
-  --background: oklch(0.96 0.02 240);
-  --foreground: oklch(0.22 0.05 265);
-  --muted-foreground: oklch(0.44 0.04 265);
-  --accent-foreground: oklch(0.5 0.16 250);
+  --background: oklch(0.55 0.16 255);
+  --foreground: oklch(0.17 0.05 265);
+  --muted-foreground: oklch(0.32 0.05 265);
+  --accent-foreground: oklch(0.38 0.15 255);
 }
 
 @layer base {
@@ -190,9 +190,9 @@
 
 .liquid-stage {
   background:
-    radial-gradient(120% 90% at 10% 0%, oklch(0.93 0.07 250) 0%, transparent 60%),
-    radial-gradient(100% 80% at 100% 10%, oklch(0.9 0.09 320) 0%, transparent 55%),
-    linear-gradient(170deg, oklch(0.97 0.02 240), oklch(0.9 0.05 260));
+    radial-gradient(120% 90% at 10% 0%, oklch(0.62 0.18 250) 0%, transparent 60%),
+    radial-gradient(100% 80% at 100% 10%, oklch(0.58 0.17 285) 0%, transparent 55%),
+    linear-gradient(170deg, oklch(0.5 0.17 258), oklch(0.36 0.15 268));
   transition:
     background 600ms ease,
     color 400ms ease;
@@ -270,4 +270,34 @@
   .liquid-orb {
     animation: none;
   }
+}
+
+/* Text over the raw blue stage (outside glass) stays light in both modes */
+.on-stage {
+  color: oklch(0.98 0.01 250);
+}
+
+.on-stage-muted {
+  color: oklch(0.9 0.03 250);
+}
+
+/* Glass interiors: frosted-light in day, obsidian in night — text tokens
+   below guarantee contrast inside the panel in both themes. */
+.liquid-panel {
+  --panel-fg: var(--foreground);
+  --panel-fg-muted: var(--muted-foreground);
+  --panel-fg-accent: var(--accent-foreground);
+  color: var(--panel-fg);
+}
+
+.liquid-panel .text-foreground {
+  color: var(--panel-fg);
+}
+
+.liquid-panel .text-muted-foreground {
+  color: var(--panel-fg-muted);
+}
+
+.liquid-panel .text-accent-foreground {
+  color: var(--panel-fg-accent);
 }
