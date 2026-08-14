@@ -78,7 +78,10 @@ function Playground() {
               variables and spring simulations. Open the engine to feel the difference.
             </p>
           </div>
-          <EngineSettingsModal />
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <EngineSettingsModal />
+          </div>
         </header>
 
         <section className="mt-12 grid gap-6 md:grid-cols-3">
