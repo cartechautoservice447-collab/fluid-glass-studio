@@ -4,6 +4,7 @@ import { Droplets, Waves, Sparkles, Hand } from "lucide-react";
 import { EngineSettingsModal } from "@/components/liquid/EngineSettingsModal";
 import { GlassPanel } from "@/components/liquid/GlassPanel";
 import { LiquidFilters } from "@/components/liquid/LiquidFilters";
+import { ThemeToggle } from "@/components/liquid/ThemeToggle";
 import { CustomizationProvider, useCustomization } from "@/context/CustomizationContext";
 
 export const Route = createFileRoute("/")({
