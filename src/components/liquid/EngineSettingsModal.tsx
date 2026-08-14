@@ -15,7 +15,7 @@ import {
 import { useCustomization } from "@/context/CustomizationContext";
 
 export function EngineSettingsModal() {
-  const { liquid, setLiquid, reset } = useCustomization();
+  const { liquid, setLiquid, reset, theme } = useCustomization();
   const [open, setOpen] = useState(false);
 
   return (
