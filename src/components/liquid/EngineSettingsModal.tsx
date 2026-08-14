@@ -2,6 +2,7 @@ import { Settings2, RotateCcw } from "lucide-react";
 import { useState } from "react";
 
 import { LiquidSlider } from "@/components/liquid/LiquidSlider";
+import { ThemeToggle } from "@/components/liquid/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
