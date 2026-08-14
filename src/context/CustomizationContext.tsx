@@ -17,7 +17,7 @@ export type LiquidSettings = {
 };
 
 export const LIQUID_DEFAULTS: LiquidSettings = {
-  density: 18,
+  density: 12,
   transparency: 45,
   clearness: 35,
   gel: 55,
