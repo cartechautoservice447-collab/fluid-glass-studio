@@ -11,9 +11,9 @@ type GlassPanelProps = {
 };
 
 /**
- * A liquid-glass surface: fully transparent interior (only backdrop blur +
- * saturation), an edge specular highlight, and organic spring physics driven
- * by the Liquid Bounce slider.
+ * A crystal-clear 3D water-gel lens: transparent tinted interior, layered
+ * inset lighting bevel, vivid backdrop optics, diagonal surface gloss sheen,
+ * and organic spring physics driven by the Liquid Bounce slider.
  */
 export function GlassPanel({ children, className, draggable = false }: GlassPanelProps) {
   const { liquid } = useCustomization();
@@ -26,7 +26,6 @@ export function GlassPanel({ children, className, draggable = false }: GlassPane
   };
 
   const gel = liquid.gel / 100;
-  const alpha = (liquid.transparency ?? 45) / 100;
 
   return (
     <motion.div
@@ -38,23 +37,27 @@ export function GlassPanel({ children, className, draggable = false }: GlassPane
       whileTap={{ scale: 0.96 }}
       transition={spring}
       style={{
-        // panel interior stays transparent — the deep blue backdrop shines through
-        backgroundColor: `color-mix(in oklch, var(--glass-tint) ${alpha * 100}%, transparent)`,
-        backdropFilter: "blur(var(--liquid-density, 20px)) saturate(180%)",
+        backgroundColor: "var(--water-gel-bg)",
+        backdropFilter: "blur(var(--liquid-density, 12px)) saturate(200%) contrast(105%)",
         borderRadius: `${18 + gel * 26}px`,
-        boxShadow: [
-          "inset 0 1px 1px rgba(255, 255, 255, 0.25)",
-          `inset 0 ${1 + gel * 2}px ${3 + gel * 8}px color-mix(in oklch, var(--liquid-sheen) ${12 + gel * 22}%, transparent)`,
-          `inset 0 -${1 + gel * 3}px ${4 + gel * 12}px color-mix(in oklch, var(--glass-shade) ${14 + gel * 26}%, transparent)`,
-          `0 ${8 + gel * 20}px ${24 + gel * 44}px color-mix(in oklch, var(--glass-shade) ${22 + gel * 22}%, transparent)`,
-        ].join(", "),
+        borderTop: "1px solid rgba(255, 255, 255, 0.4)",
+        boxShadow:
+          "inset 0 1px 2px 0 rgba(255, 255, 255, 0.5), inset 0 -2px 4px 0 rgba(0, 0, 0, 0.25), 0 8px 32px 0 rgba(0, 0, 0, 0.37)",
       }}
       className={cn(
-        "liquid-panel relative overflow-hidden border border-white/25 p-6 will-change-transform",
+        "liquid-panel relative overflow-hidden p-6 will-change-transform",
         draggable && "cursor-grab active:cursor-grabbing",
         className,
       )}
     >
+      {/* 3D surface gloss sheen across the top half */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 rounded-[inherit]"
+        style={{
+          background: "linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 50%)",
+        }}
+      />
       {/* refracted liquid edge */}
       <span
         aria-hidden
