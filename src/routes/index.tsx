@@ -68,13 +68,13 @@ function Playground() {
       <div className="relative mx-auto max-w-5xl">
         <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-[0.66rem] font-bold uppercase tracking-[0.34em] text-accent-foreground">
+            <p className="text-[0.66rem] font-bold uppercase tracking-[0.34em] on-stage-muted">
               Apple Liquid Glass Engine
             </p>
-            <h1 className="mt-3 max-w-xl text-4xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-6xl">
+            <h1 className="mt-3 max-w-xl text-4xl font-semibold leading-[1.05] tracking-tight on-stage sm:text-6xl">
               Real-time fluid physics, tuned by hand.
             </h1>
-            <p className="mt-4 max-w-lg text-sm leading-relaxed text-muted-foreground sm:text-base">
+            <p className="mt-4 max-w-lg text-sm leading-relaxed on-stage-muted sm:text-base">
               Density, transparency, clearness, gel and bounce are wired straight into root CSS
               variables and spring simulations. Open the engine to feel the difference.
             </p>
