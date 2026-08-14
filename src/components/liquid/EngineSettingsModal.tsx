@@ -2,6 +2,7 @@ import { Settings2, RotateCcw } from "lucide-react";
 import { useState } from "react";
 
 import { LiquidSlider } from "@/components/liquid/LiquidSlider";
+import { ThemeToggle } from "@/components/liquid/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,7 +15,7 @@ import {
 import { useCustomization } from "@/context/CustomizationContext";
 
 export function EngineSettingsModal() {
-  const { liquid, setLiquid, reset } = useCustomization();
+  const { liquid, setLiquid, reset, theme } = useCustomization();
   const [open, setOpen] = useState(false);
 
   return (
@@ -40,6 +41,18 @@ export function EngineSettingsModal() {
         </DialogHeader>
 
         <section className="space-y-6 pt-2">
+          <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/20 bg-white/5 p-4">
+            <div>
+              <p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-foreground">
+                Appearance
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {theme === "dark" ? "Night mode — obsidian liquid" : "Day mode — bright liquid"}
+              </p>
+            </div>
+            <ThemeToggle />
+          </div>
+
           <div className="flex items-center gap-3">
             <h3 className="text-[0.68rem] font-bold uppercase tracking-[0.28em] text-foreground">
               Liquid Glass Physics

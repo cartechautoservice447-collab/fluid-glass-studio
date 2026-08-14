@@ -26,11 +26,17 @@ export const LIQUID_DEFAULTS: LiquidSettings = {
 };
 
 const STORAGE_KEY = "liquid-glass-engine-v1";
+const THEME_KEY = "liquid-glass-theme-v1";
+
+export type Theme = "light" | "dark";
 
 type Ctx = {
   liquid: LiquidSettings;
   setLiquid: (patch: Partial<LiquidSettings>) => void;
   reset: () => void;
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+  toggleTheme: () => void;
 };
 
 const CustomizationContext = createContext<Ctx | null>(null);
@@ -53,16 +59,33 @@ function sanitize(raw: unknown): LiquidSettings {
 
 export function CustomizationProvider({ children }: { children: ReactNode }) {
   const [liquid, setLiquidState] = useState<LiquidSettings>(LIQUID_DEFAULTS);
+  const [theme, setTheme] = useState<Theme>("light");
 
   // Read persisted state after mount (avoids hydration mismatch).
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) setLiquidState(sanitize(JSON.parse(stored)));
+      const storedTheme = localStorage.getItem(THEME_KEY);
+      if (storedTheme === "light" || storedTheme === "dark") {
+        setTheme(storedTheme);
+      } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        setTheme("dark");
+      }
     } catch {
       /* ignore corrupt storage */
     }
   }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    document.documentElement.style.colorScheme = theme;
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch {
+      /* ignore quota errors */
+    }
+  }, [theme]);
 
   useEffect(() => {
     try {
@@ -84,8 +107,11 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
       liquid,
       setLiquid: (patch) => setLiquidState((prev) => sanitize({ ...prev, ...patch })),
       reset: () => setLiquidState(LIQUID_DEFAULTS),
+      theme,
+      setTheme,
+      toggleTheme: () => setTheme((prev) => (prev === "dark" ? "light" : "dark")),
     }),
-    [liquid],
+    [liquid, theme],
   );
 
   return (

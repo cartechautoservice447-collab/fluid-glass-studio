@@ -163,11 +163,62 @@
   }
 }
 
+/* Night mode: deep liquid obsidian glass */
+.dark {
+  --glass-tint: oklch(0.62 0.05 265);
+  --glass-tint-2: oklch(0.38 0.06 275);
+  --glass-shade: oklch(0.08 0.03 265);
+  --liquid-sheen: oklch(0.95 0.06 250);
+
+  --background: oklch(0.16 0.03 265);
+  --foreground: oklch(0.97 0.01 250);
+  --card: oklch(0.22 0.04 265);
+  --card-foreground: oklch(0.97 0.01 250);
+  --popover: oklch(0.2 0.04 265);
+  --popover-foreground: oklch(0.97 0.01 250);
+  --muted: oklch(0.27 0.04 265);
+  --muted-foreground: oklch(0.78 0.03 260);
+  --accent: oklch(0.3 0.05 265);
+  --accent-foreground: oklch(0.84 0.13 220);
+  --secondary: oklch(0.28 0.04 265);
+  --secondary-foreground: oklch(0.97 0.01 250);
+  --primary: oklch(0.8 0.13 235);
+  --primary-foreground: oklch(0.18 0.04 265);
+  --border: oklch(1 0 0 / 14%);
+  --input: oklch(1 0 0 / 18%);
+}
+
 .liquid-stage {
   background:
     radial-gradient(120% 90% at 10% 0%, oklch(0.93 0.07 250) 0%, transparent 60%),
     radial-gradient(100% 80% at 100% 10%, oklch(0.9 0.09 320) 0%, transparent 55%),
     linear-gradient(170deg, oklch(0.97 0.02 240), oklch(0.9 0.05 260));
+  transition:
+    background 600ms ease,
+    color 400ms ease;
+}
+
+.dark .liquid-stage {
+  background:
+    radial-gradient(120% 90% at 10% 0%, oklch(0.32 0.11 265) 0%, transparent 60%),
+    radial-gradient(100% 80% at 100% 10%, oklch(0.27 0.12 320) 0%, transparent 55%),
+    linear-gradient(170deg, oklch(0.17 0.04 265), oklch(0.11 0.03 275));
+}
+
+.dark .liquid-orb {
+  opacity: 0.45;
+}
+
+.dark .liquid-orb-a {
+  background: oklch(0.55 0.2 265);
+}
+
+.dark .liquid-orb-b {
+  background: oklch(0.5 0.2 330);
+}
+
+.dark .liquid-orb-c {
+  background: oklch(0.55 0.16 195);
 }
 
 .liquid-orb {
