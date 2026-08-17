@@ -20,7 +20,7 @@ const glassCodeTheme: Record<string, Record<string, string>> = {
     fontFamily: CODE_FONT,
     fontSize: "0.82rem",
     lineHeight: "1.65",
-    margin: 0,
+    margin: "0",
     padding: "1rem 1.1rem",
     overflow: "auto",
   },
