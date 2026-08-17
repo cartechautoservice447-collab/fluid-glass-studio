@@ -55,7 +55,7 @@ export function GlassPanel({ children, className, draggable = false, onClick }: 
       {/* 3D surface gloss sheen across the top half */}
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-[inherit]"
+        className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
         style={{
           background: "linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 50%)",
         }}
@@ -63,12 +63,12 @@ export function GlassPanel({ children, className, draggable = false, onClick }: 
       {/* refracted liquid edge */}
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-[inherit] border border-white/35 opacity-70 mix-blend-screen"
+        className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] border border-white/35 opacity-70 mix-blend-screen"
         style={{ filter: "url(#liquid-refraction)" }}
       />
       {/* legibility veil — keeps text readable on both frosted and obsidian glass */}
-      <span aria-hidden className="liquid-veil pointer-events-none absolute inset-0 rounded-[inherit]" />
-      <div className="relative z-10">{children}</div>
+      <span aria-hidden className="liquid-veil pointer-events-none absolute inset-0 -z-10 rounded-[inherit]" />
+      {children}
     </motion.div>
   );
 }
