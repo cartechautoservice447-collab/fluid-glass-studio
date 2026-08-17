@@ -30,6 +30,7 @@ export function GlassPanel({ children, className, draggable = false, onClick }: 
 
   return (
     <motion.div
+      onClick={onClick}
       drag={draggable}
       dragElastic={0.25}
       dragConstraints={{ left: -40, right: 40, top: -30, bottom: 30 }}
