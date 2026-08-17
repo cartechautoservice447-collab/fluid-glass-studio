@@ -313,3 +313,11 @@
 .dark .liquid-veil {
   background: rgba(6, 10, 26, 0.28);
 }
+
+@keyframes notes-pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 45%, transparent); }
+  50% { box-shadow: 0 0 26px 4px color-mix(in oklab, var(--primary) 28%, transparent); }
+}
+.notes-pulse-glow {
+  animation: notes-pulse-glow 3.2s ease-in-out infinite;
+}
