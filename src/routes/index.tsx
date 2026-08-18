@@ -83,12 +83,12 @@ function StaticNotesShell() {
   }, []);
 
   return (
-    <div className="fixed inset-0 grid place-items-center overflow-hidden bg-[#07070c]">
-      <div
-        className="laptop-canvas"
-        style={{ transform: `scale(${scale})` }}
-      >
-        <main className="liquid-stage relative flex h-full w-full overflow-hidden px-5 py-5">
+  <div className="fixed inset-0 overflow-hidden bg-[#07070c]">
+    <div
+      className="laptop-canvas absolute left-1/2 top-1/2"
+      style={{ transform: `translate(-50%, -50%) scale(${scale})` }}
+    >
+      <main className="liquid-stage relative flex h-full w-full overflow-hidden px-5 py-5">
           <div className="liquid-orb liquid-orb-a" aria-hidden />
           <div className="liquid-orb liquid-orb-b" aria-hidden />
           <div className="liquid-orb liquid-orb-c" aria-hidden />
