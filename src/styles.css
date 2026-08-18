@@ -334,6 +334,5 @@
   width: 1440px;
   height: 900px;
   flex: none;
-  transform: scale(min(100vw / 1440, 100vh / 900));
   transform-origin: center center;
 }

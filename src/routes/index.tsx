@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   Bold,
@@ -22,7 +23,7 @@ import {
 
 import { GlassPanel } from "@/components/liquid/GlassPanel";
 import { LiquidFilters } from "@/components/liquid/LiquidFilters";
-import { CustomizationProvider } from "@/context/CustomizationContext";
+import { CustomizationProvider, useCustomization } from "@/context/CustomizationContext";
 
 export const Route = createFileRoute("/")({
   head: () => ({
