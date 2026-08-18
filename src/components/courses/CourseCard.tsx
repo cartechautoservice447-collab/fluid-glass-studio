@@ -29,7 +29,6 @@ export function CourseCard({ course, noteCount, lastEditedAt, onOpen }: Props) {
   return (
     <motion.button
       type="button"
-      layoutId={`course-shell-${course.id}`}
       onClick={onOpen}
       whileHover={{ scale: 1.03, y: -6 }}
       whileTap={{ scale: 0.97 }}
