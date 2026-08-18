@@ -98,10 +98,11 @@ export function relativeDate(ts: number) {
   return new Date(ts).toLocaleDateString();
 }
 
-/** Pass a courseId to scope this hook's storage to one course's isolated notes. Omit it for the legacy/global store. */
-export function useNotes(courseId?: string) {
-  const notesKey = courseId ? `${NOTES_KEY}:${courseId}` : NOTES_KEY;
-  const collectionsKey = courseId ? `${COLLECTIONS_KEY}:${courseId}` : COLLECTIONS_KEY;
+/** Pass a courseId and userId to scope notes to the signed-in user and course. */
+export function useNotes(courseId?: string, userId?: string) {
+  const scope = courseId ? [userId, courseId].filter(Boolean).join(":") : undefined;
+  const notesKey = scope ? `${NOTES_KEY}:${scope}` : NOTES_KEY;
+  const collectionsKey = scope ? `${COLLECTIONS_KEY}:${scope}` : COLLECTIONS_KEY;
   const defaultNotes = courseId ? EMPTY_NOTES : DEMO_NOTES;
   const defaultCollections = courseId ? EMPTY_COLLECTIONS : DEMO_COLLECTIONS;
 
