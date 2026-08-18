@@ -75,19 +75,17 @@ function StaticNotesShell() {
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#07070c]">
-      <div className="laptop-canvas absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-        <main className="liquid-stage relative flex h-full w-full overflow-hidden px-5 py-5">
-          <div className="liquid-orb liquid-orb-a" aria-hidden />
-          <div className="liquid-orb liquid-orb-b" aria-hidden />
-          <div className="liquid-orb liquid-orb-c" aria-hidden />
+      <main className="liquid-stage relative flex h-full w-full overflow-hidden px-5 py-5">
+        <div className="liquid-orb liquid-orb-a" aria-hidden />
+        <div className="liquid-orb liquid-orb-b" aria-hidden />
+        <div className="liquid-orb liquid-orb-c" aria-hidden />
 
-          <div className="relative flex min-h-0 w-full flex-1 flex-row gap-4">
-            <SidebarPanel />
-            <ListPanel />
-            <EditorPanel />
-          </div>
-        </main>
-      </div>
+        <div className="relative flex min-h-0 w-full flex-1 flex-row gap-4">
+          <SidebarPanel />
+          <ListPanel />
+          <EditorPanel />
+        </div>
+      </main>
     </div>
   );
 }
