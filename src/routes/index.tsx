@@ -11,7 +11,7 @@ import {
   Italic,
   Link2,
   LogOut,
-  Panel,
+  PanelLeft,
   Pencil,
   Plus,
   Search,
@@ -86,7 +86,7 @@ function SidebarPanel() {
           <p className="text-[0.6rem] font-bold uppercase tracking-[0.3em] on-stage-muted">Glass</p>
           <h1 className="text-lg font-semibold tracking-tight on-stage">Notes</h1>
         </div>
-        <Panel className="size-4 on-stage-muted" />
+        <PanelLeft className="size-4 on-stage-muted" />
       </div>
 
       <div className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm on-stage-muted">
@@ -174,7 +174,7 @@ function ListPanel() {
         <h2 className="text-[0.62rem] font-bold uppercase tracking-[0.28em] on-stage">kmw</h2>
         <span className="flex items-center gap-2 font-mono text-xs on-stage-muted">
           7 notes
-          <Panel className="size-3.5" />
+          <PanelLeft className="size-3.5" />
         </span>
       </div>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
