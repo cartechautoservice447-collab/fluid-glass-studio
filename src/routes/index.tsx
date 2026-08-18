@@ -7,7 +7,7 @@ import { CourseNotesView } from "@/components/courses/CourseNotesView";
 import { LiquidFilters } from "@/components/liquid/LiquidFilters";
 import { CustomizationProvider, useCustomization } from "@/context/CustomizationContext";
 import { useCourses } from "@/hooks/useCourses";
-import { getNoteCount } from "@/hooks/useNotes";
+import { getLastEditedAt, getNoteCount } from "@/hooks/useNotes";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -45,13 +45,21 @@ function CoursesShell() {
   const { courses, addCourse } = useCourses();
   const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
   const [noteCounts, setNoteCounts] = useState<Record<string, number>>({});
+  const [lastEdited, setLastEdited] = useState<Record<string, number | null>>({});
+  const [isMorphing, setIsMorphing] = useState(false);
 
   useEffect(() => {
     setTheme("dark");
   }, [setTheme]);
 
-  useEffect(() => {
+  const refreshCounts = () => {
     setNoteCounts(Object.fromEntries(courses.map((c) => [c.id, getNoteCount(c.id)])));
+    setLastEdited(Object.fromEntries(courses.map((c) => [c.id, getLastEditedAt(c.id)])));
+  };
+
+  useEffect(() => {
+    refreshCounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courses]);
 
   const activeCourse = useMemo(
@@ -64,9 +72,6 @@ function CoursesShell() {
     stiffness: liquid.bounceStiffness,
     damping: liquid.bounceDamping,
   };
-
-  const refreshCounts = () =>
-    setNoteCounts(Object.fromEntries(courses.map((c) => [c.id, getNoteCount(c.id)])));
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#07070c]">
@@ -89,6 +94,7 @@ function CoursesShell() {
                 <CourseGrid
                   courses={courses}
                   noteCounts={noteCounts}
+                  lastEdited={lastEdited}
                   hiddenCourseId={activeCourseId}
                   onOpenCourse={setActiveCourseId}
                   onCreateCourse={(input) => addCourse(input)}
@@ -99,9 +105,14 @@ function CoursesShell() {
                 key={activeCourse.id}
                 layoutId={`course-shell-${activeCourse.id}`}
                 transition={shellSpring}
+                onLayoutAnimationStart={() => setIsMorphing(true)}
+                onLayoutAnimationComplete={() => setIsMorphing(false)}
                 style={{
                   backgroundColor: "var(--water-gel-bg)",
-                  backdropFilter: "blur(var(--liquid-density, 12px)) saturate(200%) contrast(105%)",
+                  backdropFilter: isMorphing
+                    ? "none"
+                    : "blur(var(--liquid-density, 12px)) saturate(200%) contrast(105%)",
+                  willChange: "transform",
                   borderRadius: "24px",
                   borderTop: "1px solid rgba(255, 255, 255, 0.4)",
                   boxShadow:
