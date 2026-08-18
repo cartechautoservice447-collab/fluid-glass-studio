@@ -62,10 +62,31 @@ const COLLECTIONS = [
 
 const NOTE_CARDS = Array.from({ length: 7 }, (_, i) => ({ id: i, selected: i === 0 }));
 
+const CANVAS_W = 1440;
+const CANVAS_H = 900;
+
 function StaticNotesShell() {
+  const { setTheme } = useCustomization();
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    setTheme("dark");
+  }, [setTheme]);
+
+  useEffect(() => {
+    const fit = () =>
+      setScale(Math.min(window.innerWidth / CANVAS_W, window.innerHeight / CANVAS_H));
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, []);
+
   return (
     <div className="fixed inset-0 grid place-items-center overflow-hidden bg-[#07070c]">
-      <div className="laptop-canvas">
+      <div
+        className="laptop-canvas"
+        style={{ transform: `scale(${scale})` }}
+      >
         <main className="liquid-stage relative flex h-full w-full overflow-hidden px-5 py-5">
           <div className="liquid-orb liquid-orb-a" aria-hidden />
           <div className="liquid-orb liquid-orb-b" aria-hidden />
@@ -81,6 +102,7 @@ function StaticNotesShell() {
     </div>
   );
 }
+
 
 
 function SidebarPanel() {
