@@ -68,27 +68,15 @@ const CANVAS_H = 900;
 
 function StaticNotesShell() {
   const { setTheme } = useCustomization();
-  const [scale, setScale] = useState(1);
 
   useEffect(() => {
     setTheme("dark");
   }, [setTheme]);
 
-  useEffect(() => {
-  const fit = () =>
-    setScale(Math.max(window.innerWidth / CANVAS_W, window.innerHeight / CANVAS_H));
-  fit();
-  window.addEventListener("resize", fit);
-  return () => window.removeEventListener("resize", fit);
-}, []);
-
   return (
-  <div className="fixed inset-0 overflow-hidden bg-[#07070c]">
-    <div
-      className="laptop-canvas absolute left-1/2 top-1/2"
-      style={{ transform: `translate(-50%, -50%) scale(${scale})` }}
-    >
-      <main className="liquid-stage relative flex h-full w-full overflow-hidden px-5 py-5">
+    <div className="fixed inset-0 overflow-hidden bg-[#07070c]">
+      <div className="laptop-canvas absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+        <main className="liquid-stage relative flex h-full w-full overflow-hidden px-5 py-5">
           <div className="liquid-orb liquid-orb-a" aria-hidden />
           <div className="liquid-orb liquid-orb-b" aria-hidden />
           <div className="liquid-orb liquid-orb-c" aria-hidden />
