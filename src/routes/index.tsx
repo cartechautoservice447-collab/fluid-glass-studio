@@ -75,12 +75,12 @@ function StaticNotesShell() {
   }, [setTheme]);
 
   useEffect(() => {
-    const fit = () =>
-      setScale(Math.min(window.innerWidth / CANVAS_W, window.innerHeight / CANVAS_H));
-    fit();
-    window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
-  }, []);
+  const fit = () =>
+    setScale(Math.max(window.innerWidth / CANVAS_W, window.innerHeight / CANVAS_H));
+  fit();
+  window.addEventListener("resize", fit);
+  return () => window.removeEventListener("resize", fit);
+}, []);
 
   return (
   <div className="fixed inset-0 overflow-hidden bg-[#07070c]">
