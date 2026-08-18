@@ -8,12 +8,12 @@ import {
 } from "react";
 
 export type LiquidSettings = {
-  density: number; // blur px 0 - 40
-  transparency: number; // panel opacity 5 - 95 (%)
-  clearness: number; // turbulence index 0 - 100
-  gel: number; // bevel / surface tension 0 - 100
-  bounceStiffness: number; // 100 - 500
-  bounceDamping: number; // 10 - 40
+  density: number;
+  transparency: number;
+  clearness: number;
+  gel: number;
+  bounceStiffness: number;
+  bounceDamping: number;
 };
 
 export const LIQUID_DEFAULTS: LiquidSettings = {
@@ -27,6 +27,7 @@ export const LIQUID_DEFAULTS: LiquidSettings = {
 
 const STORAGE_KEY = "liquid-glass-engine-v1";
 const THEME_KEY = "liquid-glass-theme-v1";
+const DISPLAY_NAME_KEY = "liquid-glass-display-name-v1";
 
 export type Theme = "light" | "dark";
 
@@ -37,6 +38,8 @@ type Ctx = {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
+  displayName: string;
+  setDisplayName: (name: string) => void;
 };
 
 const CustomizationContext = createContext<Ctx | null>(null);
@@ -60,8 +63,8 @@ function sanitize(raw: unknown): LiquidSettings {
 export function CustomizationProvider({ children }: { children: ReactNode }) {
   const [liquid, setLiquidState] = useState<LiquidSettings>(LIQUID_DEFAULTS);
   const [theme, setTheme] = useState<Theme>("light");
+  const [displayName, setDisplayNameState] = useState("");
 
-  // Read persisted state after mount (avoids hydration mismatch).
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -72,6 +75,8 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
       } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
         setTheme("dark");
       }
+      const storedName = localStorage.getItem(DISPLAY_NAME_KEY);
+      if (storedName) setDisplayNameState(storedName);
     } catch {
       /* ignore corrupt storage */
     }
@@ -110,8 +115,19 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
       theme,
       setTheme,
       toggleTheme: () => setTheme((prev) => (prev === "dark" ? "light" : "dark")),
+      displayName,
+      setDisplayName: (name: string) => {
+        const trimmed = name.trim().slice(0, 40);
+        setDisplayNameState(trimmed);
+        try {
+          if (trimmed) localStorage.setItem(DISPLAY_NAME_KEY, trimmed);
+          else localStorage.removeItem(DISPLAY_NAME_KEY);
+        } catch {
+          /* ignore quota errors */
+        }
+      },
     }),
-    [liquid, theme],
+    [liquid, theme, displayName],
   );
 
   return (
