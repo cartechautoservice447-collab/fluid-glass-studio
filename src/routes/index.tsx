@@ -2,9 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 
+import { AuthScreen } from "@/components/auth/AuthScreen";
 import { CourseGrid } from "@/components/courses/CourseGrid";
 import { CourseNotesView } from "@/components/courses/CourseNotesView";
 import { LiquidFilters } from "@/components/liquid/LiquidFilters";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { CustomizationProvider, useCustomization } from "@/context/CustomizationContext";
 import { useCourses } from "@/hooks/useCourses";
 import type { Note } from "@/hooks/useNotes";
@@ -33,10 +35,27 @@ export const Route = createFileRoute("/")({
 function Page() {
   return (
     <CustomizationProvider>
-      <LiquidFilters />
-      <Workspace />
+      <AuthProvider>
+        <LiquidFilters />
+        <AuthenticatedApp />
+      </AuthProvider>
     </CustomizationProvider>
   );
+}
+
+function AuthenticatedApp() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 grid place-items-center bg-[#07070c]">
+        <div className="text-sm text-white/60">Loading Glass Notes…</div>
+      </div>
+    );
+  }
+
+  if (!user) return <AuthScreen />;
+  return <Workspace />;
 }
 
 function readCourseNotes(courseId: string): Note[] {
@@ -51,7 +70,8 @@ function readCourseNotes(courseId: string): Note[] {
 }
 
 function Workspace() {
-  const { setTheme } = useCustomization();
+  const { setTheme, setDisplayName } = useCustomization();
+  const { user } = useAuth();
   const { courses, addCourse } = useCourses();
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
 
@@ -59,18 +79,20 @@ function Workspace() {
     setTheme("dark");
   }, [setTheme]);
 
+  useEffect(() => {
+    const name = user?.user_metadata?.display_name?.trim() || user?.email?.split("@")[0] || "";
+    setDisplayName(name);
+  }, [user, setDisplayName]);
+
   const selectedCourse = courses.find((c) => c.id === selectedCourseId) ?? null;
 
-  // Recomputed whenever we land back on the grid, so counts reflect any
-  // notes just added/removed inside a course.
   const { noteCounts, lastEdited } = useMemo(() => {
     const counts: Record<string, number> = {};
     const last: Record<string, number | null> = {};
     for (const course of courses) {
       const courseNotes = readCourseNotes(course.id);
       counts[course.id] = courseNotes.length;
-      last[course.id] =
-        courseNotes.length > 0 ? Math.max(...courseNotes.map((n) => n.updatedAt)) : null;
+      last[course.id] = courseNotes.length > 0 ? Math.max(...courseNotes.map((n) => n.updatedAt)) : null;
     }
     return { noteCounts: counts, lastEdited: last };
   }, [courses, selectedCourseId]);
@@ -85,33 +107,12 @@ function Workspace() {
         <div className="relative min-h-0 w-full flex-1">
           <AnimatePresence mode="wait" initial={false}>
             {selectedCourse ? (
-              <motion.div
-                key={`course-${selectedCourse.id}`}
-                className="absolute inset-0"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.28, ease: "easeInOut" }}
-              >
+              <motion.div key={`course-${selectedCourse.id}`} className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeInOut" }}>
                 <CourseNotesView course={selectedCourse} onBack={() => setSelectedCourseId(null)} />
               </motion.div>
             ) : (
-              <motion.div
-                key="course-grid"
-                className="absolute inset-0"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.28, ease: "easeInOut" }}
-              >
-                <CourseGrid
-                  courses={courses}
-                  noteCounts={noteCounts}
-                  lastEdited={lastEdited}
-                  hiddenCourseId={null}
-                  onOpenCourse={setSelectedCourseId}
-                  onCreateCourse={addCourse}
-                />
+              <motion.div key="course-grid" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeInOut" }}>
+                <CourseGrid courses={courses} noteCounts={noteCounts} lastEdited={lastEdited} hiddenCourseId={null} onOpenCourse={setSelectedCourseId} onCreateCourse={addCourse} />
               </motion.div>
             )}
           </AnimatePresence>
