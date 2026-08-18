@@ -1,26 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useMemo, useState } from "react";
 
+import { CourseGrid } from "@/components/courses/CourseGrid";
+import { CourseNotesView } from "@/components/courses/CourseNotesView";
 import { LiquidFilters } from "@/components/liquid/LiquidFilters";
-import { NoteEditor } from "@/components/notes/NoteEditor";
-import { NoteList } from "@/components/notes/NoteList";
-import { Sidebar } from "@/components/notes/Sidebar";
 import { CustomizationProvider, useCustomization } from "@/context/CustomizationContext";
-import { useNotes } from "@/hooks/useNotes";
+import { useCourses } from "@/hooks/useCourses";
+import { getNoteCount } from "@/hooks/useNotes";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Glass Notes — Liquid Glass markdown notes" },
+      { title: "Glass Courses — Liquid Glass course notes" },
       {
         name: "description",
         content:
-          "Fully functional Glass Notes: collections sidebar with the Liquid Glass engine, a live note list, and a markdown editor with autosave.",
+          "Organize markdown notes by course inside a liquid-glass interface: add a course, open it, and take notes in a three-column workspace.",
       },
-      { property: "og:title", content: "Glass Notes — Liquid Glass markdown notes" },
+      { property: "og:title", content: "Glass Courses — Liquid Glass course notes" },
       {
         property: "og:description",
-        content: "Collections, note cards and a markdown editor inside a liquid-glass interface.",
+        content:
+          "Course folders, a live note list, and a markdown editor inside a liquid-glass interface.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -33,25 +35,38 @@ function Page() {
   return (
     <CustomizationProvider>
       <LiquidFilters />
-      <NotesShell />
+      <CoursesShell />
     </CustomizationProvider>
   );
 }
 
-function NotesShell() {
-  const { setTheme } = useCustomization();
-  const notes = useNotes();
+function CoursesShell() {
+  const { setTheme, liquid } = useCustomization();
+  const { courses, addCourse } = useCourses();
+  const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
+  const [noteCounts, setNoteCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setTheme("dark");
   }, [setTheme]);
 
-  const heading =
-    notes.filter.kind === "all"
-      ? "All Notes"
-      : notes.filter.kind === "favorites"
-        ? "Favorites"
-        : (notes.collections.find((c) => c.id === notes.filter.id)?.name ?? "Collection");
+  useEffect(() => {
+    setNoteCounts(Object.fromEntries(courses.map((c) => [c.id, getNoteCount(c.id)])));
+  }, [courses]);
+
+  const activeCourse = useMemo(
+    () => courses.find((c) => c.id === activeCourseId) ?? null,
+    [courses, activeCourseId],
+  );
+
+  const shellSpring = {
+    type: "spring" as const,
+    stiffness: liquid.bounceStiffness,
+    damping: liquid.bounceDamping,
+  };
+
+  const refreshCounts = () =>
+    setNoteCounts(Object.fromEntries(courses.map((c) => [c.id, getNoteCount(c.id)])));
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#07070c]">
@@ -60,39 +75,57 @@ function NotesShell() {
         <div className="liquid-orb liquid-orb-b" aria-hidden />
         <div className="liquid-orb liquid-orb-c" aria-hidden />
 
-        <div className="relative flex min-h-0 w-full flex-1 flex-row gap-4">
-          <div className="w-72 shrink-0">
-            <Sidebar
-              collections={notes.collections}
-              counts={notes.counts}
-              filter={notes.filter}
-              setFilter={notes.setFilter}
-              query={notes.query}
-              setQuery={notes.setQuery}
-              onCreateNote={notes.createNote}
-              onAddCollection={notes.addCollection}
-              onRenameCollection={notes.renameCollection}
-              onDeleteCollection={notes.deleteCollection}
-            />
-          </div>
-          <div className="w-80 shrink-0">
-            <NoteList
-              notes={notes.visibleNotes}
-              selectedId={notes.selectedId}
-              onSelect={notes.setSelectedId}
-              onToggleFavorite={notes.toggleFavorite}
-              heading={heading}
-            />
-          </div>
-          <div className="min-w-0 flex-1">
-            <NoteEditor
-              note={notes.selected}
-              collections={notes.collections}
-              onUpdate={notes.updateNote}
-              onDelete={notes.deleteNote}
-              onToggleFavorite={notes.toggleFavorite}
-            />
-          </div>
+        <div className="relative min-h-0 w-full flex-1">
+          <AnimatePresence>
+            {!activeCourse ? (
+              <motion.div
+                key="grid"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="absolute inset-0"
+              >
+                <CourseGrid
+                  courses={courses}
+                  noteCounts={noteCounts}
+                  hiddenCourseId={activeCourseId}
+                  onOpenCourse={setActiveCourseId}
+                  onCreateCourse={(input) => addCourse(input)}
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                key={activeCourse.id}
+                layoutId={`course-shell-${activeCourse.id}`}
+                transition={shellSpring}
+                style={{
+                  backgroundColor: "var(--water-gel-bg)",
+                  backdropFilter: "blur(var(--liquid-density, 12px)) saturate(200%) contrast(105%)",
+                  borderRadius: "24px",
+                  borderTop: "1px solid rgba(255, 255, 255, 0.4)",
+                  boxShadow:
+                    "inset 0 1px 2px 0 rgba(255, 255, 255, 0.5), inset 0 -2px 4px 0 rgba(0, 0, 0, 0.25), 0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+                }}
+                className="liquid-panel absolute inset-0 overflow-hidden p-5"
+              >
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.18, duration: 0.3 }}
+                  className="flex h-full min-h-0 w-full flex-col"
+                >
+                  <CourseNotesView
+                    course={activeCourse}
+                    onBack={() => {
+                      setActiveCourseId(null);
+                      refreshCounts();
+                    }}
+                  />
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </main>
     </div>
