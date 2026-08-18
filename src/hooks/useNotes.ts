@@ -32,14 +32,14 @@ const DEMO_NOTES: Note[] = [
     title: "Python — glass gradient helper",
     body: `A tiny helper that blends two colors for the liquid stage.
 
-```python
+\`\`\`python
 def blend(a: tuple, b: tuple, t: float = 0.5) -> tuple:
     """Linear interpolate two RGB tuples."""
     t = max(0.0, min(1.0, t))
     return tuple(round(x + (y - x) * t) for x, y in zip(a, b))
 
 print(blend((13, 17, 23), (121, 192, 255), 0.35))
-```
+\`\`\`
 
 Use it to generate **panel tints** that match the engine density.`,
     favorite: true,
@@ -51,9 +51,9 @@ Use it to generate **panel tints** that match the engine density.`,
     title: "Liquid engine notes",
     body: `Sliders map straight onto root CSS variables:
 
-- `--liquid-density` → backdrop blur
-- `--liquid-transparency` → panel alpha
-- `--liquid-gel` → bevel + spring mass
+- \`--liquid-density\` → backdrop blur
+- \`--liquid-transparency\` → panel alpha
+- \`--liquid-gel\` → bevel + spring mass
 
 > Tune density around 12px for the crispest read.`,
     favorite: false,
@@ -69,7 +69,7 @@ Use it to generate **panel tints** that match the engine density.`,
 | Markdown preview | done |
 | Collections | done |
 
-Next: export notes as `.md`.`,
+Next: export notes as \`.md\`.`,
     favorite: false,
     collectionId: null,
     updatedAt: Date.now() - 1000 * 60 * 60 * 30,
