@@ -1,8 +1,9 @@
-import { FileText, Folder } from "lucide-react";
+import { ArrowRight, FileText, Folder } from "lucide-react";
 import { motion } from "motion/react";
 
 import { useCustomization } from "@/context/CustomizationContext";
 import type { Course } from "@/hooks/useCourses";
+import { relativeDate } from "@/hooks/useNotes";
 
 const ACCENT_COLOR: Record<Course["color"], string> = {
   sky: "oklch(0.75 0.14 235)",
@@ -16,16 +17,11 @@ const ACCENT_COLOR: Record<Course["color"], string> = {
 type Props = {
   course: Course;
   noteCount: number;
+  lastEditedAt: number | null;
   onOpen: () => void;
 };
 
-/**
- * Shares `layoutId={course-shell-<id>}` with the fullscreen panel rendered in
- * routes/index.tsx. When the card unmounts (course opened) and the fullscreen
- * panel mounts with the same layoutId, Motion automatically morphs one into
- * the other instead of a hard cut.
- */
-export function CourseCard({ course, noteCount, onOpen }: Props) {
+export function CourseCard({ course, noteCount, lastEditedAt, onOpen }: Props) {
   const { liquid } = useCustomization();
   const gel = liquid.gel / 100;
   const accent = ACCENT_COLOR[course.color] ?? ACCENT_COLOR.sky;
@@ -50,7 +46,7 @@ export function CourseCard({ course, noteCount, onOpen }: Props) {
         boxShadow:
           "inset 0 1px 2px 0 rgba(255, 255, 255, 0.5), inset 0 -2px 4px 0 rgba(0, 0, 0, 0.25), 0 8px 32px 0 rgba(0, 0, 0, 0.37)",
       }}
-      className="liquid-panel group relative flex h-48 w-full flex-col justify-between overflow-hidden p-5 text-left"
+      className="liquid-panel group relative flex h-52 w-full flex-col justify-between overflow-hidden p-5 text-left"
     >
       <span
         aria-hidden
@@ -73,17 +69,35 @@ export function CourseCard({ course, noteCount, onOpen }: Props) {
         </span>
         <span className="flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[0.65rem] font-medium text-foreground">
           <FileText className="size-3" />
-          {noteCount}
+          {noteCount} {noteCount === 1 ? "note" : "notes"}
         </span>
       </div>
 
-      <div className="min-w-0">
+      <div className="min-w-0 space-y-1.5">
         <h3 className="truncate text-base font-semibold text-foreground">{course.name}</h3>
+        <span
+          className="inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.15em] text-foreground"
+          style={{ backgroundColor: `color-mix(in oklab, ${accent} 30%, transparent)` }}
+        >
+          {course.color}
+        </span>
         {course.description && (
-          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+          <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
             {course.description}
           </p>
         )}
+      </div>
+
+      <div className="flex items-center justify-between border-t border-white/10 pt-3">
+        <span className="text-[0.68rem] text-muted-foreground">
+          {lastEditedAt ? `Last edited ${relativeDate(lastEditedAt)}` : "No notes yet"}
+        </span>
+        <span
+          aria-hidden
+          className="flex size-7 items-center justify-center rounded-full bg-white/15 text-foreground transition-transform group-hover:translate-x-0.5"
+        >
+          <ArrowRight className="size-3.5" />
+        </span>
       </div>
     </motion.button>
   );
