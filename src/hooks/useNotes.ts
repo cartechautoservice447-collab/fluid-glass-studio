@@ -23,20 +23,23 @@ const DEMO_COLLECTIONS: Collection[] = [
   { id: "col-ideas", name: "Ideas" },
 ];
 
+const EMPTY_NOTES: Note[] = [];
+const EMPTY_COLLECTIONS: Collection[] = [];
+
 const DEMO_NOTES: Note[] = [
   {
     id: "n-python",
     title: "Python — glass gradient helper",
     body: `A tiny helper that blends two colors for the liquid stage.
 
-\`\`\`python
+```python
 def blend(a: tuple, b: tuple, t: float = 0.5) -> tuple:
     """Linear interpolate two RGB tuples."""
     t = max(0.0, min(1.0, t))
     return tuple(round(x + (y - x) * t) for x, y in zip(a, b))
 
 print(blend((13, 17, 23), (121, 192, 255), 0.35))
-\`\`\`
+```
 
 Use it to generate **panel tints** that match the engine density.`,
     favorite: true,
@@ -48,9 +51,9 @@ Use it to generate **panel tints** that match the engine density.`,
     title: "Liquid engine notes",
     body: `Sliders map straight onto root CSS variables:
 
-- \`--liquid-density\` → backdrop blur
-- \`--liquid-transparency\` → panel alpha
-- \`--liquid-gel\` → bevel + spring mass
+- `--liquid-density` → backdrop blur
+- `--liquid-transparency` → panel alpha
+- `--liquid-gel` → bevel + spring mass
 
 > Tune density around 12px for the crispest read.`,
     favorite: false,
@@ -66,7 +69,7 @@ Use it to generate **panel tints** that match the engine density.`,
 | Markdown preview | done |
 | Collections | done |
 
-Next: export notes as \`.md\`.`,
+Next: export notes as `.md`.`,
     favorite: false,
     collectionId: null,
     updatedAt: Date.now() - 1000 * 60 * 60 * 30,
@@ -99,35 +102,37 @@ export function relativeDate(ts: number) {
 export function useNotes(courseId?: string) {
   const notesKey = courseId ? `${NOTES_KEY}:${courseId}` : NOTES_KEY;
   const collectionsKey = courseId ? `${COLLECTIONS_KEY}:${courseId}` : COLLECTIONS_KEY;
-  const defaultNotes = courseId ? [] : DEMO_NOTES;
-  const defaultCollections = courseId ? [] : DEMO_COLLECTIONS;
+  const defaultNotes = courseId ? EMPTY_NOTES : DEMO_NOTES;
+  const defaultCollections = courseId ? EMPTY_COLLECTIONS : DEMO_COLLECTIONS;
 
   const [notes, setNotes] = useState<Note[]>(defaultNotes);
   const [collections, setCollections] = useState<Collection[]>(defaultCollections);
-  const [hydrated, setHydrated] = useState(false);
+  const [hydratedKey, setHydratedKey] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>({ kind: "all" });
   const [query, setQuery] = useState("");
 
   useEffect(() => {
+    setHydratedKey(null);
     const loadedNotes = load(notesKey, defaultNotes);
     const loadedCollections = load(collectionsKey, defaultCollections);
     setNotes(loadedNotes);
     setCollections(loadedCollections);
     setSelectedId(loadedNotes[0]?.id ?? null);
-    setHydrated(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notesKey, collectionsKey]);
+    setFilter({ kind: "all" });
+    setQuery("");
+    setHydratedKey(notesKey);
+  }, [notesKey, collectionsKey, defaultNotes, defaultCollections]);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (hydratedKey !== notesKey) return;
     try {
       localStorage.setItem(notesKey, JSON.stringify(notes));
       localStorage.setItem(collectionsKey, JSON.stringify(collections));
     } catch {
       /* ignore quota errors */
     }
-  }, [notes, collections, hydrated, notesKey, collectionsKey]);
+  }, [notes, collections, hydratedKey, notesKey, collectionsKey]);
 
   const createNote = useCallback(() => {
     const note: Note = {
