@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 
 export type Note = {
   id: string;
@@ -112,7 +112,7 @@ export function useNotes(courseId?: string) {
   const [filter, setFilter] = useState<Filter>({ kind: "all" });
   const [query, setQuery] = useState("");
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setHydratedKey(null);
     const loadedNotes = load(notesKey, defaultNotes);
     const loadedCollections = load(collectionsKey, defaultCollections);
