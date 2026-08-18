@@ -13,10 +13,65 @@ export type Collection = { id: string; name: string };
 
 export type Filter = { kind: "all" } | { kind: "favorites" } | { kind: "collection"; id: string };
 
-const notesKey = (namespace: string) => `glass-notes-v1:${namespace}`;
-const collectionsKey = (namespace: string) => `glass-notes-collections-v1:${namespace}`;
+const NOTES_KEY = "glass-notes-v1";
+const COLLECTIONS_KEY = "glass-notes-collections-v1";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
+
+const DEMO_COLLECTIONS: Collection[] = [
+  { id: "col-code", name: "Code" },
+  { id: "col-ideas", name: "Ideas" },
+];
+
+const DEMO_NOTES: Note[] = [
+  {
+    id: "n-python",
+    title: "Python — glass gradient helper",
+    body: `A tiny helper that blends two colors for the liquid stage.
+
+\`\`\`python
+def blend(a: tuple, b: tuple, t: float = 0.5) -> tuple:
+    """Linear interpolate two RGB tuples."""
+    t = max(0.0, min(1.0, t))
+    return tuple(round(x + (y - x) * t) for x, y in zip(a, b))
+
+print(blend((13, 17, 23), (121, 192, 255), 0.35))
+\`\`\`
+
+Use it to generate **panel tints** that match the engine density.`,
+    favorite: true,
+    collectionId: "col-code",
+    updatedAt: Date.now() - 1000 * 60 * 42,
+  },
+  {
+    id: "n-engine",
+    title: "Liquid engine notes",
+    body: `Sliders map straight onto root CSS variables:
+
+- \`--liquid-density\` → backdrop blur
+- \`--liquid-transparency\` → panel alpha
+- \`--liquid-gel\` → bevel + spring mass
+
+> Tune density around 12px for the crispest read.`,
+    favorite: false,
+    collectionId: "col-ideas",
+    updatedAt: Date.now() - 1000 * 60 * 60 * 5,
+  },
+  {
+    id: "n-todo",
+    title: "Roadmap",
+    body: `| Task | State |
+| --- | --- |
+| Three column shell | done |
+| Markdown preview | done |
+| Collections | done |
+
+Next: export notes as \`.md\`.`,
+    favorite: false,
+    collectionId: null,
+    updatedAt: Date.now() - 1000 * 60 * 60 * 30,
+  },
+];
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -25,35 +80,6 @@ function load<T>(key: string, fallback: T): T {
     return JSON.parse(raw) as T;
   } catch {
     return fallback;
-  }
-}
-
-/** Reads a course's note count without mounting the hook — safe to call from a list/grid. */
-export function getNoteCount(namespace: string): number {
-  try {
-    const raw = localStorage.getItem(notesKey(namespace));
-    if (!raw) return 0;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.length : 0;
-  } catch {
-    return 0;
-  }
-}
-
-/** Reads a course's most recent note-edit timestamp without mounting the hook. */
-export function getLastEditedAt(namespace: string): number | null {
-  try {
-    const raw = localStorage.getItem(notesKey(namespace));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) return null;
-    let max = 0;
-    for (const n of parsed) {
-      if (n && typeof n.updatedAt === "number" && n.updatedAt > max) max = n.updatedAt;
-    }
-    return max || null;
-  } catch {
-    return null;
   }
 }
 
@@ -69,33 +95,39 @@ export function relativeDate(ts: number) {
   return new Date(ts).toLocaleDateString();
 }
 
-export function useNotes(namespace: string) {
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [collections, setCollections] = useState<Collection[]>([]);
+/** Pass a courseId to scope this hook's storage to one course's isolated notes. Omit it for the legacy/global store. */
+export function useNotes(courseId?: string) {
+  const notesKey = courseId ? `${NOTES_KEY}:${courseId}` : NOTES_KEY;
+  const collectionsKey = courseId ? `${COLLECTIONS_KEY}:${courseId}` : COLLECTIONS_KEY;
+  const defaultNotes = courseId ? [] : DEMO_NOTES;
+  const defaultCollections = courseId ? [] : DEMO_COLLECTIONS;
+
+  const [notes, setNotes] = useState<Note[]>(defaultNotes);
+  const [collections, setCollections] = useState<Collection[]>(defaultCollections);
   const [hydrated, setHydrated] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>({ kind: "all" });
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    const loadedNotes = load<Note[]>(notesKey(namespace), []);
+    const loadedNotes = load(notesKey, defaultNotes);
+    const loadedCollections = load(collectionsKey, defaultCollections);
     setNotes(loadedNotes);
-    setCollections(load<Collection[]>(collectionsKey(namespace), []));
+    setCollections(loadedCollections);
     setSelectedId(loadedNotes[0]?.id ?? null);
-    setFilter({ kind: "all" });
-    setQuery("");
     setHydrated(true);
-  }, [namespace]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notesKey, collectionsKey]);
 
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(notesKey(namespace), JSON.stringify(notes));
-      localStorage.setItem(collectionsKey(namespace), JSON.stringify(collections));
+      localStorage.setItem(notesKey, JSON.stringify(notes));
+      localStorage.setItem(collectionsKey, JSON.stringify(collections));
     } catch {
       /* ignore quota errors */
     }
-  }, [notes, collections, hydrated, namespace]);
+  }, [notes, collections, hydrated, notesKey, collectionsKey]);
 
   const createNote = useCallback(() => {
     const note: Note = {
