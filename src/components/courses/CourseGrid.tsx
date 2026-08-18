@@ -4,6 +4,7 @@ import { AddCourseModal } from "@/components/courses/AddCoursesModal";
 import { CourseCard } from "@/components/courses/CourseCard";
 import { EngineSettingsModal } from "@/components/liquid/EngineSettingsModal";
 import { ThemeToggle } from "@/components/liquid/ThemeToggle";
+import { useAuth } from "@/context/AuthContext";
 import { useCustomization } from "@/context/CustomizationContext";
 import type { Course, CourseAccent } from "@/hooks/useCourses";
 
@@ -25,6 +26,7 @@ export function CourseGrid({
   onCreateCourse,
 }: Props) {
   const { displayName } = useCustomization();
+  const { signOut } = useAuth();
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col gap-6 overflow-y-auto px-2 py-2">
@@ -62,6 +64,13 @@ export function CourseGrid({
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <EngineSettingsModal />
+          <button
+            type="button"
+            onClick={() => void signOut()}
+            className="rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-xs font-medium text-foreground transition hover:bg-white/15"
+          >
+            Sign out
+          </button>
         </div>
       </div>
 
