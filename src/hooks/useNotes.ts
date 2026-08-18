@@ -13,66 +13,10 @@ export type Collection = { id: string; name: string };
 
 export type Filter = { kind: "all" } | { kind: "favorites" } | { kind: "collection"; id: string };
 
-const NOTES_KEY = "glass-notes-v1";
-const COLLECTIONS_KEY = "glass-notes-collections-v1";
+const notesKey = (namespace: string) => `glass-notes-v1:${namespace}`;
+const collectionsKey = (namespace: string) => `glass-notes-collections-v1:${namespace}`;
 
 const uid = () => Math.random().toString(36).slice(2, 10);
-
-const DEMO_COLLECTIONS: Collection[] = [
-  { id: "col-code", name: "Code" },
-  { id: "col-ideas", name: "Ideas" },
-];
-
-const DEMO_NOTES: Note[] = [
-  {
-    id: "n-python",
-    title: "Python — glass gradient helper",
-    body: `A tiny helper that blends two colors for the liquid stage.
-
-\`\`\`python
-def blend(a: tuple, b: tuple, t: float = 0.5) -> tuple:
-    """Linear interpolate two RGB tuples."""
-    # clamp the mix factor
-    t = max(0.0, min(1.0, t))
-    return tuple(round(x + (y - x) * t) for x, y in zip(a, b))
-
-print(blend((13, 17, 23), (121, 192, 255), 0.35))
-\`\`\`
-
-Use it to generate **panel tints** that match the engine density.`,
-    favorite: true,
-    collectionId: "col-code",
-    updatedAt: Date.now() - 1000 * 60 * 42,
-  },
-  {
-    id: "n-engine",
-    title: "Liquid engine notes",
-    body: `Sliders map straight onto root CSS variables:
-
-- \`--liquid-density\` → backdrop blur
-- \`--liquid-transparency\` → panel alpha
-- \`--liquid-gel\` → bevel + spring mass
-
-> Tune density around 12px for the crispest read.`,
-    favorite: false,
-    collectionId: "col-ideas",
-    updatedAt: Date.now() - 1000 * 60 * 60 * 5,
-  },
-  {
-    id: "n-todo",
-    title: "Roadmap",
-    body: `| Task | State |
-| --- | --- |
-| Three column shell | done |
-| Markdown preview | done |
-| Collections | done |
-
-Next: export notes as \`.md\`.`,
-    favorite: false,
-    collectionId: null,
-    updatedAt: Date.now() - 1000 * 60 * 60 * 30,
-  },
-];
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -81,6 +25,18 @@ function load<T>(key: string, fallback: T): T {
     return JSON.parse(raw) as T;
   } catch {
     return fallback;
+  }
+}
+
+/** Reads a course's note count without mounting the hook — safe to call from a list/grid. */
+export function getNoteCount(namespace: string): number {
+  try {
+    const raw = localStorage.getItem(notesKey(namespace));
+    if (!raw) return 0;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.length : 0;
+  } catch {
+    return 0;
   }
 }
 
@@ -96,29 +52,38 @@ export function relativeDate(ts: number) {
   return new Date(ts).toLocaleDateString();
 }
 
-export function useNotes() {
-  const [notes, setNotes] = useState<Note[]>(DEMO_NOTES);
-  const [collections, setCollections] = useState<Collection[]>(DEMO_COLLECTIONS);
+/**
+ * Notes + collections scoped to a single course. Pass the course id as
+ * `namespace` — each course gets its own isolated localStorage slot, so
+ * notes never leak between courses. Re-hydrates whenever `namespace` changes.
+ */
+export function useNotes(namespace: string) {
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
   const [hydrated, setHydrated] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(DEMO_NOTES[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>({ kind: "all" });
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    setNotes(load(NOTES_KEY, DEMO_NOTES));
-    setCollections(load(COLLECTIONS_KEY, DEMO_COLLECTIONS));
+    const loadedNotes = load<Note[]>(notesKey(namespace), []);
+    setNotes(loadedNotes);
+    setCollections(load<Collection[]>(collectionsKey(namespace), []));
+    setSelectedId(loadedNotes[0]?.id ?? null);
+    setFilter({ kind: "all" });
+    setQuery("");
     setHydrated(true);
-  }, []);
+  }, [namespace]);
 
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
-      localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(collections));
+      localStorage.setItem(notesKey(namespace), JSON.stringify(notes));
+      localStorage.setItem(collectionsKey(namespace), JSON.stringify(collections));
     } catch {
       /* ignore quota errors */
     }
-  }, [notes, collections, hydrated]);
+  }, [notes, collections, hydrated, namespace]);
 
   const createNote = useCallback(() => {
     const note: Note = {
