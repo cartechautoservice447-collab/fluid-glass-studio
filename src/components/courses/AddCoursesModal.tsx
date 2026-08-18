@@ -63,7 +63,7 @@ export function AddCourseModal({ onCreate }: Props) {
           className="notes-pulse-glow flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-emerald-950 transition-transform hover:scale-[1.02] active:scale-[0.98]"
         >
           <Plus className="size-4" />
-          Add Course
+          Add New Course
         </button>
       </DialogTrigger>
       <DialogContent className="border-white/15 bg-[#0f1420]/90 backdrop-blur-2xl sm:max-w-md">
