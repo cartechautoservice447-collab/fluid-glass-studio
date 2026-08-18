@@ -1,6 +1,6 @@
 import { BookOpen } from "lucide-react";
 
-import { AddCourseModal } from "@/components/courses/AddCourseModal";
+import { AddCourseModal } from "@/components/courses/AddCoursesModal";
 import { CourseCard } from "@/components/courses/CourseCard";
 import { EngineSettingsModal } from "@/components/liquid/EngineSettingsModal";
 import { ThemeToggle } from "@/components/liquid/ThemeToggle";
