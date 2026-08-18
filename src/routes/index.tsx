@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   Bold,
@@ -22,7 +23,7 @@ import {
 
 import { GlassPanel } from "@/components/liquid/GlassPanel";
 import { LiquidFilters } from "@/components/liquid/LiquidFilters";
-import { CustomizationProvider } from "@/context/CustomizationContext";
+import { CustomizationProvider, useCustomization } from "@/context/CustomizationContext";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -62,25 +63,52 @@ const COLLECTIONS = [
 
 const NOTE_CARDS = Array.from({ length: 7 }, (_, i) => ({ id: i, selected: i === 0 }));
 
-function StaticNotesShell() {
-  return (
-    <main className="liquid-stage relative flex min-h-screen flex-col overflow-hidden px-3 py-3 sm:px-5 sm:py-5 lg:h-screen lg:px-6">
-      <div className="liquid-orb liquid-orb-a" aria-hidden />
-      <div className="liquid-orb liquid-orb-b" aria-hidden />
-      <div className="liquid-orb liquid-orb-c" aria-hidden />
+const CANVAS_W = 1440;
+const CANVAS_H = 900;
 
-      <div className="relative flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-        <SidebarPanel />
-        <ListPanel />
-        <EditorPanel />
+function StaticNotesShell() {
+  const { setTheme } = useCustomization();
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    setTheme("dark");
+  }, [setTheme]);
+
+  useEffect(() => {
+    const fit = () =>
+      setScale(Math.min(window.innerWidth / CANVAS_W, window.innerHeight / CANVAS_H));
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 grid place-items-center overflow-hidden bg-[#07070c]">
+      <div
+        className="laptop-canvas"
+        style={{ transform: `scale(${scale})` }}
+      >
+        <main className="liquid-stage relative flex h-full w-full overflow-hidden px-5 py-5">
+          <div className="liquid-orb liquid-orb-a" aria-hidden />
+          <div className="liquid-orb liquid-orb-b" aria-hidden />
+          <div className="liquid-orb liquid-orb-c" aria-hidden />
+
+          <div className="relative flex min-h-0 w-full flex-1 flex-row gap-4">
+            <SidebarPanel />
+            <ListPanel />
+            <EditorPanel />
+          </div>
+        </main>
       </div>
-    </main>
+    </div>
   );
 }
 
+
+
 function SidebarPanel() {
   return (
-    <GlassPanel className="flex min-h-0 flex-col gap-4 !p-5 lg:w-72 lg:shrink-0">
+    <GlassPanel className="flex min-h-0 flex-col gap-4 !p-5 w-72 shrink-0">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[0.6rem] font-bold uppercase tracking-[0.3em] on-stage-muted">Glass</p>
@@ -169,7 +197,7 @@ function SidebarPanel() {
 
 function ListPanel() {
   return (
-    <GlassPanel className="flex min-h-0 flex-col gap-3 !p-4 lg:w-80 lg:shrink-0">
+    <GlassPanel className="flex min-h-0 flex-col gap-3 !p-4 w-80 shrink-0">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-[0.62rem] font-bold uppercase tracking-[0.28em] on-stage">kmw</h2>
         <span className="flex items-center gap-2 font-mono text-xs on-stage-muted">
@@ -237,7 +265,7 @@ function EditorPanel() {
         </div>
       </div>
 
-      <div className="min-h-[18rem] flex-1 overflow-y-auto bg-[#0d1117] p-4">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-[#0d1117] p-4">
         <p
           className="text-sm leading-relaxed text-[#c9d1d9]"
           style={{ fontFamily: "'Fira Code', 'JetBrains Mono', 'Consolas', monospace" }}

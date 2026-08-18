@@ -160,10 +160,17 @@
     border-color: var(--color-border);
   }
 
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
   }
+
 }
 
 /* Night mode: deep liquid obsidian glass */
@@ -320,4 +327,12 @@
 }
 .notes-pulse-glow {
   animation: notes-pulse-glow 3.2s ease-in-out infinite;
+}
+
+/* Fixed laptop canvas: exact 1440x900 desktop layout, scaled to fit any screen */
+.laptop-canvas {
+  width: 1440px;
+  height: 900px;
+  flex: none;
+  transform-origin: center center;
 }
