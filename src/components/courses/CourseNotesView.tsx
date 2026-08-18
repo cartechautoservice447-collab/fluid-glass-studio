@@ -9,10 +9,11 @@ import { useNotes } from "@/hooks/useNotes";
 type Props = {
   course: Course;
   onBack: () => void;
+  userId: string;
 };
 
-export function CourseNotesView({ course, onBack }: Props) {
-  const notes = useNotes(course.id);
+export function CourseNotesView({ course, onBack, userId }: Props) {
+  const notes = useNotes(course.id, userId);
 
   const heading =
     notes.filter.kind === "all"
