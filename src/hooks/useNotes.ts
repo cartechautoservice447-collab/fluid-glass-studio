@@ -40,6 +40,23 @@ export function getNoteCount(namespace: string): number {
   }
 }
 
+/** Reads a course's most recent note-edit timestamp without mounting the hook. */
+export function getLastEditedAt(namespace: string): number | null {
+  try {
+    const raw = localStorage.getItem(notesKey(namespace));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    let max = 0;
+    for (const n of parsed) {
+      if (n && typeof n.updatedAt === "number" && n.updatedAt > max) max = n.updatedAt;
+    }
+    return max || null;
+  } catch {
+    return null;
+  }
+}
+
 export function relativeDate(ts: number) {
   const diff = Date.now() - ts;
   const min = Math.round(diff / 60000);
@@ -52,11 +69,6 @@ export function relativeDate(ts: number) {
   return new Date(ts).toLocaleDateString();
 }
 
-/**
- * Notes + collections scoped to a single course. Pass the course id as
- * `namespace` — each course gets its own isolated localStorage slot, so
- * notes never leak between courses. Re-hydrates whenever `namespace` changes.
- */
 export function useNotes(namespace: string) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
