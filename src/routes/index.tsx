@@ -85,7 +85,7 @@ function StaticNotesShell() {
 
 function SidebarPanel() {
   return (
-    <GlassPanel className="flex min-h-0 flex-col gap-4 !p-5 lg:w-72 lg:shrink-0">
+    <GlassPanel className="flex min-h-0 flex-col gap-4 !p-5 w-72 shrink-0">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[0.6rem] font-bold uppercase tracking-[0.3em] on-stage-muted">Glass</p>
@@ -174,7 +174,7 @@ function SidebarPanel() {
 
 function ListPanel() {
   return (
-    <GlassPanel className="flex min-h-0 flex-col gap-3 !p-4 lg:w-80 lg:shrink-0">
+    <GlassPanel className="flex min-h-0 flex-col gap-3 !p-4 w-80 shrink-0">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-[0.62rem] font-bold uppercase tracking-[0.28em] on-stage">kmw</h2>
         <span className="flex items-center gap-2 font-mono text-xs on-stage-muted">
@@ -242,7 +242,7 @@ function EditorPanel() {
         </div>
       </div>
 
-      <div className="min-h-[18rem] flex-1 overflow-y-auto bg-[#0d1117] p-4">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-[#0d1117] p-4">
         <p
           className="text-sm leading-relaxed text-[#c9d1d9]"
           style={{ fontFamily: "'Fira Code', 'JetBrains Mono', 'Consolas', monospace" }}

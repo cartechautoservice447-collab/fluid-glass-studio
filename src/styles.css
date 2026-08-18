@@ -328,3 +328,12 @@
 .notes-pulse-glow {
   animation: notes-pulse-glow 3.2s ease-in-out infinite;
 }
+
+/* Fixed laptop canvas: exact 1440x900 desktop layout, scaled to fit any screen */
+.laptop-canvas {
+  width: 1440px;
+  height: 900px;
+  flex: none;
+  transform: scale(min(100vw / 1440, 100vh / 900));
+  transform-origin: center center;
+}
