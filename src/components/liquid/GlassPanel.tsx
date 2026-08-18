@@ -57,8 +57,9 @@ export function GlassPanel({ children, className, draggable = false, onClick }: 
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
         style={{
-          background: "linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 50%)",
-        }}
+  background:
+    "linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 55%, rgba(255, 255, 255, 0.09) 100%)",
+}}
       />
       {/* refracted liquid edge */}
       <span
