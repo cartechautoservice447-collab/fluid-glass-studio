@@ -17,6 +17,7 @@ const COURSES_KEY = "liquid-courses-v1";
 const LEGACY_NOTES_KEY = "glass-notes-v1";
 const LEGACY_COLLECTIONS_KEY = "glass-notes-collections-v1";
 const MIGRATION_FLAG_KEY = "liquid-courses-legacy-migrated-v1";
+const LEGACY_OWNER_KEY = "liquid-courses-legacy-owner-v1";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -37,15 +38,18 @@ function load<T>(key: string, fallback: T): T {
  * MIGRATION_FLAG_KEY — safe to ship even after some users already have
  * courses. The original legacy keys are left in place untouched as a backup.
  */
-function migrateLegacyNotesOnce(existingCourses: Course[]): Course[] {
+function migrateLegacyNotesOnce(userId: string, existingCourses: Course[]): Course[] {
   try {
-    if (localStorage.getItem(MIGRATION_FLAG_KEY)) return existingCourses;
+    const migrationKey = `${MIGRATION_FLAG_KEY}:${userId}`;
+    const legacyOwner = localStorage.getItem(LEGACY_OWNER_KEY);
+    if (localStorage.getItem(migrationKey) || (legacyOwner && legacyOwner !== userId)) return existingCourses;
 
     const legacyNotes = load<unknown[]>(LEGACY_NOTES_KEY, []);
     const legacyCollections = load<unknown[]>(LEGACY_COLLECTIONS_KEY, []);
 
     // Mark as handled regardless of outcome so this never re-runs.
-    localStorage.setItem(MIGRATION_FLAG_KEY, "1");
+    localStorage.setItem(migrationKey, "1");
+    localStorage.setItem(LEGACY_OWNER_KEY, userId);
 
     const hasLegacyData =
       (Array.isArray(legacyNotes) && legacyNotes.length > 0) ||
@@ -61,9 +65,9 @@ function migrateLegacyNotesOnce(existingCourses: Course[]): Course[] {
       createdAt: Date.now(),
     };
 
-    localStorage.setItem(`glass-notes-v1:${migratedCourse.id}`, JSON.stringify(legacyNotes));
+    localStorage.setItem(`glass-notes-v1:${userId}:${migratedCourse.id}`, JSON.stringify(legacyNotes));
     localStorage.setItem(
-      `glass-notes-collections-v1:${migratedCourse.id}`,
+      `glass-notes-collections-v1:${userId}:${migratedCourse.id}`,
       JSON.stringify(legacyCollections),
     );
 
@@ -74,24 +78,25 @@ function migrateLegacyNotesOnce(existingCourses: Course[]): Course[] {
 }
 
 /** Course list (the folders on the home screen). Each course owns its own isolated notes store. */
-export function useCourses() {
+export function useCourses(userId: string) {
+  const coursesKey = `${COURSES_KEY}:${userId}`;
   const [courses, setCourses] = useState<Course[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const loaded = load<Course[]>(COURSES_KEY, []);
-    setCourses(migrateLegacyNotesOnce(loaded));
+    const loaded = load<Course[]>(coursesKey, []);
+    setCourses(migrateLegacyNotesOnce(userId, loaded));
     setHydrated(true);
-  }, []);
+  }, [coursesKey, userId]);
 
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(COURSES_KEY, JSON.stringify(courses));
+      localStorage.setItem(coursesKey, JSON.stringify(courses));
     } catch {
       /* ignore quota errors */
     }
-  }, [courses, hydrated]);
+  }, [courses, hydrated, coursesKey]);
 
   const addCourse = useCallback(
     (input: { name: string; description?: string; color?: CourseAccent }) => {
@@ -120,12 +125,12 @@ export function useCourses() {
   const deleteCourse = useCallback((id: string) => {
     setCourses((prev) => prev.filter((c) => c.id !== id));
     try {
-      localStorage.removeItem(`glass-notes-v1:${id}`);
-      localStorage.removeItem(`glass-notes-collections-v1:${id}`);
+      localStorage.removeItem(`glass-notes-v1:${userId}:${id}`);
+      localStorage.removeItem(`glass-notes-collections-v1:${userId}:${id}`);
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [userId]);
 
   return { courses, hydrated, addCourse, renameCourse, deleteCourse };
 }
