@@ -2,9 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 
+import { AuthPage } from "@/components/auth/AuthPage";
 import { CourseGrid } from "@/components/courses/CourseGrid";
 import { CourseNotesView } from "@/components/courses/CourseNotesView";
 import { LiquidFilters } from "@/components/liquid/LiquidFilters";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { CustomizationProvider, useCustomization } from "@/context/CustomizationContext";
 import { useCourses } from "@/hooks/useCourses";
 import type { Note } from "@/hooks/useNotes";
@@ -33,15 +35,17 @@ export const Route = createFileRoute("/")({
 function Page() {
   return (
     <CustomizationProvider>
-      <LiquidFilters />
-      <Workspace />
+      <AuthProvider>
+        <LiquidFilters />
+        <AuthenticatedWorkspace />
+      </AuthProvider>
     </CustomizationProvider>
   );
 }
 
-function readCourseNotes(courseId: string): Note[] {
+function readCourseNotes(userId: string, courseId: string): Note[] {
   try {
-    const raw = localStorage.getItem(`glass-notes-v1:${courseId}`);
+    const raw = localStorage.getItem(`glass-notes-v1:${userId}:${courseId}`);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as Note[]) : [];
@@ -50,9 +54,21 @@ function readCourseNotes(courseId: string): Note[] {
   }
 }
 
-function Workspace() {
+function AuthenticatedWorkspace() {
+  const { user, loading, logout } = useAuth();
+
+  if (loading) {
+    return <div className="flex min-h-screen items-center justify-center bg-[#07070c] text-sm text-slate-300">Loading your workspace…</div>;
+  }
+
+  if (!user) return <AuthPage />;
+
+  return <Workspace userId={user.id} email={user.email} onLogout={() => void logout()} />;
+}
+
+function Workspace({ userId, email, onLogout }: { userId: string; email: string | null; onLogout: () => void }) {
   const { setTheme } = useCustomization();
-  const { courses, addCourse } = useCourses();
+  const { courses, addCourse } = useCourses(userId);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -67,13 +83,13 @@ function Workspace() {
     const counts: Record<string, number> = {};
     const last: Record<string, number | null> = {};
     for (const course of courses) {
-      const courseNotes = readCourseNotes(course.id);
+      const courseNotes = readCourseNotes(userId, course.id);
       counts[course.id] = courseNotes.length;
       last[course.id] =
         courseNotes.length > 0 ? Math.max(...courseNotes.map((n) => n.updatedAt)) : null;
     }
     return { noteCounts: counts, lastEdited: last };
-  }, [courses, selectedCourseId]);
+  }, [courses, selectedCourseId, userId]);
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#07070c]">
@@ -81,6 +97,15 @@ function Workspace() {
         <div className="liquid-orb liquid-orb-a" aria-hidden />
         <div className="liquid-orb liquid-orb-b" aria-hidden />
         <div className="liquid-orb liquid-orb-c" aria-hidden />
+
+        <button
+          type="button"
+          onClick={onLogout}
+          className="absolute right-8 top-8 z-10 rounded-full border border-white/20 bg-black/20 px-3 py-1.5 text-xs text-slate-200 backdrop-blur transition hover:bg-white/10"
+          aria-label="Sign out"
+        >
+          {email ?? "Account"} · Sign out
+        </button>
 
         <div className="relative min-h-0 w-full flex-1">
           <AnimatePresence mode="wait" initial={false}>
@@ -93,7 +118,7 @@ function Workspace() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.28, ease: "easeInOut" }}
               >
-                <CourseNotesView course={selectedCourse} onBack={() => setSelectedCourseId(null)} />
+                <CourseNotesView course={selectedCourse} userId={userId} onBack={() => setSelectedCourseId(null)} />
               </motion.div>
             ) : (
               <motion.div
