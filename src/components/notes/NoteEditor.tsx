@@ -1,6 +1,7 @@
 import { Eye, Pencil, Star, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { GlassPanel } from "@/components/liquid/GlassPanel";
 import { MarkdownPreview } from "@/components/notes/MarkdownPreview";
 import { MarkdownToolbar } from "@/components/notes/MarkdownToolbar";
 import { Button } from "@/components/ui/button";
