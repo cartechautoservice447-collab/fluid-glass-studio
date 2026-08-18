@@ -139,9 +139,9 @@ export function NoteEditor({ note, collections, onUpdate, onDelete, onToggleFavo
         )}
       </div>
 
-      <p className="border-t border-white/10 bg-[#0d1117] px-4 py-2 text-[0.65rem] uppercase tracking-[0.2em] text-[#8b949e]">
+            <p className="border-t border-white/10 bg-[#0d1117] px-4 py-2 text-[0.65rem] uppercase tracking-[0.2em] text-[#8b949e]">
         Autosaved · edited {relativeDate(note.updatedAt)}
       </p>
-    </div>
+    </GlassPanel>
   );
 }
