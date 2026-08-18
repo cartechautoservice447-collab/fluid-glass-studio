@@ -64,19 +64,24 @@ const NOTE_CARDS = Array.from({ length: 7 }, (_, i) => ({ id: i, selected: i ===
 
 function StaticNotesShell() {
   return (
-    <main className="liquid-stage relative flex min-h-screen flex-col overflow-hidden px-3 py-3 sm:px-5 sm:py-5 lg:h-screen lg:px-6">
-      <div className="liquid-orb liquid-orb-a" aria-hidden />
-      <div className="liquid-orb liquid-orb-b" aria-hidden />
-      <div className="liquid-orb liquid-orb-c" aria-hidden />
+    <div className="fixed inset-0 grid place-items-center overflow-hidden bg-[#07070c]">
+      <div className="laptop-canvas">
+        <main className="liquid-stage relative flex h-full w-full overflow-hidden px-5 py-5">
+          <div className="liquid-orb liquid-orb-a" aria-hidden />
+          <div className="liquid-orb liquid-orb-b" aria-hidden />
+          <div className="liquid-orb liquid-orb-c" aria-hidden />
 
-      <div className="relative flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-        <SidebarPanel />
-        <ListPanel />
-        <EditorPanel />
+          <div className="relative flex min-h-0 w-full flex-1 flex-row gap-4">
+            <SidebarPanel />
+            <ListPanel />
+            <EditorPanel />
+          </div>
+        </main>
       </div>
-    </main>
+    </div>
   );
 }
+
 
 function SidebarPanel() {
   return (
