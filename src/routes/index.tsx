@@ -7,22 +7,21 @@ import { CourseNotesView } from "@/components/courses/CourseNotesView";
 import { LiquidFilters } from "@/components/liquid/LiquidFilters";
 import { CustomizationProvider, useCustomization } from "@/context/CustomizationContext";
 import { useCourses } from "@/hooks/useCourses";
-import { getLastEditedAt, getNoteCount } from "@/hooks/useNotes";
+import type { Note } from "@/hooks/useNotes";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Glass Courses — Liquid Glass course notes" },
+      { title: "Glass Notes — Liquid Glass course workspaces" },
       {
         name: "description",
         content:
-          "Organize markdown notes by course inside a liquid-glass interface: add a course, open it, and take notes in a three-column workspace.",
+          "Course folders open into an isolated Liquid Glass notes workspace: sidebar with engine settings, a live note list, and a markdown editor with autosave.",
       },
-      { property: "og:title", content: "Glass Courses — Liquid Glass course notes" },
+      { property: "og:title", content: "Glass Notes — Liquid Glass course workspaces" },
       {
         property: "og:description",
-        content:
-          "Course folders, a live note list, and a markdown editor inside a liquid-glass interface.",
+        content: "Pick a course folder, then take notes inside a liquid-glass three-column workspace.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -35,43 +34,46 @@ function Page() {
   return (
     <CustomizationProvider>
       <LiquidFilters />
-      <CoursesShell />
+      <Workspace />
     </CustomizationProvider>
   );
 }
 
-function CoursesShell() {
-  const { setTheme, liquid } = useCustomization();
+function readCourseNotes(courseId: string): Note[] {
+  try {
+    const raw = localStorage.getItem(`glass-notes-v1:${courseId}`);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as Note[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function Workspace() {
+  const { setTheme } = useCustomization();
   const { courses, addCourse } = useCourses();
-  const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
-  const [noteCounts, setNoteCounts] = useState<Record<string, number>>({});
-  const [lastEdited, setLastEdited] = useState<Record<string, number | null>>({});
-  const [isMorphing, setIsMorphing] = useState(false);
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
 
   useEffect(() => {
     setTheme("dark");
   }, [setTheme]);
 
-  const refreshCounts = () => {
-    setNoteCounts(Object.fromEntries(courses.map((c) => [c.id, getNoteCount(c.id)])));
-    setLastEdited(Object.fromEntries(courses.map((c) => [c.id, getLastEditedAt(c.id)])));
-  };
+  const selectedCourse = courses.find((c) => c.id === selectedCourseId) ?? null;
 
-  useEffect(() => {
-    refreshCounts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courses]);
-
-  const activeCourse = useMemo(
-    () => courses.find((c) => c.id === activeCourseId) ?? null,
-    [courses, activeCourseId],
-  );
-
-  const shellSpring = {
-    type: "spring" as const,
-    stiffness: liquid.bounceStiffness,
-    damping: liquid.bounceDamping,
-  };
+  // Recomputed whenever we land back on the grid, so counts reflect any
+  // notes just added/removed inside a course.
+  const { noteCounts, lastEdited } = useMemo(() => {
+    const counts: Record<string, number> = {};
+    const last: Record<string, number | null> = {};
+    for (const course of courses) {
+      const courseNotes = readCourseNotes(course.id);
+      counts[course.id] = courseNotes.length;
+      last[course.id] =
+        courseNotes.length > 0 ? Math.max(...courseNotes.map((n) => n.updatedAt)) : null;
+    }
+    return { noteCounts: counts, lastEdited: last };
+  }, [courses, selectedCourseId]);
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#07070c]">
@@ -81,59 +83,35 @@ function CoursesShell() {
         <div className="liquid-orb liquid-orb-c" aria-hidden />
 
         <div className="relative min-h-0 w-full flex-1">
-          <AnimatePresence>
-            {!activeCourse ? (
+          <AnimatePresence mode="wait" initial={false}>
+            {selectedCourse ? (
               <motion.div
-                key="grid"
+                key={`course-${selectedCourse.id}`}
+                className="absolute inset-0"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
+                transition={{ duration: 0.28, ease: "easeInOut" }}
+              >
+                <CourseNotesView course={selectedCourse} onBack={() => setSelectedCourseId(null)} />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="course-grid"
                 className="absolute inset-0"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.28, ease: "easeInOut" }}
               >
                 <CourseGrid
                   courses={courses}
                   noteCounts={noteCounts}
                   lastEdited={lastEdited}
-                  hiddenCourseId={activeCourseId}
-                  onOpenCourse={setActiveCourseId}
-                  onCreateCourse={(input) => addCourse(input)}
+                  hiddenCourseId={null}
+                  onOpenCourse={setSelectedCourseId}
+                  onCreateCourse={addCourse}
                 />
-              </motion.div>
-            ) : (
-              <motion.div
-                key={activeCourse.id}
-                layoutId={`course-shell-${activeCourse.id}`}
-                transition={shellSpring}
-                onLayoutAnimationStart={() => setIsMorphing(true)}
-                onLayoutAnimationComplete={() => setIsMorphing(false)}
-                style={{
-                  backgroundColor: "var(--water-gel-bg)",
-                  backdropFilter: isMorphing
-                    ? "none"
-                    : "blur(var(--liquid-density, 12px)) saturate(200%) contrast(105%)",
-                  willChange: "transform",
-                  borderRadius: "24px",
-                  borderTop: "1px solid rgba(255, 255, 255, 0.4)",
-                  boxShadow:
-                    "inset 0 1px 2px 0 rgba(255, 255, 255, 0.5), inset 0 -2px 4px 0 rgba(0, 0, 0, 0.25), 0 8px 32px 0 rgba(0, 0, 0, 0.37)",
-                }}
-                className="liquid-panel absolute inset-0 overflow-hidden p-5"
-              >
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.18, duration: 0.3 }}
-                  className="flex h-full min-h-0 w-full flex-col"
-                >
-                  <CourseNotesView
-                    course={activeCourse}
-                    onBack={() => {
-                      setActiveCourseId(null);
-                      refreshCounts();
-                    }}
-                  />
-                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
