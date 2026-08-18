@@ -47,18 +47,18 @@ export function NoteEditor({ note, collections, onUpdate, onDelete, onToggleFavo
     return () => clearTimeout(timer);
   }, [title, body, note, onUpdate]);
 
-  if (!note) {
+    if (!note) {
     return (
-      <div className="flex h-full items-center justify-center rounded-3xl border border-white/15 bg-white/5 p-8 text-center backdrop-blur-md">
-        <p className="text-sm on-stage-muted">
+      <GlassPanel className="flex h-full min-h-0 items-center justify-center !p-8 text-center">
+        <p className="text-sm text-muted-foreground">
           Select a note from the list, or create a new one to start writing.
         </p>
-      </div>
+      </GlassPanel>
     );
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-white/15 bg-white/5 backdrop-blur-md">
+    <GlassPanel className="flex h-full min-h-0 flex-col overflow-hidden !p-0">
       <div className="flex flex-wrap items-center gap-2 border-b border-white/10 p-4">
         <Input
           value={title}
