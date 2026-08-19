@@ -41,7 +41,7 @@ export function CourseNotesView({ course, onBack, userId }: Props) {
       </div>
 
       <div className="relative flex min-h-0 w-full flex-1 flex-row items-stretch gap-4 overflow-x-auto">
-        <div className="flex h-full w-72 min-w-[220px] shrink basis-72">
+        <div className="h-full w-72 min-w-[220px] shrink basis-72">
           <Sidebar
             collections={notes.collections}
             counts={notes.counts}
@@ -55,7 +55,7 @@ export function CourseNotesView({ course, onBack, userId }: Props) {
             onDeleteCollection={notes.deleteCollection}
           />
         </div>
-        <div className="flex h-full w-80 min-w-[240px] shrink basis-80">
+        <div className="h-full w-80 min-w-[240px] shrink basis-80">
           <NoteList
             notes={notes.visibleNotes}
             selectedId={notes.selectedId}
@@ -64,7 +64,7 @@ export function CourseNotesView({ course, onBack, userId }: Props) {
             heading={heading}
           />
         </div>
-        <div className="flex h-full min-w-[280px] flex-1">
+        <div className="h-full min-w-[280px] flex-1">
           <NoteEditor
             note={notes.selected}
             collections={notes.collections}
