@@ -1,0 +1,126 @@
+name: Build Liquid Glass Studio MSIX PRODUCTION
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-msix-production:
+    runs-on: windows-2022
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build Windows desktop host
+        shell: pwsh
+        run: |
+          dotnet restore windows-app/LiquidGlassStudio.csproj
+          dotnet publish windows-app/LiquidGlassStudio.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o windows-app/publish
+
+      - name: Prepare clean MSIX content directory
+        shell: pwsh
+        run: |
+          Remove-Item windows-app/package -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item windows-app/release -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path windows-app/package/Assets | Out-Null
+          New-Item -ItemType Directory -Force -Path windows-app/release | Out-Null
+          Copy-Item windows-app/publish/* windows-app/package/ -Recurse -Force
+          Copy-Item windows-app/Package.appxmanifest windows-app/package/AppxManifest.xml -Force
+
+      - name: Generate package icons
+        shell: pwsh
+        run: |
+          npm install --global sharp-cli
+          npx sharp-cli -i public/pwa-icon.svg -o windows-app/package/Assets/Square44x44Logo.png resize 44 44
+          npx sharp-cli -i public/pwa-icon.svg -o windows-app/package/Assets/Square150x150Logo.png resize 150 150
+          npx sharp-cli -i public/pwa-icon.svg -o windows-app/package/Assets/StoreLogo.png resize 50 50
+
+      - name: Validate package inputs
+        shell: pwsh
+        run: |
+          Set-Location windows-app
+          if (-not (Test-Path './package/AppxManifest.xml')) { throw 'AppxManifest.xml missing.' }
+          if (-not (Test-Path './package/Liquid Glass Studio.exe')) { throw 'Published desktop executable missing.' }
+          foreach ($path in @(
+            './package/Assets/Square44x44Logo.png',
+            './package/Assets/Square150x150Logo.png',
+            './package/Assets/StoreLogo.png'
+          )) {
+            if (-not (Test-Path $path)) { throw "Required icon missing: $path" }
+          }
+          [xml]$manifest = Get-Content './package/AppxManifest.xml'
+          if (-not $manifest.Package.Identity) { throw 'Manifest Identity missing.' }
+          if (-not $manifest.Package.Applications.Application) { throw 'Manifest Application missing.' }
+          if (-not $manifest.Package.Applications.Application.Executable) { throw 'Manifest executable missing.' }
+
+      - name: Locate MakeAppx
+        shell: pwsh
+        run: |
+          $roots = @(
+            $env:WindowsSdkDir,
+            $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'Windows Kits\10\bin' }),
+            $(if (${env:ProgramFiles(x86)}) { Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin' })
+          ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
+          $makeAppx = $null
+          foreach ($root in $roots) {
+            $makeAppx = Get-ChildItem -LiteralPath $root -Recurse -File -Filter MakeAppx.exe -ErrorAction SilentlyContinue |
+              Where-Object { $_.FullName -match '\\(x64|arm64)\\MakeAppx\.exe$' } |
+              Sort-Object FullName -Descending | Select-Object -First 1
+            if ($makeAppx) { break }
+          }
+          if (-not $makeAppx) { $makeAppx = Get-Command MakeAppx.exe -ErrorAction SilentlyContinue }
+          if (-not $makeAppx) { throw 'MakeAppx.exe not found.' }
+          $makePath = if ($makeAppx.Path) { $makeAppx.Path } else { $makeAppx.FullName }
+          "MAKEAPPX_PATH=$makePath" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "MakeAppx: $makePath"
+
+      - name: Create unsigned MSIX
+        shell: pwsh
+        run: |
+          Set-Location windows-app
+          $output = (Resolve-Path './release').Path + '\Liquid Glass Studio.msix'
+          & $env:MAKEAPPX_PATH pack /v /o /d './package' /p $output 2>&1 | Tee-Object -Variable packLog
+          $exitCode = $LASTEXITCODE
+          $packLog | ForEach-Object { Write-Host $_ }
+          if ($exitCode -ne 0) { throw "MakeAppx failed with exit code $exitCode." }
+          if (-not (Test-Path $output)) { throw 'MSIX package was not created.' }
+
+      - name: Azure login with GitHub OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign MSIX with Azure Artifact Signing
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ secrets.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ secrets.AZURE_ARTIFACT_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.AZURE_ARTIFACT_SIGNING_PROFILE }}
+          files-folder: ${{ github.workspace }}\windows-app\release
+          files-folder-filter: msix
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Verify signed MSIX
+        shell: pwsh
+        run: |
+          $msix = Get-Item 'windows-app/release/Liquid Glass Studio.msix'
+          if ($msix.Length -lt 100KB) { throw "MSIX unexpectedly small: $($msix.Length) bytes." }
+          Write-Host "Production-signed MSIX: $($msix.FullName)"
+
+      - name: Upload production MSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: liquid-glass-studio-msix-production
+          path: windows-app/release/Liquid Glass Studio.msix
