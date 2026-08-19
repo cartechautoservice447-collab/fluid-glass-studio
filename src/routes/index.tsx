@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { AuthPage } from "@/components/auth/AuthPage";
 import { CourseGrid } from "@/components/courses/CourseGrid";
 import { CourseNotesView } from "@/components/courses/CourseNotesView";
 import { LiquidFilters } from "@/components/liquid/LiquidFilters";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
-import { CustomizationProvider, useCustomization } from "@/context/CustomizationContext";
+import { CustomizationProvider } from "@/context/CustomizationContext";
 import { useCourses, useCourseStats } from "@/hooks/useCourses";
 
 export const Route = createFileRoute("/")({
@@ -55,14 +55,9 @@ function AuthenticatedWorkspace() {
 }
 
 function Workspace({ userId, email, onLogout }: { userId: string; email: string | null; onLogout: () => void }) {
-  const { setTheme } = useCustomization();
   const { courses, addCourse } = useCourses(userId);
   const { data: stats } = useCourseStats(userId);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
-
-  useEffect(() => {
-    setTheme("dark");
-  }, [setTheme]);
 
   const selectedCourse = courses.find((c) => c.id === selectedCourseId) ?? null;
   const noteCounts = stats?.counts ?? {};
