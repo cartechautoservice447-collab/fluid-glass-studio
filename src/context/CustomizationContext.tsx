@@ -171,8 +171,13 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
       /* ignore quota errors */
     }
     const root = document.documentElement;
+    const transparency = liquid.transparency / 100;
     root.style.setProperty("--liquid-density", `${liquid.density}px`);
-    root.style.setProperty("--liquid-transparency", `${liquid.transparency / 100}`);
+    root.style.setProperty("--liquid-transparency", `${transparency}`);
+    root.style.setProperty("--liquid-glass-alpha", `${transparency}`);
+    root.style.setProperty("--liquid-glass-dark-alpha", `${transparency * 0.16}`);
+    root.style.setProperty("--liquid-veil-alpha", `${transparency * 0.36}`);
+    root.style.setProperty("--liquid-dark-veil-alpha", `${0.46 - transparency * 0.4}`);
     root.style.setProperty("--liquid-clearness", `${liquid.clearness}`);
     root.style.setProperty("--liquid-gel", `${liquid.gel}`);
     root.style.setProperty("--liquid-bounce", `${liquid.bounceStiffness}`);
