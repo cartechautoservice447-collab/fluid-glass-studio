@@ -329,6 +329,53 @@
   animation: notes-pulse-glow 3.2s ease-in-out infinite;
 }
 
+
+/* A restrained, translucent scrollbar for scrollable glass interiors. */
+.glass-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.52) transparent;
+  scrollbar-gutter: stable;
+}
+
+.glass-scrollbar::-webkit-scrollbar {
+  width: 0.65rem;
+}
+
+.glass-scrollbar::-webkit-scrollbar-track {
+  margin-block: 0.35rem;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.glass-scrollbar::-webkit-scrollbar-thumb {
+  border: 0.16rem solid transparent;
+  border-radius: 9999px;
+  background: linear-gradient(rgb(255 255 255 / 0.62), rgb(255 255 255 / 0.34));
+  background-clip: padding-box;
+}
+
+.glass-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(rgb(255 255 255 / 0.78), rgb(255 255 255 / 0.48));
+  background-clip: padding-box;
+}
+
+.glass-scrollbar::-webkit-scrollbar-button {
+  display: none;
+}
+
+.dark .glass-scrollbar {
+  scrollbar-color: rgb(255 255 255 / 0.42) transparent;
+}
+
+.dark .glass-scrollbar::-webkit-scrollbar-track {
+  background: rgb(255 255 255 / 0.06);
+}
+
+.dark .glass-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(rgb(255 255 255 / 0.5), rgb(255 255 255 / 0.25));
+  background-clip: padding-box;
+}
+
 /* Fixed laptop canvas: exact 1440x900 desktop layout, scaled to fit any screen */
 .laptop-canvas {
   width: 1440px;
