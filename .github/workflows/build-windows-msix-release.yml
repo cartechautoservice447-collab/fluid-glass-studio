@@ -58,20 +58,45 @@ jobs:
       - name: Locate Windows SDK packaging tools
         shell: pwsh
         run: |
-          $makeAppx = Get-ChildItem "$env:ProgramFiles(x86)\Windows Kits\10\bin" -Recurse -Filter MakeAppx.exe |
-            Where-Object { $_.FullName -match '\\x64\\MakeAppx\.exe$' } |
-            Sort-Object FullName -Descending |
-            Select-Object -First 1
-          $signtool = Get-ChildItem "$env:ProgramFiles(x86)\Windows Kits\10\bin" -Recurse -Filter SignTool.exe |
-            Where-Object { $_.FullName -match '\\x64\\SignTool\.exe$' } |
-            Sort-Object FullName -Descending |
-            Select-Object -First 1
-          if (-not $makeAppx) { throw 'MakeAppx.exe was not found in the installed Windows SDK.' }
-          if (-not $signtool) { throw 'SignTool.exe was not found in the installed Windows SDK.' }
-          "MAKEAPPX_PATH=$($makeAppx.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "SIGNTOOL_PATH=$($signtool.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
-          Write-Host "Using MakeAppx: $($makeAppx.FullName)"
-          Write-Host "Using SignTool: $($signtool.FullName)"
+          $roots = @()
+          if ($env:WindowsSdkDir) { $roots += $env:WindowsSdkDir }
+          if ($env:ProgramFiles) { $roots += (Join-Path $env:ProgramFiles 'Windows Kits\10\bin') }
+          if (${env:ProgramFiles(x86)}) { $roots += (Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin') }
+          $roots = $roots | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
+
+          $makeAppx = $null
+          $signtool = $null
+          foreach ($root in $roots) {
+            $makeAppx = Get-ChildItem -LiteralPath $root -Recurse -File -Filter MakeAppx.exe -ErrorAction SilentlyContinue |
+              Where-Object { $_.FullName -match '\\(x64|arm64)\\MakeAppx\.exe$' } |
+              Sort-Object FullName -Descending |
+              Select-Object -First 1
+            if ($makeAppx) { break }
+          }
+          foreach ($root in $roots) {
+            $signtool = Get-ChildItem -LiteralPath $root -Recurse -File -Filter SignTool.exe -ErrorAction SilentlyContinue |
+              Where-Object { $_.FullName -match '\\(x64|arm64)\\SignTool\.exe$' } |
+              Sort-Object FullName -Descending |
+              Select-Object -First 1
+            if ($signtool) { break }
+          }
+
+          if (-not $makeAppx) {
+            $makeAppx = Get-Command MakeAppx.exe -ErrorAction SilentlyContinue
+          }
+          if (-not $signtool) {
+            $signtool = Get-Command SignTool.exe -ErrorAction SilentlyContinue
+          }
+
+          if (-not $makeAppx) { throw 'MakeAppx.exe was not found on the GitHub Windows runner.' }
+          if (-not $signtool) { throw 'SignTool.exe was not found on the GitHub Windows runner.' }
+
+          $makeAppxPath = if ($makeAppx.Path) { $makeAppx.Path } else { $makeAppx.FullName }
+          $signtoolPath = if ($signtool.Path) { $signtool.Path } else { $signtool.FullName }
+          "MAKEAPPX_PATH=$makeAppxPath" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "SIGNTOOL_PATH=$signtoolPath" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "Using MakeAppx: $makeAppxPath"
+          Write-Host "Using SignTool: $signtoolPath"
 
       - name: Create unsigned MSIX with MakeAppx
         shell: pwsh
