@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, Files, FolderPlus, LogOut, Maximize2, Minimize2, Pencil, Plus, Search, Star, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, Files, FolderPlus, LogOut, PanelLeft, Pencil, Plus, Search, Star, Trash2, X } from "lucide-react";
 import { useState } from "react";
 
 import { EngineSettingsModal } from "@/components/liquid/EngineSettingsModal";
@@ -54,11 +54,11 @@ export function Sidebar({
         <button
           type="button"
           onClick={onMinimize}
-          className="flex size-10 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-foreground transition-colors hover:bg-white/20"
+          className="flex size-11 items-center justify-center rounded-2xl bg-[#202020] text-white/70 transition-colors hover:bg-[#303030] hover:text-white"
           aria-label="Restore navigation panel"
           title="Restore navigation panel"
         >
-          <Maximize2 className="size-4" />
+          <PanelLeft className="size-7 stroke-[1.8]" />
         </button>
       </GlassPanel>
     );
@@ -98,7 +98,7 @@ export function Sidebar({
             aria-label="Minimize navigation panel"
             title="Minimize navigation panel"
           >
-            <Minimize2 className="size-4" />
+            <PanelLeft className="size-5 stroke-[1.8]" />
           </button>
           <ThemeToggle />
         </div>
