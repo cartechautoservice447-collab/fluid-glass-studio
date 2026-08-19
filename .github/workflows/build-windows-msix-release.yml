@@ -1,0 +1,69 @@
+name: Build Liquid Glass Studio MSIX
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-msix:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build Windows app
+        shell: pwsh
+        run: |
+          dotnet restore windows-app/LiquidGlassStudio.csproj
+          dotnet publish windows-app/LiquidGlassStudio.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o windows-app/publish
+
+      - name: Install Windows App Development CLI
+        shell: pwsh
+        run: npm install -g @microsoft/winappcli
+
+      - name: Prepare package assets
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path windows-app/package/Assets | Out-Null
+          Copy-Item public/pwa-icon.svg windows-app/package/Assets/pwa-icon.svg
+          Copy-Item public/favicon.ico windows-app/package/Assets/favicon.ico
+          Copy-Item windows-app/publish/* windows-app/package/ -Recurse -Force
+          Copy-Item windows-app/Package.appxmanifest windows-app/package/Package.appxmanifest -Force
+
+      - name: Create PNG package icons from the existing PWA icon
+        shell: pwsh
+        run: |
+          npm install --global sharp-cli
+          npx sharp-cli -i windows-app/package/Assets/pwa-icon.svg -o windows-app/package/Assets/Square44x44Logo.png resize 44 44
+          npx sharp-cli -i windows-app/package/Assets/pwa-icon.svg -o windows-app/package/Assets/Square150x150Logo.png resize 150 150
+          npx sharp-cli -i windows-app/package/Assets/pwa-icon.svg -o windows-app/package/Assets/StoreLogo.png resize 50 50
+
+      - name: Package MSIX
+        shell: pwsh
+        env:
+          WINDOWS_CERT_BASE64: ${{ secrets.WINDOWS_CERT_BASE64 }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          Set-Location windows-app
+          if ($env:WINDOWS_CERT_BASE64) {
+            [IO.File]::WriteAllBytes("release-cert.pfx", [Convert]::FromBase64String($env:WINDOWS_CERT_BASE64))
+            winapp pack ./package --output ./release --cert ./release-cert.pfx --cert-password $env:WINDOWS_CERT_PASSWORD
+          } else {
+            Write-Host "WINDOWS_CERT_BASE64 not configured; creating an unsigned test package."
+            winapp pack ./package --output ./release
+          }
+          $msix = Get-ChildItem ./release -Filter *.msix | Select-Object -First 1
+          if (-not $msix) { throw "MSIX package was not generated." }
+          Copy-Item $msix.FullName './release/Liquid Glass Studio.msix' -Force
+
+      - name: Upload MSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: liquid-glass-studio-msix
+          path: windows-app/release/Liquid Glass Studio.msix
