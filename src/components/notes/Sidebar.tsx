@@ -94,7 +94,7 @@ export function Sidebar({
           <button
             type="button"
             onClick={onMinimize}
-            className="flex size-9 items-center justify-center rounded-full border border-white/30 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20"
+            className="flex size-9 items-center justify-center rounded-xl bg-[#202020] text-white/70 transition-colors hover:bg-[#303030] hover:text-white"
             aria-label="Minimize navigation panel"
             title="Minimize navigation panel"
           >
