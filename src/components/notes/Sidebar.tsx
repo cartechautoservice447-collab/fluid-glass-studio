@@ -53,11 +53,11 @@ export function Sidebar({
         <button
           type="button"
           onClick={onMinimize}
-          className="flex size-9 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20"
+          className="flex size-8 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20"
           aria-label="Restore navigation panel"
           title="Restore navigation panel"
         >
-          <PanelLeft className="size-5 stroke-[1.8]" />
+          <PanelLeft className="size-4 stroke-[1.8]" />
         </button>
       </GlassPanel>
     );
