@@ -28,7 +28,7 @@ export function CourseNotesView({ course, onBack, onLogout, userId, email }: Pro
   return (
     <div className="flex h-full min-h-0 w-full flex-col gap-3">
       <div className="relative flex min-h-0 w-full flex-1 flex-row items-stretch gap-4 overflow-x-auto">
-        <div className={minimized.sidebar ? "h-full w-14 min-w-14 shrink-0" : "h-full w-72 min-w-[220px] shrink basis-72"}>
+        <div className={minimized.sidebar ? "h-full w-16 min-w-16 shrink-0" : "h-full w-72 min-w-[220px] shrink basis-72"}>
           <Sidebar
             minimized={minimized.sidebar}
             onMinimize={() => setMinimized((current) => ({ ...current, sidebar: !current.sidebar }))}
@@ -47,7 +47,7 @@ export function CourseNotesView({ course, onBack, onLogout, userId, email }: Pro
             onDeleteCollection={notes.deleteCollection}
           />
         </div>
-        <div className={minimized.notes ? "h-full w-14 min-w-14 shrink-0" : "h-full w-80 min-w-[240px] shrink basis-80"}>
+        <div className={minimized.notes ? "h-full w-16 min-w-16 shrink-0" : "h-full w-80 min-w-[240px] shrink basis-80"}>
           <NoteList
             minimized={minimized.notes}
             onMinimize={() => setMinimized((current) => ({ ...current, notes: !current.notes }))}
@@ -58,7 +58,7 @@ export function CourseNotesView({ course, onBack, onLogout, userId, email }: Pro
             heading={heading}
           />
         </div>
-        <div className={minimized.editor ? "h-full w-14 min-w-14 shrink-0" : "h-full min-w-[280px] flex-1"}>
+        <div className={minimized.editor ? "h-full w-16 min-w-16 shrink-0" : "h-full min-w-[280px] flex-1"}>
           <NoteEditor
             minimized={minimized.editor}
             onMinimize={() => setMinimized((current) => ({ ...current, editor: !current.editor }))}
