@@ -50,15 +50,15 @@ export function Sidebar({
 
   if (minimized) {
     return (
-      <GlassPanel className="flex h-full items-start justify-center !p-2">
+      <GlassPanel className="flex h-full items-start justify-center !p-3">
         <button
           type="button"
           onClick={onMinimize}
-          className="flex size-11 items-center justify-center rounded-2xl bg-[#202020] text-white/70 transition-colors hover:bg-[#303030] hover:text-white"
+          className="flex size-9 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20"
           aria-label="Restore navigation panel"
           title="Restore navigation panel"
         >
-          <PanelLeft className="size-7 stroke-[1.8]" />
+          <PanelLeft className="size-5 stroke-[1.8]" />
         </button>
       </GlassPanel>
     );
@@ -73,8 +73,8 @@ export function Sidebar({
     );
 
   return (
-    <GlassPanel className="flex h-full min-h-0 flex-col gap-5 !p-5">
-      <div className="flex items-center justify-between gap-3">
+    <GlassPanel className="flex h-full min-h-0 flex-col gap-5 !p-4">
+      <div className="flex min-h-10 items-center justify-between gap-3">
         <div>
           <p className="text-[0.6rem] font-bold uppercase tracking-[0.3em] text-muted-foreground">
             Liquid Glass
@@ -94,7 +94,7 @@ export function Sidebar({
           <button
             type="button"
             onClick={onMinimize}
-            className="flex size-9 items-center justify-center rounded-xl bg-[#202020] text-white/70 transition-colors hover:bg-[#303030] hover:text-white"
+            className="flex size-9 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20"
             aria-label="Minimize navigation panel"
             title="Minimize navigation panel"
           >
