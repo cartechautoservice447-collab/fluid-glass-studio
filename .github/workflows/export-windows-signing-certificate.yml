@@ -1,0 +1,34 @@
+name: Export Windows Signing Certificate
+
+on:
+  workflow_dispatch:
+
+jobs:
+  export-certificate:
+    runs-on: windows-2022
+    permissions:
+      contents: read
+    steps:
+      - name: Export public certificate from configured PFX
+        shell: pwsh
+        env:
+          WINDOWS_CERT_BASE64: ${{ secrets.WINDOWS_CERT_BASE64 }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          if (-not $env:WINDOWS_CERT_BASE64) { throw 'WINDOWS_CERT_BASE64 secret is not configured.' }
+          $pfxPath = Join-Path $PWD 'release-cert.pfx'
+          $cerPath = Join-Path $PWD 'Liquid Glass Studio.cer'
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:WINDOWS_CERT_BASE64))
+          $securePassword = ConvertTo-SecureString $env:WINDOWS_CERT_PASSWORD -AsPlainText -Force
+          $cert = Get-PfxCertificate -FilePath $pfxPath -Password $securePassword
+          Export-Certificate -Cert $cert -FilePath $cerPath -Type CERT | Out-Null
+          Remove-Item $pfxPath -Force
+          Write-Host "Certificate subject: $($cert.Subject)"
+          Write-Host "Certificate thumbprint: $($cert.Thumbprint)"
+          Write-Host "Certificate exported: $cerPath"
+
+      - name: Upload public certificate
+        uses: actions/upload-artifact@v4
+        with:
+          name: liquid-glass-studio-windows-public-certificate
+          path: Liquid Glass Studio.cer
