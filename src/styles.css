@@ -147,7 +147,7 @@
   --liquid-sheen: oklch(1 0 0);
 
   /* 3D water-gel lens tint */
-  --water-gel-bg: rgb(255 255 255 / var(--liquid-transparency));
+  --water-gel-bg: rgb(255 255 255 / var(--liquid-glass-alpha, 0.45));
 
   --background: oklch(0.55 0.16 255);
   --foreground: oklch(0.17 0.05 265);
@@ -179,7 +179,7 @@
   --glass-tint-2: oklch(0.38 0.06 275);
   --glass-shade: oklch(0.08 0.03 265);
   --liquid-sheen: oklch(0.95 0.06 250);
-  --water-gel-bg: rgb(255 255 255 / calc(var(--liquid-transparency) * 0.16));
+  --water-gel-bg: rgb(255 255 255 / var(--liquid-glass-dark-alpha, 0.07));
 
   --background: oklch(0.16 0.03 265);
   --foreground: oklch(0.97 0.01 250);
@@ -314,11 +314,11 @@
 }
 
 .liquid-veil {
-  background: rgb(255 255 255 / calc(var(--liquid-transparency) * 0.36));
+  background: rgb(255 255 255 / var(--liquid-veil-alpha, 0.16));
 }
 
 .dark .liquid-veil {
-  background: rgb(6 10 26 / calc(0.46 - var(--liquid-transparency) * 0.4));
+  background: rgb(6 10 26 / var(--liquid-dark-veil-alpha, 0.28));
 }
 
 @keyframes notes-pulse-glow {
