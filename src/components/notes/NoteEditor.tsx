@@ -51,15 +51,15 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
 
     if (minimized) {
     return (
-      <GlassPanel className="flex h-full items-start justify-center !p-2">
+      <GlassPanel className="flex h-full items-start justify-center !p-3">
         <button
           type="button"
           onClick={onMinimize}
-          className="flex size-11 items-center justify-center rounded-2xl bg-[#202020] text-white/70 transition-colors hover:bg-[#303030] hover:text-white"
+          className="flex size-9 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20"
           aria-label="Restore editor panel"
           title="Restore editor panel"
         >
-          <PanelLeft className="size-7 stroke-[1.8]" />
+          <PanelLeft className="size-5 stroke-[1.8]" />
         </button>
       </GlassPanel>
     );
@@ -77,7 +77,7 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
 
   return (
     <GlassPanel className="flex h-full min-h-0 flex-col overflow-hidden !p-0">
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 p-4">
+      <div className="flex min-h-10 flex-wrap items-center gap-2 border-b border-white/10 p-4">
         <Input
           value={title}
           onChange={(event) => setTitle(event.target.value)}
@@ -106,7 +106,7 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
         <button
           type="button"
           onClick={onMinimize}
-          className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#202020] text-white/70 transition-colors hover:bg-[#303030] hover:text-white"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20"
           aria-label="Minimize editor panel"
           title="Minimize editor panel"
         >
