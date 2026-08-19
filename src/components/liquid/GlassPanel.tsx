@@ -8,6 +8,7 @@ type GlassPanelProps = {
   children: ReactNode;
   className?: string;
   draggable?: boolean;
+  interactive?: boolean;
   onClick?: () => void;
 };
 
@@ -16,7 +17,13 @@ type GlassPanelProps = {
  * inset lighting bevel, vivid backdrop optics, diagonal surface gloss sheen,
  * and organic spring physics driven by the Liquid Bounce slider.
  */
-export function GlassPanel({ children, className, draggable = false, onClick }: GlassPanelProps) {
+export function GlassPanel({
+  children,
+  className,
+  draggable = false,
+  interactive = false,
+  onClick,
+}: GlassPanelProps) {
   const { liquid } = useCustomization();
 
   const spring = {
@@ -35,8 +42,8 @@ export function GlassPanel({ children, className, draggable = false, onClick }: 
       dragElastic={0.25}
       dragConstraints={{ left: -40, right: 40, top: -30, bottom: 30 }}
       dragSnapToOrigin
-      whileHover={{ scale: 1.025, y: -4 }}
-      whileTap={{ scale: 0.96 }}
+      whileHover={interactive ? { scale: 1.025, y: -4 } : undefined}
+      whileTap={interactive ? { scale: 0.96 } : undefined}
       transition={spring}
       style={{
         backgroundColor: "var(--water-gel-bg)",
