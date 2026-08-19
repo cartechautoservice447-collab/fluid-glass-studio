@@ -1,4 +1,4 @@
-import { Check, FolderPlus, Pencil, Plus, Search, Star, Trash2, X, Files } from "lucide-react";
+import { ArrowLeft, Check, Files, FolderPlus, LogOut, Pencil, Plus, Search, Star, Trash2, X } from "lucide-react";
 import { useState } from "react";
 
 import { EngineSettingsModal } from "@/components/liquid/EngineSettingsModal";
@@ -10,6 +10,9 @@ import type { Collection, Filter } from "@/hooks/useNotes";
 import { cn } from "@/lib/utils";
 
 type Props = {
+  email: string | null;
+  onBack: () => void;
+  onLogout: () => void;
   collections: Collection[];
   counts: { all: number; favorites: number; byCollection: Record<string, number> };
   filter: Filter;
@@ -23,6 +26,9 @@ type Props = {
 };
 
 export function Sidebar({
+  email,
+  onBack,
+  onLogout,
   collections,
   counts,
   filter,
@@ -55,7 +61,18 @@ export function Sidebar({
           </p>
           <h1 className="text-lg font-semibold tracking-tight text-foreground">Glass Notes</h1>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex size-9 items-center justify-center rounded-full border border-white/30 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20"
+            aria-label="Back to My Courses"
+            title="Back to My Courses"
+          >
+            <ArrowLeft className="size-4" />
+          </button>
+          <ThemeToggle />
+        </div>
       </div>
 
       <button
@@ -202,7 +219,25 @@ export function Sidebar({
       </div>
 
       <div className="border-t border-white/20 pt-4">
-        <EngineSettingsModal />
+        <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 p-2 backdrop-blur-xl">
+          <div className="min-w-0 flex-1 px-1">
+            <p className="text-[0.58rem] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+              Account
+            </p>
+            <p className="truncate text-xs font-medium text-foreground" title={email ?? "Signed in"}>
+              {email ?? "Signed in"}
+            </p>
+          </div>
+          <EngineSettingsModal trigger="icon" />
+        </div>
+        <button
+          type="button"
+          onClick={onLogout}
+          className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-white/20"
+        >
+          <LogOut className="size-3.5" />
+          Sign out
+        </button>
       </div>
     </GlassPanel>
   );
