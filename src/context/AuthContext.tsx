@@ -1,7 +1,16 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 import {
   getUser,
+  refreshSession,
   sendPasswordReset,
   signIn,
   signOut,
@@ -20,6 +29,7 @@ type AuthContextValue = {
 };
 
 const SESSION_KEY = "glass-notes-auth-session-v1";
+const REFRESH_LEEWAY_SECONDS = 60;
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function readSession(): AuthSession | null {
@@ -43,28 +53,95 @@ function saveSession(session: AuthSession | null) {
   }
 }
 
+function sessionNeedsRefresh(session: AuthSession) {
+  return (
+    typeof session.expires_at === "number" &&
+    session.expires_at * 1000 <= Date.now() + REFRESH_LEEWAY_SECONDS * 1000
+  );
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const applySession = useCallback((nextSession: AuthSession) => {
+    setSession(nextSession);
+    setUser(nextSession.user);
+    saveSession(nextSession);
+  }, []);
+
+  const refreshCurrentSession = useCallback(async () => {
+    if (!session?.refresh_token) return;
+
+    try {
+      const nextSession = await refreshSession(session.refresh_token);
+      applySession(nextSession);
+    } catch {
+      setSession(null);
+      setUser(null);
+      saveSession(null);
+    }
+  }, [applySession, session?.refresh_token]);
+
   useEffect(() => {
-    const stored = readSession();
-    if (!stored) {
-      setLoading(false);
-      return;
+    let cancelled = false;
+
+    async function restore() {
+      const stored = readSession();
+
+      if (!stored) {
+        if (!cancelled) setLoading(false);
+        return;
+      }
+
+      try {
+        let nextSession = stored;
+
+        if (sessionNeedsRefresh(stored)) {
+          nextSession = await refreshSession(stored.refresh_token);
+        }
+
+        const nextUser = await getUser(nextSession.access_token);
+
+        if (cancelled) return;
+
+        applySession({
+          ...nextSession,
+          user: nextUser,
+        });
+      } catch {
+        if (!cancelled) {
+          setSession(null);
+          setUser(null);
+        }
+        saveSession(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
 
-    void getUser(stored.access_token)
-      .then((nextUser) => {
-        const nextSession = { ...stored, user: nextUser };
-        setSession(nextSession);
-        setUser(nextUser);
-        saveSession(nextSession);
-      })
-      .catch(() => saveSession(null))
-      .finally(() => setLoading(false));
-  }, []);
+    void restore();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applySession]);
+
+  useEffect(() => {
+    if (!session?.expires_at) return;
+
+    const delay = Math.max(
+      5000,
+      session.expires_at * 1000 - Date.now() - REFRESH_LEEWAY_SECONDS * 1000,
+    );
+
+    const timer = window.setTimeout(() => {
+      void refreshCurrentSession();
+    }, delay);
+
+    return () => window.clearTimeout(timer);
+  }, [refreshCurrentSession, session?.expires_at]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -72,16 +149,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       async signInWithPassword(email, password) {
         const nextSession = await signIn(email, password);
-        setSession(nextSession);
-        setUser(nextSession.user);
-        saveSession(nextSession);
+        applySession(nextSession);
       },
       async signUpWithPassword(email, password, displayName) {
         const nextSession = await signUp(email, password, displayName);
         if (!nextSession) return false;
-        setSession(nextSession);
-        setUser(nextSession.user);
-        saveSession(nextSession);
+        applySession(nextSession);
         return true;
       },
       async resetPassword(email) {
@@ -96,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         saveSession(null);
       },
     }),
-    [loading, session, user],
+    [applySession, loading, session, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
