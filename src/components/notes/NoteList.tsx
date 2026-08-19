@@ -1,4 +1,4 @@
-import { Maximize2, Minimize2 } from "lucide-react";
+import { PanelLeft } from "lucide-react";
 
 import { GlassPanel } from "@/components/liquid/GlassPanel";
 import { NoteCard } from "@/components/notes/NoteCard";
@@ -21,11 +21,11 @@ export function NoteList({ minimized, onMinimize, notes, selectedId, onSelect, o
         <button
           type="button"
           onClick={onMinimize}
-          className="flex size-10 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-foreground transition-colors hover:bg-white/20"
+          className="flex size-11 items-center justify-center rounded-2xl bg-[#202020] text-white/70 transition-colors hover:bg-[#303030] hover:text-white"
           aria-label="Restore notes panel"
           title="Restore notes panel"
         >
-          <Maximize2 className="size-4" />
+          <PanelLeft className="size-7 stroke-[1.8]" />
         </button>
       </GlassPanel>
     );
@@ -41,11 +41,11 @@ export function NoteList({ minimized, onMinimize, notes, selectedId, onSelect, o
           <button
             type="button"
             onClick={onMinimize}
-            className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/15 hover:text-foreground"
+            className="flex size-9 items-center justify-center rounded-xl bg-[#202020] text-white/70 transition-colors hover:bg-[#303030] hover:text-white"
             aria-label="Minimize notes panel"
             title="Minimize notes panel"
           >
-            <Minimize2 className="size-3.5" />
+            <PanelLeft className="size-5 stroke-[1.8]" />
           </button>
         </div>
       </div>
