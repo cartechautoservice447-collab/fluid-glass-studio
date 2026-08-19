@@ -70,14 +70,6 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
         <div className="liquid-orb liquid-orb-b" aria-hidden />
         <div className="liquid-orb liquid-orb-c" aria-hidden />
 
-        <button
-          type="button"
-          onClick={onLogout}
-          className="absolute right-8 top-8 z-10 rounded-full border border-white/20 bg-black/20 px-3 py-1.5 text-xs text-slate-200 backdrop-blur transition hover:bg-white/10"
-          aria-label="Sign out"
-        >
-          {email ?? "Account"} · Sign out
-        </button>
 
         <div className="relative min-h-0 w-full flex-1">
           <AnimatePresence mode="wait" initial={false}>
@@ -90,7 +82,13 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.28, ease: "easeInOut" }}
               >
-                <CourseNotesView course={selectedCourse} userId={userId} onBack={() => setSelectedCourseId(null)} />
+                <CourseNotesView
+                  course={selectedCourse}
+                  userId={userId}
+                  email={email}
+                  onLogout={onLogout}
+                  onBack={() => setSelectedCourseId(null)}
+                />
               </motion.div>
             ) : (
               <motion.div
