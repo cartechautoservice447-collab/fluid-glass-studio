@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AuthPage } from "@/components/auth/AuthPage";
 import { CourseGrid } from "@/components/courses/CourseGrid";
@@ -8,8 +8,7 @@ import { CourseNotesView } from "@/components/courses/CourseNotesView";
 import { LiquidFilters } from "@/components/liquid/LiquidFilters";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { CustomizationProvider, useCustomization } from "@/context/CustomizationContext";
-import { useCourses } from "@/hooks/useCourses";
-import type { Note } from "@/hooks/useNotes";
+import { useCourses, useCourseStats } from "@/hooks/useCourses";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -34,24 +33,13 @@ export const Route = createFileRoute("/")({
 
 function Page() {
   return (
-    <CustomizationProvider>
-      <AuthProvider>
+    <AuthProvider>
+      <CustomizationProvider>
         <LiquidFilters />
         <AuthenticatedWorkspace />
-      </AuthProvider>
-    </CustomizationProvider>
+      </CustomizationProvider>
+    </AuthProvider>
   );
-}
-
-function readCourseNotes(userId: string, courseId: string): Note[] {
-  try {
-    const raw = localStorage.getItem(`glass-notes-v1:${userId}:${courseId}`);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as Note[]) : [];
-  } catch {
-    return [];
-  }
 }
 
 function AuthenticatedWorkspace() {
@@ -69,6 +57,7 @@ function AuthenticatedWorkspace() {
 function Workspace({ userId, email, onLogout }: { userId: string; email: string | null; onLogout: () => void }) {
   const { setTheme } = useCustomization();
   const { courses, addCourse } = useCourses(userId);
+  const { data: stats } = useCourseStats(userId);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -76,20 +65,8 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
   }, [setTheme]);
 
   const selectedCourse = courses.find((c) => c.id === selectedCourseId) ?? null;
-
-  // Recomputed whenever we land back on the grid, so counts reflect any
-  // notes just added/removed inside a course.
-  const { noteCounts, lastEdited } = useMemo(() => {
-    const counts: Record<string, number> = {};
-    const last: Record<string, number | null> = {};
-    for (const course of courses) {
-      const courseNotes = readCourseNotes(userId, course.id);
-      counts[course.id] = courseNotes.length;
-      last[course.id] =
-        courseNotes.length > 0 ? Math.max(...courseNotes.map((n) => n.updatedAt)) : null;
-    }
-    return { noteCounts: counts, lastEdited: last };
-  }, [courses, selectedCourseId, userId]);
+  const noteCounts = stats?.counts ?? {};
+  const lastEdited = stats?.lastEdited ?? {};
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#07070c]">
