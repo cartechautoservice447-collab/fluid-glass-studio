@@ -43,23 +43,23 @@ export function CourseNotesView({ course, onBack, onLogout, userId, email }: Pro
               transition={{ duration: 0.2, ease: "easeOut" }}
               className={hasMinimizedPanel ? "h-full min-w-[220px] flex-1 basis-0" : "h-full w-72 min-w-[220px] shrink basis-72"}
             >
-          <Sidebar
-            minimized={minimized.sidebar}
-            onMinimize={() => setMinimized((current) => ({ ...current, sidebar: !current.sidebar }))}
-            email={email}
-            onBack={onBack}
-            onLogout={onLogout}
-            collections={notes.collections}
-            counts={notes.counts}
-            filter={notes.filter}
-            setFilter={notes.setFilter}
-            query={notes.query}
-            setQuery={notes.setQuery}
-            onCreateNote={notes.createNote}
-            onAddCollection={notes.addCollection}
-            onRenameCollection={notes.renameCollection}
-            onDeleteCollection={notes.deleteCollection}
-          />
+              <Sidebar
+                minimized={minimized.sidebar}
+                onMinimize={() => setMinimized((current) => ({ ...current, sidebar: !current.sidebar }))}
+                email={email}
+                onBack={onBack}
+                onLogout={onLogout}
+                collections={notes.collections}
+                counts={notes.counts}
+                filter={notes.filter}
+                setFilter={notes.setFilter}
+                query={notes.query}
+                setQuery={notes.setQuery}
+                onCreateNote={notes.createNote}
+                onAddCollection={notes.addCollection}
+                onRenameCollection={notes.renameCollection}
+                onDeleteCollection={notes.deleteCollection}
+              />
             </motion.div>
           )}
           {!minimized.notes && (
@@ -72,15 +72,15 @@ export function CourseNotesView({ course, onBack, onLogout, userId, email }: Pro
               transition={{ duration: 0.2, ease: "easeOut" }}
               className={hasMinimizedPanel ? "h-full min-w-[240px] flex-1 basis-0" : "h-full w-80 min-w-[240px] shrink basis-80"}
             >
-          <NoteList
-            minimized={minimized.notes}
-            onMinimize={() => setMinimized((current) => ({ ...current, notes: !current.notes }))}
-            notes={notes.visibleNotes}
-            selectedId={notes.selectedId}
-            onSelect={notes.setSelectedId}
-            onToggleFavorite={notes.toggleFavorite}
-            heading={heading}
-          />
+              <NoteList
+                minimized={minimized.notes}
+                onMinimize={() => setMinimized((current) => ({ ...current, notes: !current.notes }))}
+                notes={notes.visibleNotes}
+                selectedId={notes.selectedId}
+                onSelect={notes.setSelectedId}
+                onToggleFavorite={notes.toggleFavorite}
+                heading={heading}
+              />
             </motion.div>
           )}
           {!minimized.editor && (
@@ -91,17 +91,21 @@ export function CourseNotesView({ course, onBack, onLogout, userId, email }: Pro
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className={hasMinimizedPanel ? "h-full min-w-[280px] flex-1 basis-0" : "h-full min-w-[280px] flex-1"}
+              className={
+                hasMinimizedPanel
+                  ? "h-full min-w-[280px] flex-[1.35] basis-0"
+                  : "h-full min-w-[280px] flex-1"
+              }
             >
-          <NoteEditor
-            minimized={minimized.editor}
-            onMinimize={() => setMinimized((current) => ({ ...current, editor: !current.editor }))}
-            note={notes.selected}
-            collections={notes.collections}
-            onUpdate={notes.updateNote}
-            onDelete={notes.deleteNote}
-            onToggleFavorite={notes.toggleFavorite}
-          />
+              <NoteEditor
+                minimized={minimized.editor}
+                onMinimize={() => setMinimized((current) => ({ ...current, editor: !current.editor }))}
+                note={notes.selected}
+                collections={notes.collections}
+                onUpdate={notes.updateNote}
+                onDelete={notes.deleteNote}
+                onToggleFavorite={notes.toggleFavorite}
+              />
             </motion.div>
           )}
         </AnimatePresence>
