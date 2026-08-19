@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, Files, FolderPlus, LogOut, Pencil, Plus, Search, Star, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, Files, FolderPlus, LogOut, Maximize2, Minimize2, Pencil, Plus, Search, Star, Trash2, X } from "lucide-react";
 import { useState } from "react";
 
 import { EngineSettingsModal } from "@/components/liquid/EngineSettingsModal";
@@ -10,6 +10,8 @@ import type { Collection, Filter } from "@/hooks/useNotes";
 import { cn } from "@/lib/utils";
 
 type Props = {
+  minimized: boolean;
+  onMinimize: () => void;
   email: string | null;
   onBack: () => void;
   onLogout: () => void;
@@ -26,6 +28,8 @@ type Props = {
 };
 
 export function Sidebar({
+  minimized,
+  onMinimize,
   email,
   onBack,
   onLogout,
@@ -43,6 +47,22 @@ export function Sidebar({
   const [newCollection, setNewCollection] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+
+  if (minimized) {
+    return (
+      <GlassPanel className="flex h-full items-start justify-center !p-2">
+        <button
+          type="button"
+          onClick={onMinimize}
+          className="flex size-10 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-foreground transition-colors hover:bg-white/20"
+          aria-label="Restore navigation panel"
+          title="Restore navigation panel"
+        >
+          <Maximize2 className="size-4" />
+        </button>
+      </GlassPanel>
+    );
+  }
 
   const navRow = (active: boolean) =>
     cn(
@@ -70,6 +90,15 @@ export function Sidebar({
             title="Back to My Courses"
           >
             <ArrowLeft className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onMinimize}
+            className="flex size-9 items-center justify-center rounded-full border border-white/30 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20"
+            aria-label="Minimize navigation panel"
+            title="Minimize navigation panel"
+          >
+            <Minimize2 className="size-4" />
           </button>
           <ThemeToggle />
         </div>
