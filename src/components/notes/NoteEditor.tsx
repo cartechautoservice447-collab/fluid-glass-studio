@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { GlassPanel } from "@/components/liquid/GlassPanel";
 import { NotebookPreviewAdditive } from "@/components/notes/NotebookPreviewAdditive";
+import { TerminalOutput } from "@/components/notes/TerminalOutput";
 import { MarkdownToolbar } from "@/components/notes/MarkdownToolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -160,16 +161,19 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
 
       <div className={`min-h-0 flex-1 overflow-y-auto bg-[#0d1117] ${mode === "edit" ? "p-4" : "p-0"}`}>
         {mode === "edit" ? (
-          <textarea
-            ref={textareaRef}
-            value={body}
-            onChange={(event) => setBody(event.target.value)}
-            aria-label="Note body"
-            placeholder="Write markdown here…"
-            spellCheck={false}
-            className="h-full min-h-[16rem] w-full resize-none bg-transparent text-sm leading-relaxed text-[#c9d1d9] outline-none placeholder:text-[#8b949e]"
-            style={{ fontFamily: "'Fira Code', 'JetBrains Mono', 'Consolas', monospace" }}
-          />
+          <div className="flex min-h-full flex-col">
+            <textarea
+              ref={textareaRef}
+              value={body}
+              onChange={(event) => setBody(event.target.value)}
+              aria-label="Note body"
+              placeholder="Write markdown here…"
+              spellCheck={false}
+              className="min-h-[16rem] flex-1 resize-none bg-transparent text-sm leading-relaxed text-[#c9d1d9] outline-none placeholder:text-[#8b949e]"
+              style={{ fontFamily: "'Fira Code', 'JetBrains Mono', 'Consolas', monospace" }}
+            />
+            <TerminalOutput value={body} />
+          </div>
         ) : (
           <NotebookPreviewAdditive body={body} />
         )}
