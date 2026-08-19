@@ -1,11 +1,16 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabaseClient";
 
 export type LiquidSettings = {
   density: number;
@@ -25,6 +30,7 @@ export const LIQUID_DEFAULTS: LiquidSettings = {
   bounceDamping: 18,
 };
 
+// Kept as an offline cache only — Supabase is the source of truth once signed in.
 const STORAGE_KEY = "liquid-glass-engine-v1";
 const THEME_KEY = "liquid-glass-theme-v1";
 const DISPLAY_NAME_KEY = "liquid-glass-display-name-v1";
@@ -60,20 +66,37 @@ function sanitize(raw: unknown): LiquidSettings {
   };
 }
 
-export function CustomizationProvider({ children }: { children: ReactNode }) {
-  const [liquid, setLiquidState] = useState<LiquidSettings>(LIQUID_DEFAULTS);
-  const [theme, setTheme] = useState<Theme>("light");
-  const [displayName, setDisplayNameState] = useState("");
+type ProfileRow = {
+  theme?: string | null;
+  display_name?: string | null;
+  liquid_density?: number | null;
+  liquid_transparency?: number | null;
+  liquid_clearness?: number | null;
+  liquid_gel?: number | null;
+  liquid_bounce_stiffness?: number | null;
+  liquid_bounce_damping?: number | null;
+};
 
+export function CustomizationProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+
+  const [liquid, setLiquidState] = useState<LiquidSettings>(LIQUID_DEFAULTS);
+  const [theme, setThemeState] = useState<Theme>("light");
+  const [displayName, setDisplayNameState] = useState("");
+  const loadedProfileFor = useRef<string | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Local cache first (instant paint, works offline / signed out).
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) setLiquidState(sanitize(JSON.parse(stored)));
       const storedTheme = localStorage.getItem(THEME_KEY);
       if (storedTheme === "light" || storedTheme === "dark") {
-        setTheme(storedTheme);
+        setThemeState(storedTheme);
       } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-        setTheme("dark");
+        setThemeState("dark");
       }
       const storedName = localStorage.getItem(DISPLAY_NAME_KEY);
       if (storedName) setDisplayNameState(storedName);
@@ -81,6 +104,55 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
       /* ignore corrupt storage */
     }
   }, []);
+
+  // Then hydrate from the signed-in user's profile row (source of truth).
+  useEffect(() => {
+    if (!userId || loadedProfileFor.current === userId) return;
+    let cancelled = false;
+    void (async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select(
+          "theme, display_name, liquid_density, liquid_transparency, liquid_clearness, liquid_gel, liquid_bounce_stiffness, liquid_bounce_damping",
+        )
+        .eq("id", userId)
+        .maybeSingle();
+      if (cancelled || error || !data) return;
+      const row = data as ProfileRow;
+      loadedProfileFor.current = userId;
+      setLiquidState(
+        sanitize({
+          density: Number(row.liquid_density ?? LIQUID_DEFAULTS.density),
+          transparency: Number(row.liquid_transparency ?? LIQUID_DEFAULTS.transparency),
+          clearness: Number(row.liquid_clearness ?? LIQUID_DEFAULTS.clearness),
+          gel: Number(row.liquid_gel ?? LIQUID_DEFAULTS.gel),
+          bounceStiffness: Number(row.liquid_bounce_stiffness ?? LIQUID_DEFAULTS.bounceStiffness),
+          bounceDamping: Number(row.liquid_bounce_damping ?? LIQUID_DEFAULTS.bounceDamping),
+        }),
+      );
+      if (row.theme === "light" || row.theme === "dark") setThemeState(row.theme);
+      if (row.display_name) setDisplayNameState(row.display_name);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) loadedProfileFor.current = null;
+  }, [userId]);
+
+  // Debounced persistence to the profile row.
+  const persist = useCallback(
+    (patch: Record<string, unknown>) => {
+      if (!userId) return;
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => {
+        void supabase.from("profiles").upsert({ id: userId, ...patch });
+      }, 400);
+    },
+    [userId],
+  );
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -107,18 +179,49 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
     root.style.setProperty("--liquid-bounce-damping", `${liquid.bounceDamping}`);
   }, [liquid]);
 
+  const commitLiquid = useCallback(
+    (next: LiquidSettings) => {
+      persist({
+        liquid_density: next.density,
+        liquid_transparency: next.transparency,
+        liquid_clearness: next.clearness,
+        liquid_gel: next.gel,
+        liquid_bounce_stiffness: next.bounceStiffness,
+        liquid_bounce_damping: next.bounceDamping,
+      });
+    },
+    [persist],
+  );
+
   const value = useMemo<Ctx>(
     () => ({
       liquid,
-      setLiquid: (patch) => setLiquidState((prev) => sanitize({ ...prev, ...patch })),
-      reset: () => setLiquidState(LIQUID_DEFAULTS),
+      setLiquid: (patch) =>
+        setLiquidState((prev) => {
+          const next = sanitize({ ...prev, ...patch });
+          commitLiquid(next);
+          return next;
+        }),
+      reset: () => {
+        setLiquidState(LIQUID_DEFAULTS);
+        commitLiquid(LIQUID_DEFAULTS);
+      },
       theme,
-      setTheme,
-      toggleTheme: () => setTheme((prev) => (prev === "dark" ? "light" : "dark")),
+      setTheme: (next: Theme) => {
+        setThemeState(next);
+        persist({ theme: next });
+      },
+      toggleTheme: () =>
+        setThemeState((prev) => {
+          const next = prev === "dark" ? "light" : "dark";
+          persist({ theme: next });
+          return next;
+        }),
       displayName,
       setDisplayName: (name: string) => {
         const trimmed = name.trim().slice(0, 40);
         setDisplayNameState(trimmed);
+        persist({ display_name: trimmed || null });
         try {
           if (trimmed) localStorage.setItem(DISPLAY_NAME_KEY, trimmed);
           else localStorage.removeItem(DISPLAY_NAME_KEY);
@@ -127,7 +230,7 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
         }
       },
     }),
-    [liquid, theme, displayName],
+    [liquid, theme, displayName, commitLiquid, persist],
   );
 
   return (

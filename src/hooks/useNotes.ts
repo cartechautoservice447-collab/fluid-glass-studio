@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { newId, supabase } from "@/lib/supabaseClient";
 
 export type Note = {
   id: string;
@@ -13,77 +16,29 @@ export type Collection = { id: string; name: string };
 
 export type Filter = { kind: "all" } | { kind: "favorites" } | { kind: "collection"; id: string };
 
-const NOTES_KEY = "glass-notes-v1";
-const COLLECTIONS_KEY = "glass-notes-collections-v1";
+type NoteRow = {
+  id: string;
+  title: string | null;
+  body: string | null;
+  favorite: boolean | null;
+  collection_id: string | null;
+  updated_at: string;
+};
 
-const uid = () => Math.random().toString(36).slice(2, 10);
-
-const DEMO_COLLECTIONS: Collection[] = [
-  { id: "col-code", name: "Code" },
-  { id: "col-ideas", name: "Ideas" },
-];
+type CollectionRow = { id: string; name: string };
 
 const EMPTY_NOTES: Note[] = [];
 const EMPTY_COLLECTIONS: Collection[] = [];
 
-const DEMO_NOTES: Note[] = [
-  {
-    id: "n-python",
-    title: "Python — glass gradient helper",
-    body: `A tiny helper that blends two colors for the liquid stage.
-
-\`\`\`python
-def blend(a: tuple, b: tuple, t: float = 0.5) -> tuple:
-    """Linear interpolate two RGB tuples."""
-    t = max(0.0, min(1.0, t))
-    return tuple(round(x + (y - x) * t) for x, y in zip(a, b))
-
-print(blend((13, 17, 23), (121, 192, 255), 0.35))
-\`\`\`
-
-Use it to generate **panel tints** that match the engine density.`,
-    favorite: true,
-    collectionId: "col-code",
-    updatedAt: Date.now() - 1000 * 60 * 42,
-  },
-  {
-    id: "n-engine",
-    title: "Liquid engine notes",
-    body: `Sliders map straight onto root CSS variables:
-
-- \`--liquid-density\` → backdrop blur
-- \`--liquid-transparency\` → panel alpha
-- \`--liquid-gel\` → bevel + spring mass
-
-> Tune density around 12px for the crispest read.`,
-    favorite: false,
-    collectionId: "col-ideas",
-    updatedAt: Date.now() - 1000 * 60 * 60 * 5,
-  },
-  {
-    id: "n-todo",
-    title: "Roadmap",
-    body: `| Task | State |
-| --- | --- |
-| Three column shell | done |
-| Markdown preview | done |
-| Collections | done |
-
-Next: export notes as \`.md\`.`,
-    favorite: false,
-    collectionId: null,
-    updatedAt: Date.now() - 1000 * 60 * 60 * 30,
-  },
-];
-
-function load<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
+function toNote(row: NoteRow): Note {
+  return {
+    id: row.id,
+    title: row.title ?? "Untitled note",
+    body: row.body ?? "",
+    favorite: Boolean(row.favorite),
+    collectionId: row.collection_id,
+    updatedAt: new Date(row.updated_at).getTime(),
+  };
 }
 
 export function relativeDate(ts: number) {
@@ -98,89 +53,248 @@ export function relativeDate(ts: number) {
   return new Date(ts).toLocaleDateString();
 }
 
-/** Pass a courseId and userId to scope notes to the signed-in user and course. */
+/** Notes + collections for one course, stored in Supabase (RLS-scoped to the user). */
 export function useNotes(courseId?: string, userId?: string) {
-  const scope = courseId ? [userId, courseId].filter(Boolean).join(":") : undefined;
-  const notesKey = scope ? `${NOTES_KEY}:${scope}` : NOTES_KEY;
-  const collectionsKey = scope ? `${COLLECTIONS_KEY}:${scope}` : COLLECTIONS_KEY;
-  const defaultNotes = courseId ? EMPTY_NOTES : DEMO_NOTES;
-  const defaultCollections = courseId ? EMPTY_COLLECTIONS : DEMO_COLLECTIONS;
+  const queryClient = useQueryClient();
+  const enabled = Boolean(courseId && userId);
 
-  const [notes, setNotes] = useState<Note[]>(defaultNotes);
-  const [collections, setCollections] = useState<Collection[]>(defaultCollections);
-  const [hydratedKey, setHydratedKey] = useState<string | null>(null);
+  const notesKey = useMemo(() => ["notes", userId ?? null, courseId ?? null], [userId, courseId]);
+  const collectionsKey = useMemo(
+    () => ["collections", userId ?? null, courseId ?? null],
+    [userId, courseId],
+  );
+
+  const notesQuery = useQuery({
+    queryKey: notesKey,
+    enabled,
+    queryFn: async (): Promise<Note[]> => {
+      const { data, error } = await supabase
+        .from("notes")
+        .select("id, title, body, favorite, collection_id, updated_at")
+        .eq("course_id", courseId!)
+        .order("updated_at", { ascending: false });
+      if (error) throw error;
+      return ((data ?? []) as NoteRow[]).map(toNote);
+    },
+  });
+
+  const collectionsQuery = useQuery({
+    queryKey: collectionsKey,
+    enabled,
+    queryFn: async (): Promise<Collection[]> => {
+      const { data, error } = await supabase
+        .from("collections")
+        .select("id, name")
+        .eq("course_id", courseId!)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return ((data ?? []) as CollectionRow[]).map((c) => ({ id: c.id, name: c.name }));
+    },
+  });
+
+  const notes = notesQuery.data ?? EMPTY_NOTES;
+  const collections = collectionsQuery.data ?? EMPTY_COLLECTIONS;
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>({ kind: "all" });
   const [query, setQuery] = useState("");
 
-  useLayoutEffect(() => {
-    setHydratedKey(null);
-    const loadedNotes = load(notesKey, defaultNotes);
-    const loadedCollections = load(collectionsKey, defaultCollections);
-    setNotes(loadedNotes);
-    setCollections(loadedCollections);
-    setSelectedId(loadedNotes[0]?.id ?? null);
+  // Reset view state when switching course/user.
+  useEffect(() => {
+    setSelectedId(null);
     setFilter({ kind: "all" });
     setQuery("");
-    setHydratedKey(notesKey);
-  }, [notesKey, collectionsKey, defaultNotes, defaultCollections]);
+  }, [courseId, userId]);
 
+  // Keep a sane selection once notes arrive.
   useEffect(() => {
-    if (hydratedKey !== notesKey) return;
-    try {
-      localStorage.setItem(notesKey, JSON.stringify(notes));
-      localStorage.setItem(collectionsKey, JSON.stringify(collections));
-    } catch {
-      /* ignore quota errors */
+    if (notes.length === 0) {
+      if (selectedId !== null) setSelectedId(null);
+      return;
     }
-  }, [notes, collections, hydratedKey, notesKey, collectionsKey]);
+    if (!selectedId || !notes.some((n) => n.id === selectedId)) {
+      setSelectedId(notes[0]!.id);
+    }
+  }, [notes, selectedId]);
+
+  const patchNotesCache = useCallback(
+    (updater: (prev: Note[]) => Note[]) => {
+      queryClient.setQueryData<Note[]>(notesKey, (prev) => updater(prev ?? []));
+    },
+    [queryClient, notesKey],
+  );
+
+  const patchCollectionsCache = useCallback(
+    (updater: (prev: Collection[]) => Collection[]) => {
+      queryClient.setQueryData<Collection[]>(collectionsKey, (prev) => updater(prev ?? []));
+    },
+    [queryClient, collectionsKey],
+  );
+
+  const invalidateNotes = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: notesKey });
+    void queryClient.invalidateQueries({ queryKey: ["course-stats", userId ?? null] });
+  }, [queryClient, notesKey, userId]);
+
+  const invalidateCollections = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: collectionsKey });
+  }, [queryClient, collectionsKey]);
+
+  const writeNote = useMutation({
+    mutationFn: async (payload: {
+      op: "insert" | "update" | "delete";
+      id: string;
+      values?: Record<string, unknown>;
+    }) => {
+      if (payload.op === "insert") {
+        const { error } = await supabase.from("notes").insert({
+          id: payload.id,
+          user_id: userId!,
+          course_id: courseId!,
+          ...payload.values,
+        });
+        if (error) throw error;
+        return;
+      }
+      if (payload.op === "update") {
+        const { error } = await supabase
+          .from("notes")
+          .update({ ...payload.values, updated_at: new Date().toISOString() })
+          .eq("id", payload.id);
+        if (error) throw error;
+        return;
+      }
+      const { error } = await supabase.from("notes").delete().eq("id", payload.id);
+      if (error) throw error;
+    },
+    onSettled: invalidateNotes,
+  });
+
+  const writeCollection = useMutation({
+    mutationFn: async (payload: {
+      op: "insert" | "update" | "delete";
+      id: string;
+      values?: Record<string, unknown>;
+    }) => {
+      if (payload.op === "insert") {
+        const { error } = await supabase.from("collections").insert({
+          id: payload.id,
+          user_id: userId!,
+          course_id: courseId!,
+          ...payload.values,
+        });
+        if (error) throw error;
+        return;
+      }
+      if (payload.op === "update") {
+        const { error } = await supabase
+          .from("collections")
+          .update({ ...payload.values, updated_at: new Date().toISOString() })
+          .eq("id", payload.id);
+        if (error) throw error;
+        return;
+      }
+      const { error } = await supabase.from("collections").delete().eq("id", payload.id);
+      if (error) throw error;
+    },
+    onSettled: () => {
+      invalidateCollections();
+      invalidateNotes();
+    },
+  });
 
   const createNote = useCallback(() => {
+    if (!enabled) return "";
     const note: Note = {
-      id: uid(),
+      id: newId(),
       title: "Untitled note",
       body: "",
       favorite: false,
       collectionId: filter.kind === "collection" ? filter.id : null,
       updatedAt: Date.now(),
     };
-    setNotes((prev) => [note, ...prev]);
+    patchNotesCache((prev) => [note, ...prev]);
     setSelectedId(note.id);
+    writeNote.mutate({
+      op: "insert",
+      id: note.id,
+      values: {
+        title: note.title,
+        body: note.body,
+        favorite: note.favorite,
+        collection_id: note.collectionId,
+      },
+    });
     return note.id;
-  }, [filter]);
+  }, [enabled, filter, patchNotesCache, writeNote]);
 
-  const updateNote = useCallback((id: string, patch: Partial<Omit<Note, "id">>) => {
-    setNotes((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, ...patch, updatedAt: Date.now() } : n)),
-    );
-  }, []);
+  const updateNote = useCallback(
+    (id: string, patch: Partial<Omit<Note, "id">>) => {
+      patchNotesCache((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, ...patch, updatedAt: Date.now() } : n)),
+      );
+      const values: Record<string, unknown> = {};
+      if (patch.title !== undefined) values["title"] = patch.title;
+      if (patch.body !== undefined) values["body"] = patch.body;
+      if (patch.favorite !== undefined) values["favorite"] = patch.favorite;
+      if (patch.collectionId !== undefined) values["collection_id"] = patch.collectionId;
+      if (Object.keys(values).length === 0) return;
+      writeNote.mutate({ op: "update", id, values });
+    },
+    [patchNotesCache, writeNote],
+  );
 
-  const deleteNote = useCallback((id: string) => {
-    setNotes((prev) => prev.filter((n) => n.id !== id));
-    setSelectedId((cur) => (cur === id ? null : cur));
-  }, []);
+  const deleteNote = useCallback(
+    (id: string) => {
+      patchNotesCache((prev) => prev.filter((n) => n.id !== id));
+      setSelectedId((cur) => (cur === id ? null : cur));
+      writeNote.mutate({ op: "delete", id });
+    },
+    [patchNotesCache, writeNote],
+  );
 
-  const toggleFavorite = useCallback((id: string) => {
-    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, favorite: !n.favorite } : n)));
-  }, []);
+  const toggleFavorite = useCallback(
+    (id: string) => {
+      const current = (queryClient.getQueryData<Note[]>(notesKey) ?? []).find((n) => n.id === id);
+      const next = !current?.favorite;
+      patchNotesCache((prev) => prev.map((n) => (n.id === id ? { ...n, favorite: next } : n)));
+      writeNote.mutate({ op: "update", id, values: { favorite: next } });
+    },
+    [queryClient, notesKey, patchNotesCache, writeNote],
+  );
 
-  const addCollection = useCallback((name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    setCollections((prev) => [...prev, { id: uid(), name: trimmed }]);
-  }, []);
+  const addCollection = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed || !enabled) return;
+      const id = newId();
+      patchCollectionsCache((prev) => [...prev, { id, name: trimmed }]);
+      writeCollection.mutate({ op: "insert", id, values: { name: trimmed } });
+    },
+    [enabled, patchCollectionsCache, writeCollection],
+  );
 
-  const renameCollection = useCallback((id: string, name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    setCollections((prev) => prev.map((c) => (c.id === id ? { ...c, name: trimmed } : c)));
-  }, []);
+  const renameCollection = useCallback(
+    (id: string, name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      patchCollectionsCache((prev) => prev.map((c) => (c.id === id ? { ...c, name: trimmed } : c)));
+      writeCollection.mutate({ op: "update", id, values: { name: trimmed } });
+    },
+    [patchCollectionsCache, writeCollection],
+  );
 
-  const deleteCollection = useCallback((id: string) => {
-    setCollections((prev) => prev.filter((c) => c.id !== id));
-    setNotes((prev) => prev.map((n) => (n.collectionId === id ? { ...n, collectionId: null } : n)));
-    setFilter((f) => (f.kind === "collection" && f.id === id ? { kind: "all" } : f));
-  }, []);
+  const deleteCollection = useCallback(
+    (id: string) => {
+      patchCollectionsCache((prev) => prev.filter((c) => c.id !== id));
+      patchNotesCache((prev) =>
+        prev.map((n) => (n.collectionId === id ? { ...n, collectionId: null } : n)),
+      );
+      setFilter((f) => (f.kind === "collection" && f.id === id ? { kind: "all" } : f));
+      writeCollection.mutate({ op: "delete", id });
+    },
+    [patchCollectionsCache, patchNotesCache, writeCollection],
+  );
 
   const visibleNotes = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -226,5 +340,6 @@ export function useNotes(courseId?: string, userId?: string) {
     addCollection,
     renameCollection,
     deleteCollection,
+    loading: notesQuery.isLoading || collectionsQuery.isLoading,
   };
 }
