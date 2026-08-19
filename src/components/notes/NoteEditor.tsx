@@ -67,7 +67,16 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
 
   if (!note) {
     return (
-      <GlassPanel className="flex h-full min-h-0 items-center justify-center !p-8 text-center">
+      <GlassPanel className="relative flex h-full min-h-0 items-center justify-center !p-8 text-center">
+        <button
+          type="button"
+          onClick={onMinimize}
+          className="absolute right-4 top-4 z-10 flex size-8 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20"
+          aria-label="Minimize editor panel"
+          title="Minimize editor panel"
+        >
+          <PanelLeft className="size-4 stroke-[1.8]" />
+        </button>
         <p className="text-sm text-muted-foreground">
           Select a note from the list, or create a new one to start writing.
         </p>
@@ -76,8 +85,8 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
   }
 
   return (
-    <GlassPanel className="flex h-full min-h-0 flex-col overflow-hidden !p-0">
-      <div className="flex min-h-10 flex-wrap items-center gap-2 border-b border-white/10 p-4">
+    <GlassPanel className="relative flex h-full min-h-0 flex-col overflow-hidden !p-0">
+      <div className="flex min-h-10 flex-wrap items-center gap-2 border-b border-white/10 p-4 pr-12">
         <Input
           value={title}
           onChange={(event) => setTitle(event.target.value)}
@@ -103,15 +112,6 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
             ))}
           </SelectContent>
         </Select>
-        <button
-          type="button"
-          onClick={onMinimize}
-          className="flex size-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20"
-          aria-label="Minimize editor panel"
-          title="Minimize editor panel"
-        >
-          <PanelLeft className="size-5 stroke-[1.8]" />
-        </button>
         <Button
           size="icon"
           variant="ghost"
@@ -130,6 +130,15 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
           <Trash2 className="size-4" />
         </Button>
       </div>
+      <button
+        type="button"
+        onClick={onMinimize}
+        className="absolute right-4 top-4 z-10 flex size-8 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20"
+        aria-label="Minimize editor panel"
+        title="Minimize editor panel"
+      >
+        <PanelLeft className="size-4 stroke-[1.8]" />
+      </button>
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-[#0d1117] px-3 py-2">
         <MarkdownToolbar
