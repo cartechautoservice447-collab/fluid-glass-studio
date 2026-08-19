@@ -11,8 +11,8 @@ export type AuthSession = {
   user: AuthUser;
 };
 
-const url = import.meta.env.VITE_SUPABASE_URL;
-const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const url = import.meta.env["VITE_SUPABASE_URL"];
+const publishableKey = import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
 
 function configured() {
   if (!url || !publishableKey) {
@@ -69,7 +69,7 @@ export async function signUp(
   return {
     access_token: result.access_token,
     refresh_token: result.refresh_token,
-    expires_at: result.expires_at,
+    ...(result.expires_at !== undefined ? { expires_at: result.expires_at } : {}),
     user: result.user,
   };
 }
