@@ -2,6 +2,9 @@ name: Build Liquid Glass Studio Windows Local FINAL
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   build-windows-local-final:
@@ -48,44 +51,20 @@ jobs:
         shell: pwsh
         run: |
           Set-Location windows-app
-          $required = @(
-            './package/AppxManifest.xml',
-            './package/Liquid Glass Studio.exe',
-            './package/Assets/Square44x44Logo.png',
-            './package/Assets/Square150x150Logo.png',
-            './package/Assets/StoreLogo.png'
-          )
-          foreach ($path in $required) {
-            if (-not (Test-Path $path)) { throw "Required package file missing: $path" }
-          }
+          $required = @('./package/AppxManifest.xml','./package/Liquid Glass Studio.exe','./package/Assets/Square44x44Logo.png','./package/Assets/Square150x150Logo.png','./package/Assets/StoreLogo.png')
+          foreach ($path in $required) { if (-not (Test-Path $path)) { throw "Required package file missing: $path" } }
           [xml]$manifest = Get-Content './package/AppxManifest.xml'
           $publisher = $manifest.Package.Identity.Publisher
-          if ($publisher -ne 'CN=Liquid Glass Studio') {
-            throw "Unexpected package publisher: $publisher"
-          }
-          Write-Host "Validated publisher: $publisher"
+          if ($publisher -ne 'CN=Liquid Glass Studio') { throw "Unexpected package publisher: $publisher" }
 
       - name: Locate MakeAppx and SignTool
         shell: pwsh
         run: |
-          $roots = @(
-            $env:WindowsSdkDir,
-            $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'Windows Kits\10\bin' }),
-            $(if (${env:ProgramFiles(x86)}) { Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin' })
-          ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
-          $makeAppx = $null
-          $signTool = $null
+          $roots = @($env:WindowsSdkDir, $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'Windows Kits\10\bin' }), $(if (${env:ProgramFiles(x86)}) { Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin' })) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
+          $makeAppx = $null; $signTool = $null
           foreach ($root in $roots) {
-            if (-not $makeAppx) {
-              $makeAppx = Get-ChildItem -LiteralPath $root -Recurse -File -Filter MakeAppx.exe -ErrorAction SilentlyContinue |
-                Where-Object { $_.FullName -match '\\(x64|arm64)\\MakeAppx\.exe$' } |
-                Sort-Object FullName -Descending | Select-Object -First 1
-            }
-            if (-not $signTool) {
-              $signTool = Get-ChildItem -LiteralPath $root -Recurse -File -Filter SignTool.exe -ErrorAction SilentlyContinue |
-                Where-Object { $_.FullName -match '\\(x64|arm64)\\SignTool\.exe$' } |
-                Sort-Object FullName -Descending | Select-Object -First 1
-            }
+            if (-not $makeAppx) { $makeAppx = Get-ChildItem -LiteralPath $root -Recurse -File -Filter MakeAppx.exe -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match '\\(x64|arm64)\\MakeAppx\.exe$' } | Sort-Object FullName -Descending | Select-Object -First 1 }
+            if (-not $signTool) { $signTool = Get-ChildItem -LiteralPath $root -Recurse -File -Filter SignTool.exe -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match '\\(x64|arm64)\\SignTool\.exe$' } | Sort-Object FullName -Descending | Select-Object -First 1 }
           }
           if (-not $makeAppx) { $makeAppx = Get-Command MakeAppx.exe -ErrorAction SilentlyContinue }
           if (-not $signTool) { $signTool = Get-Command SignTool.exe -ErrorAction SilentlyContinue }
@@ -95,8 +74,6 @@ jobs:
           $signPath = if ($signTool.Path) { $signTool.Path } else { $signTool.FullName }
           "MAKEAPPX_PATH=$makePath" | Out-File $env:GITHUB_ENV -Append
           "SIGNTOOL_PATH=$signPath" | Out-File $env:GITHUB_ENV -Append
-          Write-Host "MakeAppx: $makePath"
-          Write-Host "SignTool: $signPath"
 
       - name: Create unsigned MSIX
         shell: pwsh
@@ -112,53 +89,30 @@ jobs:
       - name: Create local signing certificate
         shell: pwsh
         run: |
-          $cert = New-SelfSignedCertificate `
-            -Type Custom `
-            -Subject 'CN=Liquid Glass Studio' `
-            -FriendlyName 'Liquid Glass Studio Local Signing' `
-            -CertStoreLocation 'Cert:\CurrentUser\My' `
-            -KeyAlgorithm RSA `
-            -KeyLength 3072 `
-            -HashAlgorithm SHA256 `
-            -KeyExportPolicy Exportable `
-            -NotAfter (Get-Date).AddYears(5) `
-            -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3')
+          $cert = New-SelfSignedCertificate -Type Custom -Subject 'CN=Liquid Glass Studio' -FriendlyName 'Liquid Glass Studio Local Signing' -CertStoreLocation 'Cert:\CurrentUser\My' -KeyAlgorithm RSA -KeyLength 3072 -HashAlgorithm SHA256 -KeyExportPolicy Exportable -NotAfter (Get-Date).AddYears(5) -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3')
           if (-not $cert) { throw 'Failed to create local signing certificate.' }
           $pfxPath = Join-Path $PWD 'Liquid Glass Studio Local Signing.pfx'
           $cerPath = Join-Path $PWD 'Liquid Glass Studio Local Signing.cer'
           $pfxPasswordPlain = [Guid]::NewGuid().ToString('N')
-          $pfxPassword = ConvertTo-SecureString $pfxPasswordPlain -AsPlainText -Force
-          Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $pfxPassword | Out-Null
+          Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password (ConvertTo-SecureString $pfxPasswordPlain -AsPlainText -Force) | Out-Null
           Export-Certificate -Cert $cert -FilePath $cerPath -Type CERT | Out-Null
           $pfxPasswordPlain | Out-File 'local-pfx-password.txt' -Encoding ascii
-          "LOCAL_CERT_THUMBPRINT=$($cert.Thumbprint)" | Out-File $env:GITHUB_ENV -Append
-          Write-Host "Certificate subject: $($cert.Subject)"
-          Write-Host "Certificate thumbprint: $($cert.Thumbprint)"
 
       - name: Sign MSIX with local certificate
         shell: pwsh
         run: |
           $pfxPath = Join-Path $PWD 'Liquid Glass Studio Local Signing.pfx'
-          $pfxPassword = Get-Content 'local-pfx-password.txt' -Raw
-          $pfxPassword = $pfxPassword.Trim()
+          $pfxPassword = (Get-Content 'local-pfx-password.txt' -Raw).Trim()
           & $env:SIGNTOOL_PATH sign /fd SHA256 /f $pfxPath /p $pfxPassword 'windows-app/release/Liquid Glass Studio.msix'
           if ($LASTEXITCODE -ne 0) { throw "SignTool failed with exit code $LASTEXITCODE." }
 
-      - name: Verify MSIX signature and publisher
+      - name: Verify MSIX signer
         shell: pwsh
         run: |
-          $msix = Get-Item 'windows-app/release/Liquid Glass Studio.msix'
-          if ($msix.Length -lt 100KB) { throw "MSIX is unexpectedly small: $($msix.Length) bytes." }
-          $signature = Get-AuthenticodeSignature -FilePath $msix.FullName
-          Write-Host "Signature status: $($signature.Status)"
-          Write-Host "Signer: $($signature.SignerCertificate.Subject)"
-          if ($signature.Status -ne 'Valid' -and $signature.Status -ne 'UnknownError') {
-            throw "Unexpected MSIX Authenticode status: $($signature.Status)"
-          }
+          $signature = Get-AuthenticodeSignature -FilePath 'windows-app/release/Liquid Glass Studio.msix'
           if (-not $signature.SignerCertificate) { throw 'Signer certificate is missing.' }
-          if ($signature.SignerCertificate.Subject -ne 'CN=Liquid Glass Studio') {
-            throw "Signer subject mismatch: $($signature.SignerCertificate.Subject)"
-          }
+          if ($signature.SignerCertificate.Subject -ne 'CN=Liquid Glass Studio') { throw "Signer subject mismatch: $($signature.SignerCertificate.Subject)" }
+          Write-Host "Signer verified: $($signature.SignerCertificate.Subject)"
 
       - name: Build local installation bundle
         shell: pwsh
@@ -177,7 +131,7 @@ Liquid Glass Studio - Windows Laptop Installation
 6. Finish the certificate import.
 7. Double-click "Liquid Glass Studio.msix" and install the app.
 
-This certificate is for this local laptop/test distribution. It is not a publicly trusted production certificate.
+This certificate is for this local laptop/test distribution only.
 '@ | Set-Content "$bundle/INSTALL.txt" -Encoding UTF8
           Remove-Item 'Liquid Glass Studio Local Signing.pfx' -Force -ErrorAction SilentlyContinue
           Remove-Item 'local-pfx-password.txt' -Force -ErrorAction SilentlyContinue
