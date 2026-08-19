@@ -14,6 +14,14 @@ export type AuthSession = {
 const url = import.meta.env["VITE_SUPABASE_URL"];
 const publishableKey = import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
 
+type TokenResponse = {
+  access_token: string;
+  refresh_token: string;
+  expires_at?: number;
+  expires_in?: number;
+  user: AuthUser;
+};
+
 function configured() {
   if (!url || !publishableKey) {
     throw new Error("Authentication is not configured for this deployment yet.");
@@ -32,7 +40,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     },
   });
 
-  const data = (await response.json().catch(() => ({}))) as T & { msg?: string; error_description?: string };
+  const data = (await response.json().catch(() => ({}))) as T & {
+    msg?: string;
+    error_description?: string;
+  };
+
   if (!response.ok) {
     throw new Error(data.error_description ?? data.msg ?? "Authentication request failed.");
   }
@@ -40,11 +52,26 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data;
 }
 
+function toSession(result: TokenResponse): AuthSession {
+  const expiresAt =
+    result.expires_at ??
+    (result.expires_in !== undefined ? Math.floor(Date.now() / 1000) + result.expires_in : undefined);
+
+  return {
+    access_token: result.access_token,
+    refresh_token: result.refresh_token,
+    ...(expiresAt !== undefined ? { expires_at: expiresAt } : {}),
+    user: result.user,
+  };
+}
+
 export async function signIn(email: string, password: string): Promise<AuthSession> {
-  return request<AuthSession>("/auth/v1/token?grant_type=password", {
+  const result = await request<TokenResponse>("/auth/v1/token?grant_type=password", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
+
+  return toSession(result);
 }
 
 export async function signUp(
@@ -52,26 +79,27 @@ export async function signUp(
   password: string,
   displayName: string,
 ): Promise<AuthSession | null> {
-  const result = await request<{ access_token?: string; refresh_token?: string; expires_at?: number; user: AuthUser }>(
-    "/auth/v1/signup",
-    {
-      method: "POST",
-      body: JSON.stringify({
-        email,
-        password,
-        data: { display_name: displayName },
-      }),
-    },
-  );
+  const result = await request<TokenResponse>("/auth/v1/signup", {
+    method: "POST",
+    body: JSON.stringify({
+      email,
+      password,
+      data: { display_name: displayName },
+    }),
+  });
 
   if (!result.access_token || !result.refresh_token) return null;
 
-  return {
-    access_token: result.access_token,
-    refresh_token: result.refresh_token,
-    ...(result.expires_at !== undefined ? { expires_at: result.expires_at } : {}),
-    user: result.user,
-  };
+  return toSession(result);
+}
+
+export async function refreshSession(refreshToken: string): Promise<AuthSession> {
+  const result = await request<TokenResponse>("/auth/v1/token?grant_type=refresh_token", {
+    method: "POST",
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+
+  return toSession(result);
 }
 
 export async function getUser(accessToken: string): Promise<AuthUser> {
