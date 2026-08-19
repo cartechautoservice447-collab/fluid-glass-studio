@@ -21,8 +21,8 @@ export function GlassPanel({
   children,
   className,
   draggable = false,
-  interactive = false,
   onClick,
+  interactive = Boolean(onClick),
 }: GlassPanelProps) {
   const { liquid } = useCustomization();
 
@@ -50,8 +50,7 @@ export function GlassPanel({
         backdropFilter: "blur(var(--liquid-density, 12px)) saturate(200%) contrast(105%)",
         borderRadius: `${18 + gel * 26}px`,
         borderTop: "1px solid rgba(255, 255, 255, 0.4)",
-        boxShadow:
-          "inset 0 1px 2px 0 rgba(255, 255, 255, 0.5), inset 0 -2px 4px 0 rgba(0, 0, 0, 0.25), 0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+        boxShadow: `inset 0 ${1 + gel * 1.5}px ${2 + gel * 3}px 0 rgba(255, 255, 255, ${0.35 + gel * 0.3}), inset 0 -${2 + gel * 3}px ${4 + gel * 6}px 0 rgba(0, 0, 0, ${0.16 + gel * 0.2}), 0 ${8 + gel * 10}px ${32 + gel * 24}px 0 rgba(0, 0, 0, ${0.2 + gel * 0.22})`,
       }}
       className={cn(
         "liquid-panel relative overflow-hidden p-6 will-change-transform",
