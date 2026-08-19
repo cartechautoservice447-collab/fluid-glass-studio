@@ -15,20 +15,36 @@ import {
 import { Input } from "@/components/ui/input";
 import { useCustomization } from "@/context/CustomizationContext";
 
-export function EngineSettingsModal() {
+type Props = {
+  trigger?: "button" | "icon";
+};
+
+export function EngineSettingsModal({ trigger = "button" }: Props) {
   const { liquid, setLiquid, reset, theme, displayName, setDisplayName } = useCustomization();
   const [open, setOpen] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button
-          variant="outline"
-          className="border-white/30 bg-white/10 backdrop-blur-xl hover:bg-white/20"
-        >
-          <Settings2 className="mr-2 size-4" />
-          Engine Customization
-        </Button>
+        {trigger === "icon" ? (
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="shrink-0 border-white/30 bg-white/10 backdrop-blur-xl hover:bg-white/20"
+            aria-label="Open engine customization"
+          >
+            <Settings2 className="size-4" />
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            className="border-white/30 bg-white/10 backdrop-blur-xl hover:bg-white/20"
+          >
+            <Settings2 className="mr-2 size-4" />
+            Engine Customization
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent
         className="max-h-[85vh] overflow-y-auto border-white/25 bg-white/10 backdrop-blur-2xl sm:max-w-lg"
