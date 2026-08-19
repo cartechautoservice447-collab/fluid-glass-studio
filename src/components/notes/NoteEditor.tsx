@@ -85,6 +85,11 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
     );
   }
 
+  // Terminal-output fences are rendered by the exact same TerminalOutput
+  // component in both modes. Remove only those fences from the Markdown body
+  // so Preview never creates a second, different code-snippet box for them.
+  const previewBody = body.replace(/```(?:output|terminal-output)\s*\n[\s\S]*?```/gi, "").replace(/\n{3,}/g, "\n\n").trim();
+
   return (
     <GlassPanel className="relative flex h-full min-h-0 flex-col overflow-hidden !p-0">
       <div className="flex min-h-10 flex-wrap items-center gap-2 border-b border-white/10 p-4 pr-12">
@@ -175,7 +180,12 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
             <TerminalOutput value={body} />
           </div>
         ) : (
-          <NotebookPreviewAdditive body={body} />
+          <div className="min-h-full">
+            {previewBody && <NotebookPreviewAdditive body={previewBody} />}
+            <div className="mx-auto w-full max-w-4xl px-6 pb-8 sm:px-10">
+              <TerminalOutput value={body} className="mt-0" />
+            </div>
+          </div>
         )}
       </div>
 
