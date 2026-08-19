@@ -42,8 +42,8 @@ export function GlassPanel({
       dragElastic={0.25}
       dragConstraints={{ left: -40, right: 40, top: -30, bottom: 30 }}
       dragSnapToOrigin
-      whileHover={interactive ? { y: -2 } : undefined}
-      whileTap={interactive ? { scale: 0.985, y: 0 } : undefined}
+      whileHover={interactive ? { scale: 1.025, y: -4 } : undefined}
+      whileTap={interactive ? { scale: 0.96 } : undefined}
       transition={spring}
       style={{
         backgroundColor: "var(--water-gel-bg)",
