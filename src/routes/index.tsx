@@ -65,7 +65,7 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#07070c]">
-      <main className="liquid-stage relative flex h-full w-full overflow-hidden px-5 py-5">
+      <main className="liquid-stage relative flex h-full w-full overflow-hidden px-5 pb-4 pt-2">
         <div className="liquid-orb liquid-orb-a" aria-hidden />
         <div className="liquid-orb liquid-orb-b" aria-hidden />
         <div className="liquid-orb liquid-orb-c" aria-hidden />
