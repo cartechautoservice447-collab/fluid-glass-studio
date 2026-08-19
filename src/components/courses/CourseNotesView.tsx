@@ -1,3 +1,6 @@
+import { AnimatePresence, motion } from "motion/react";
+import { PanelLeft } from "lucide-react";
+
 import { NoteEditor } from "@/components/notes/NoteEditor";
 import { NoteList } from "@/components/notes/NoteList";
 import { Sidebar } from "@/components/notes/Sidebar";
@@ -17,6 +20,7 @@ export function CourseNotesView({ course, onBack, onLogout, userId, email }: Pro
   const notes = useNotes(course.id, userId);
   const { filter } = notes;
   const [minimized, setMinimized] = useState({ sidebar: false, notes: false, editor: false });
+  const hasMinimizedPanel = minimized.sidebar || minimized.notes || minimized.editor;
 
   const heading =
     filter.kind === "all"
@@ -26,9 +30,19 @@ export function CourseNotesView({ course, onBack, onLogout, userId, email }: Pro
         : (notes.collections.find((c) => c.id === filter.id)?.name ?? "Collection");
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col gap-3">
+    <div className="relative flex h-full min-h-0 w-full flex-col gap-3">
       <div className="relative flex min-h-0 w-full flex-1 flex-row items-stretch gap-4 overflow-x-auto">
-        <div className={minimized.sidebar ? "h-full w-16 min-w-16 shrink-0" : "h-full w-72 min-w-[220px] shrink basis-72"}>
+        <AnimatePresence initial={false}>
+          {!minimized.sidebar && (
+            <motion.div
+              key="sidebar"
+              layout
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className={hasMinimizedPanel ? "h-full min-w-[220px] flex-1 basis-0" : "h-full w-72 min-w-[220px] shrink basis-72"}
+            >
           <Sidebar
             minimized={minimized.sidebar}
             onMinimize={() => setMinimized((current) => ({ ...current, sidebar: !current.sidebar }))}
@@ -46,8 +60,18 @@ export function CourseNotesView({ course, onBack, onLogout, userId, email }: Pro
             onRenameCollection={notes.renameCollection}
             onDeleteCollection={notes.deleteCollection}
           />
-        </div>
-        <div className={minimized.notes ? "h-full w-16 min-w-16 shrink-0" : "h-full w-80 min-w-[240px] shrink basis-80"}>
+            </motion.div>
+          )}
+          {!minimized.notes && (
+            <motion.div
+              key="notes"
+              layout
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className={hasMinimizedPanel ? "h-full min-w-[240px] flex-1 basis-0" : "h-full w-80 min-w-[240px] shrink basis-80"}
+            >
           <NoteList
             minimized={minimized.notes}
             onMinimize={() => setMinimized((current) => ({ ...current, notes: !current.notes }))}
@@ -57,8 +81,18 @@ export function CourseNotesView({ course, onBack, onLogout, userId, email }: Pro
             onToggleFavorite={notes.toggleFavorite}
             heading={heading}
           />
-        </div>
-        <div className={minimized.editor ? "h-full w-16 min-w-16 shrink-0" : "h-full min-w-[280px] flex-1"}>
+            </motion.div>
+          )}
+          {!minimized.editor && (
+            <motion.div
+              key="editor"
+              layout
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className={hasMinimizedPanel ? "h-full min-w-[280px] flex-1 basis-0" : "h-full min-w-[280px] flex-1"}
+            >
           <NoteEditor
             minimized={minimized.editor}
             onMinimize={() => setMinimized((current) => ({ ...current, editor: !current.editor }))}
@@ -68,8 +102,48 @@ export function CourseNotesView({ course, onBack, onLogout, userId, email }: Pro
             onDelete={notes.deleteNote}
             onToggleFavorite={notes.toggleFavorite}
           />
-        </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
+
+      {hasMinimizedPanel && (
+        <div className="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-full border border-white/25 bg-white/10 p-1.5 text-foreground backdrop-blur-xl">
+          {minimized.sidebar && (
+            <button
+              type="button"
+              onClick={() => setMinimized((current) => ({ ...current, sidebar: false }))}
+              className="flex size-8 items-center justify-center rounded-full transition-colors hover:bg-white/20"
+              aria-label="Restore navigation panel"
+              title="Restore navigation panel"
+            >
+              <PanelLeft className="size-4" />
+            </button>
+          )}
+          {minimized.notes && (
+            <button
+              type="button"
+              onClick={() => setMinimized((current) => ({ ...current, notes: false }))}
+              className="flex size-8 items-center justify-center rounded-full transition-colors hover:bg-white/20"
+              aria-label="Restore notes panel"
+              title="Restore notes panel"
+            >
+              <PanelLeft className="size-4" />
+            </button>
+          )}
+          {minimized.editor && (
+            <button
+              type="button"
+              onClick={() => setMinimized((current) => ({ ...current, editor: false }))}
+              className="flex size-8 items-center justify-center rounded-full transition-colors hover:bg-white/20"
+              aria-label="Restore editor panel"
+              title="Restore editor panel"
+            >
+              <PanelLeft className="size-4" />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
