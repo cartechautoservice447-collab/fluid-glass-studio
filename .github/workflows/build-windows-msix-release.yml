@@ -44,6 +44,21 @@ jobs:
           npx sharp-cli -i windows-app/package/Assets/pwa-icon.svg -o windows-app/package/Assets/Square150x150Logo.png resize 150 150
           npx sharp-cli -i windows-app/package/Assets/pwa-icon.svg -o windows-app/package/Assets/StoreLogo.png resize 50 50
 
+      - name: Validate package inputs
+        shell: pwsh
+        run: |
+          Set-Location windows-app
+          if (-not (Test-Path './package/Package.appxmanifest')) { throw 'Package.appxmanifest is missing.' }
+          if (-not (Test-Path './package/Liquid Glass Studio.exe')) { throw 'Published Liquid Glass Studio.exe is missing.' }
+          foreach ($asset in @(
+            './package/Assets/StoreLogo.png',
+            './package/Assets/Square150x150Logo.png',
+            './package/Assets/Square44x44Logo.png'
+          )) {
+            if (-not (Test-Path $asset)) { throw "Required package asset is missing: $asset" }
+          }
+          Write-Host 'MSIX package inputs validated.'
+
       - name: Package MSIX
         shell: pwsh
         env:
@@ -51,16 +66,20 @@ jobs:
           WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
         run: |
           Set-Location windows-app
+          New-Item -ItemType Directory -Force -Path ./release | Out-Null
           if ($env:WINDOWS_CERT_BASE64) {
-            [IO.File]::WriteAllBytes("release-cert.pfx", [Convert]::FromBase64String($env:WINDOWS_CERT_BASE64))
-            winapp pack ./package --output ./release --cert ./release-cert.pfx --cert-password $env:WINDOWS_CERT_PASSWORD
+            [IO.File]::WriteAllBytes('./release-cert.pfx', [Convert]::FromBase64String($env:WINDOWS_CERT_BASE64))
+            winapp pack ./package --manifest ./package/Package.appxmanifest --output './release/Liquid Glass Studio.msix' --cert ./release-cert.pfx --cert-password $env:WINDOWS_CERT_PASSWORD --executable 'Liquid Glass Studio.exe'
           } else {
-            Write-Host "WINDOWS_CERT_BASE64 not configured; creating an unsigned test package."
-            winapp pack ./package --output ./release
+            Write-Host 'WINDOWS_CERT_BASE64 not configured; creating an unsigned test package.'
+            winapp pack ./package --manifest ./package/Package.appxmanifest --output './release/Liquid Glass Studio.msix' --executable 'Liquid Glass Studio.exe'
           }
-          $msix = Get-ChildItem ./release -Filter *.msix | Select-Object -First 1
-          if (-not $msix) { throw "MSIX package was not generated." }
-          Copy-Item $msix.FullName './release/Liquid Glass Studio.msix' -Force
+          if (-not (Test-Path './release/Liquid Glass Studio.msix')) {
+            Write-Host 'Release directory contents:'
+            Get-ChildItem ./release -Force | Format-List Name,Length,FullName
+            throw 'MSIX package was not generated.'
+          }
+          Get-Item './release/Liquid Glass Studio.msix' | Format-List Name,Length,FullName
 
       - name: Upload MSIX artifact
         uses: actions/upload-artifact@v4
