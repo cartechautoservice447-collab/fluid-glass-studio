@@ -1,33 +1,33 @@
 name: Publish Liquid Glass Studio Windows Release FINAL
 
 on:
-  workflow_dispatch:
+  workflow_run:
+    workflows: ["Build Liquid Glass Studio MSIX FINAL"]
+    types: [completed]
 
 env:
-  RELEASE_TAG: windows-final-${{ github.run_number }}
+  RELEASE_TAG: windows-final-${{ github.run_id }}
 
 jobs:
   publish-windows:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: windows-2022
     permissions:
+      actions: read
       contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download Windows MSIX artifact from latest successful FINAL run
+      - name: Download successful Windows MSIX artifact
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
-          $runs = gh run list --workflow build-liquid-glass-studio-msix-final.yml --status success --limit 1 --json databaseId,headSha
-          if (-not $runs) { throw 'No successful Windows MSIX FINAL workflow run was found.' }
-          $run = $runs | ConvertFrom-Json
-          if (-not $run) { throw 'Could not determine the latest successful Windows MSIX run.' }
-          Write-Host "Using MSIX run $($run.databaseId) from commit $($run.headSha)."
-          gh run download $run.databaseId --name liquid-glass-studio-msix-final --dir release
+          gh run download $env:SOURCE_RUN_ID --name liquid-glass-studio-msix-final --dir release
           $msix = Get-ChildItem release -Recurse -Filter 'Liquid Glass Studio.msix' | Select-Object -First 1
-          if (-not $msix) { throw 'Liquid Glass Studio.msix was not found in the downloaded artifact.' }
+          if (-not $msix) { throw 'Liquid Glass Studio.msix was not found in the successful MSIX workflow artifact.' }
           New-Item -ItemType Directory -Force -Path release/final | Out-Null
           Copy-Item $msix.FullName 'release/final/Liquid Glass Studio.msix' -Force
 
@@ -45,5 +45,5 @@ jobs:
         run: |
           gh release create "$env:RELEASE_TAG" `
             'release/final/Liquid Glass Studio.msix' `
-            --title "Liquid Glass Studio Windows $env:GITHUB_RUN_NUMBER" `
+            --title "Liquid Glass Studio Windows" `
             --notes 'Windows desktop release of Liquid Glass Studio. Existing website features are unchanged; this release contains the separate Windows MSIX package.'
