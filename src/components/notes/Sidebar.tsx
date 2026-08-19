@@ -3,7 +3,6 @@ import { useState } from "react";
 
 import { EngineSettingsModal } from "@/components/liquid/EngineSettingsModal";
 import { GlassPanel } from "@/components/liquid/GlassPanel";
-import { ThemeToggle } from "@/components/liquid/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Collection, Filter } from "@/hooks/useNotes";
@@ -73,36 +72,33 @@ export function Sidebar({
     );
 
   return (
-    <GlassPanel className="flex h-full min-h-0 flex-col gap-5 !p-4">
-      <div className="flex min-h-10 items-center justify-between gap-3">
+    <GlassPanel className="relative flex h-full min-h-0 flex-col gap-5 !p-4">
+      <div className="flex min-h-10 items-center justify-between gap-3 pr-10">
         <div>
           <p className="text-[0.6rem] font-bold uppercase tracking-[0.3em] text-muted-foreground">
             Liquid Glass
           </p>
           <h1 className="text-lg font-semibold tracking-tight text-foreground">Glass Notes</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onBack}
-            className="flex size-9 items-center justify-center rounded-full border border-white/30 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20"
-            aria-label="Back to My Courses"
-            title="Back to My Courses"
-          >
-            <ArrowLeft className="size-4" />
-          </button>
-          <button
-            type="button"
-            onClick={onMinimize}
-            className="flex size-9 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20"
-            aria-label="Minimize navigation panel"
-            title="Minimize navigation panel"
-          >
-            <PanelLeft className="size-5 stroke-[1.8]" />
-          </button>
-          <ThemeToggle />
-        </div>
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex size-9 items-center justify-center rounded-full border border-white/30 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20"
+          aria-label="Back to My Courses"
+          title="Back to My Courses"
+        >
+          <ArrowLeft className="size-4" />
+        </button>
       </div>
+      <button
+        type="button"
+        onClick={onMinimize}
+        className="absolute right-4 top-4 z-10 flex size-8 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20"
+        aria-label="Minimize navigation panel"
+        title="Minimize navigation panel"
+      >
+        <PanelLeft className="size-4 stroke-[1.8]" />
+      </button>
 
       <button
         type="button"
