@@ -47,10 +47,16 @@ export function AppDownloadCenter() {
         </button>
       )}
       <div className="flex gap-2">
-        <a className="rounded-full border border-white/10 bg-black/50 px-3 py-2 text-xs text-white/80 backdrop-blur-xl" href="/downloads/android/Liquid%20Glass%20Studio.apk">
+        <a
+          className="rounded-full border border-white/10 bg-black/50 px-3 py-2 text-xs text-white/80 backdrop-blur-xl"
+          href="https://github.com/cartechautoservice447-collab/fluid-glass-studio/releases/download/app-latest/Liquid%20Glass%20Studio.apk"
+        >
           Android APK
         </a>
-        <a className="rounded-full border border-white/10 bg-black/50 px-3 py-2 text-xs text-white/80 backdrop-blur-xl" href="/downloads/windows/Liquid%20Glass%20Studio.msix">
+        <a
+          className="rounded-full border border-white/10 bg-black/50 px-3 py-2 text-xs text-white/80 backdrop-blur-xl"
+          href="https://github.com/cartechautoservice447-collab/fluid-glass-studio/releases/download/app-latest/Liquid%20Glass%20Studio.msix"
+        >
           Windows App
         </a>
       </div>
