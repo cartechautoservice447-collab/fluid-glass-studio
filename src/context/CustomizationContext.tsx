@@ -26,8 +26,8 @@ export const LIQUID_DEFAULTS: LiquidSettings = {
   transparency: 45,
   clearness: 35,
   gel: 55,
-  bounceStiffness: 260,
-  bounceDamping: 18,
+  bounceStiffness: 200,
+  bounceDamping: 24,
 };
 
 // Kept as an offline cache only — Supabase is the source of truth once signed in.
