@@ -135,18 +135,39 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          liquid_bounce_damping: number
+          liquid_bounce_stiffness: number
+          liquid_clearness: number
+          liquid_density: number
+          liquid_gel: number
+          liquid_transparency: number
+          theme: string
           updated_at: string
         }
         Insert: {
           created_at?: string
           display_name?: string | null
           id: string
+          liquid_bounce_damping?: number
+          liquid_bounce_stiffness?: number
+          liquid_clearness?: number
+          liquid_density?: number
+          liquid_gel?: number
+          liquid_transparency?: number
+          theme?: string
           updated_at?: string
         }
         Update: {
           created_at?: string
           display_name?: string | null
           id?: string
+          liquid_bounce_damping?: number
+          liquid_bounce_stiffness?: number
+          liquid_clearness?: number
+          liquid_density?: number
+          liquid_gel?: number
+          liquid_transparency?: number
+          theme?: string
           updated_at?: string
         }
         Relationships: []
