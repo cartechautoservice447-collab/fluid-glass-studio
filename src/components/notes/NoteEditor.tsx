@@ -1,4 +1,4 @@
-import { Eye, Maximize2, Minimize2, Pencil, Star, Trash2 } from "lucide-react";
+import { Eye, PanelLeft, Pencil, Star, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { GlassPanel } from "@/components/liquid/GlassPanel";
@@ -55,11 +55,11 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
         <button
           type="button"
           onClick={onMinimize}
-          className="flex size-10 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-foreground transition-colors hover:bg-white/20"
+          className="flex size-11 items-center justify-center rounded-2xl bg-[#202020] text-white/70 transition-colors hover:bg-[#303030] hover:text-white"
           aria-label="Restore editor panel"
           title="Restore editor panel"
         >
-          <Maximize2 className="size-4" />
+          <PanelLeft className="size-7 stroke-[1.8]" />
         </button>
       </GlassPanel>
     );
@@ -106,11 +106,11 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
         <button
           type="button"
           onClick={onMinimize}
-          className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-white/15 hover:text-foreground"
+          className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#202020] text-white/70 transition-colors hover:bg-[#303030] hover:text-white"
           aria-label="Minimize editor panel"
           title="Minimize editor panel"
         >
-          <Minimize2 className="size-4" />
+          <PanelLeft className="size-5 stroke-[1.8]" />
         </button>
         <Button
           size="icon"
