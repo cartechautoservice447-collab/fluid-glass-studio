@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-msix:
-    runs-on: windows-latest
+    runs-on: windows-2022
     permissions:
       contents: read
     steps:
@@ -23,7 +23,7 @@ jobs:
           dotnet restore windows-app/LiquidGlassStudio.csproj
           dotnet publish windows-app/LiquidGlassStudio.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o windows-app/publish
 
-      - name: Prepare package assets
+      - name: Prepare clean MSIX package staging folder
         shell: pwsh
         run: |
           Remove-Item windows-app/package -Recurse -Force -ErrorAction SilentlyContinue
@@ -31,7 +31,8 @@ jobs:
           Copy-Item public/pwa-icon.svg windows-app/package/Assets/pwa-icon.svg
           Copy-Item public/favicon.ico windows-app/package/Assets/favicon.ico
           Copy-Item windows-app/publish/* windows-app/package/ -Recurse -Force
-          Copy-Item windows-app/Package.appxmanifest windows-app/package/Package.appxmanifest -Force
+          # MakeAppx requires the package manifest to be named AppxManifest.xml.
+          Copy-Item windows-app/Package.appxmanifest windows-app/package/AppxManifest.xml -Force
 
       - name: Create PNG package icons from the existing PWA icon
         shell: pwsh
@@ -41,27 +42,22 @@ jobs:
           npx sharp-cli -i windows-app/package/Assets/pwa-icon.svg -o windows-app/package/Assets/Square150x150Logo.png resize 150 150
           npx sharp-cli -i windows-app/package/Assets/pwa-icon.svg -o windows-app/package/Assets/StoreLogo.png resize 50 50
 
-      - name: Validate package inputs
+      - name: Validate MSIX staging contents
         shell: pwsh
         run: |
           Set-Location windows-app
-          if (-not (Test-Path './package/Package.appxmanifest')) { throw 'Package.appxmanifest is missing.' }
-          if (-not (Test-Path './package/Liquid Glass Studio.exe')) { throw 'Published Liquid Glass Studio.exe is missing.' }
-          foreach ($asset in @(
+          $required = @(
+            './package/AppxManifest.xml',
+            './package/Liquid Glass Studio.exe',
             './package/Assets/StoreLogo.png',
             './package/Assets/Square150x150Logo.png',
             './package/Assets/Square44x44Logo.png'
-          )) {
-            if (-not (Test-Path $asset)) { throw "Required package asset is missing: $asset" }
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) { throw "Required package file is missing: $path" }
           }
-          Write-Host 'MSIX package inputs validated.'
-
-          Write-Host 'Package manifest:'
-          Get-Content './package/Package.appxmanifest'
-          Write-Host 'Package files:'
-          Get-ChildItem './package' -Recurse -File | Sort-Object FullName | ForEach-Object {
-            Write-Host $_.FullName
-          }
+          Write-Host 'MSIX package manifest:'
+          Get-Content './package/AppxManifest.xml'
 
       - name: Locate Windows SDK packaging tools
         shell: pwsh
@@ -71,29 +67,24 @@ jobs:
           if ($env:ProgramFiles) { $roots += (Join-Path $env:ProgramFiles 'Windows Kits\10\bin') }
           if (${env:ProgramFiles(x86)}) { $roots += (Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin') }
           $roots = $roots | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
-
           $makeAppx = $null
           $signtool = $null
           foreach ($root in $roots) {
-            $makeAppx = Get-ChildItem -LiteralPath $root -Recurse -File -Filter MakeAppx.exe -ErrorAction SilentlyContinue |
-              Where-Object { $_.FullName -match '\\(x64|arm64)\\MakeAppx\.exe$' } |
-              Sort-Object FullName -Descending |
-              Select-Object -First 1
-            if ($makeAppx) { break }
+            if (-not $makeAppx) {
+              $makeAppx = Get-ChildItem -LiteralPath $root -Recurse -File -Filter MakeAppx.exe -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -match '\\(x64|arm64)\\MakeAppx\.exe$' } |
+                Sort-Object FullName -Descending | Select-Object -First 1
+            }
+            if (-not $signtool) {
+              $signtool = Get-ChildItem -LiteralPath $root -Recurse -File -Filter SignTool.exe -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -match '\\(x64|arm64)\\SignTool\.exe$' } |
+                Sort-Object FullName -Descending | Select-Object -First 1
+            }
           }
-          foreach ($root in $roots) {
-            $signtool = Get-ChildItem -LiteralPath $root -Recurse -File -Filter SignTool.exe -ErrorAction SilentlyContinue |
-              Where-Object { $_.FullName -match '\\(x64|arm64)\\SignTool\.exe$' } |
-              Sort-Object FullName -Descending |
-              Select-Object -First 1
-            if ($signtool) { break }
-          }
-
           if (-not $makeAppx) { $makeAppx = Get-Command MakeAppx.exe -ErrorAction SilentlyContinue }
           if (-not $signtool) { $signtool = Get-Command SignTool.exe -ErrorAction SilentlyContinue }
           if (-not $makeAppx) { throw 'MakeAppx.exe was not found on the GitHub Windows runner.' }
           if (-not $signtool) { throw 'SignTool.exe was not found on the GitHub Windows runner.' }
-
           $makeAppxPath = if ($makeAppx.Path) { $makeAppx.Path } else { $makeAppx.FullName }
           $signtoolPath = if ($signtool.Path) { $signtool.Path } else { $signtool.FullName }
           "MAKEAPPX_PATH=$makeAppxPath" | Out-File -FilePath $env:GITHUB_ENV -Append
@@ -101,24 +92,21 @@ jobs:
           Write-Host "Using MakeAppx: $makeAppxPath"
           Write-Host "Using SignTool: $signtoolPath"
 
-      - name: Create unsigned MSIX with MakeAppx
+      - name: Create unsigned MSIX
         shell: pwsh
         run: |
           Set-Location windows-app
+          Remove-Item ./release -Recurse -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force -Path ./release | Out-Null
-          Write-Host 'Running MakeAppx with verbose diagnostics...'
-          & $env:MAKEAPPX_PATH pack /o /d './package' /nv /v /p './release/Liquid Glass Studio.msix' 2>&1 | Tee-Object -Variable makeAppxOutput
-          $makeAppxExitCode = $LASTEXITCODE
-          Write-Host 'MakeAppx output:'
-          $makeAppxOutput | ForEach-Object { Write-Host $_ }
-          if ($makeAppxExitCode -ne 0) {
-            Write-Host 'Release directory contents after MakeAppx failure:'
-            Get-ChildItem './release' -Force -ErrorAction SilentlyContinue | Format-List Name,Length,FullName
-            throw "MakeAppx.exe failed with exit code $makeAppxExitCode. See verbose output above."
-          }
-          if (-not (Test-Path './release/Liquid Glass Studio.msix')) {
-            throw 'MSIX package was not generated by MakeAppx.exe.'
-          }
+          Write-Host 'Running MakeAppx with manifest mapping...'
+          $log = Join-Path $PWD 'makeappx.log'
+          & $env:MAKEAPPX_PATH pack /o /d './package' /nv /v /p './release/Liquid Glass Studio.msix' *> $log
+          $exitCode = $LASTEXITCODE
+          Write-Host '----- MakeAppx diagnostic output -----'
+          Get-Content $log -ErrorAction SilentlyContinue
+          Write-Host '----- End MakeAppx diagnostic output -----'
+          if ($exitCode -ne 0) { throw "MakeAppx.exe failed with exit code $exitCode. See full diagnostic output above." }
+          if (-not (Test-Path './release/Liquid Glass Studio.msix')) { throw 'MSIX package was not generated.' }
 
       - name: Sign MSIX with configured certificate
         shell: pwsh
