@@ -35,7 +35,21 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  if (minimized) {
+  // Load the selected note into the local draft.
+  useEffect(() => {
+    setTitle(note?.title ?? "");
+    setBody(note?.body ?? "");
+  }, [note?.id]);
+
+  // Debounced autosave.
+  useEffect(() => {
+    if (!note) return;
+    if (title === note.title && body === note.body) return;
+    const timer = setTimeout(() => onUpdate(note.id, { title, body }), 450);
+    return () => clearTimeout(timer);
+  }, [title, body, note, onUpdate]);
+
+    if (minimized) {
     return (
       <GlassPanel className="flex h-full items-start justify-center !p-2">
         <button
@@ -51,21 +65,7 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
     );
   }
 
-  // Load the selected note into the local draft.
-  useEffect(() => {
-    setTitle(note?.title ?? "");
-    setBody(note?.body ?? "");
-  }, [note?.id]);
-
-  // Debounced autosave.
-  useEffect(() => {
-    if (!note) return;
-    if (title === note.title && body === note.body) return;
-    const timer = setTimeout(() => onUpdate(note.id, { title, body }), 450);
-    return () => clearTimeout(timer);
-  }, [title, body, note, onUpdate]);
-
-    if (!note) {
+  if (!note) {
     return (
       <GlassPanel className="flex h-full min-h-0 items-center justify-center !p-8 text-center">
         <p className="text-sm text-muted-foreground">
