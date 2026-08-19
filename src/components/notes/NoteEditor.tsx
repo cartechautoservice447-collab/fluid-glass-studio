@@ -1,4 +1,4 @@
-import { Eye, Pencil, Star, Trash2 } from "lucide-react";
+import { Eye, Maximize2, Minimize2, Pencil, Star, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { GlassPanel } from "@/components/liquid/GlassPanel";
@@ -18,6 +18,8 @@ import { relativeDate } from "@/hooks/useNotes";
 import { cn } from "@/lib/utils";
 
 type Props = {
+  minimized: boolean;
+  onMinimize: () => void;
   note: Note | null;
   collections: Collection[];
   onUpdate: (id: string, patch: Partial<Omit<Note, "id">>) => void;
@@ -27,11 +29,27 @@ type Props = {
 
 const NO_COLLECTION = "__none__";
 
-export function NoteEditor({ note, collections, onUpdate, onDelete, onToggleFavorite }: Props) {
+export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate, onDelete, onToggleFavorite }: Props) {
   const [title, setTitle] = useState(note?.title ?? "");
   const [body, setBody] = useState(note?.body ?? "");
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  if (minimized) {
+    return (
+      <GlassPanel className="flex h-full items-start justify-center !p-2">
+        <button
+          type="button"
+          onClick={onMinimize}
+          className="flex size-10 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-foreground transition-colors hover:bg-white/20"
+          aria-label="Restore editor panel"
+          title="Restore editor panel"
+        >
+          <Maximize2 className="size-4" />
+        </button>
+      </GlassPanel>
+    );
+  }
 
   // Load the selected note into the local draft.
   useEffect(() => {
@@ -85,6 +103,15 @@ export function NoteEditor({ note, collections, onUpdate, onDelete, onToggleFavo
             ))}
           </SelectContent>
         </Select>
+        <button
+          type="button"
+          onClick={onMinimize}
+          className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-white/15 hover:text-foreground"
+          aria-label="Minimize editor panel"
+          title="Minimize editor panel"
+        >
+          <Minimize2 className="size-4" />
+        </button>
         <Button
           size="icon"
           variant="ghost"
