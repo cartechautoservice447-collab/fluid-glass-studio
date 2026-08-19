@@ -1,4 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { runLegacyMigrationOnce } from "@/lib/legacyMigration";
+import { newId, supabase } from "@/lib/supabaseClient";
 
 export const COURSE_ACCENTS = ["sky", "violet", "amber", "emerald", "rose", "cyan"] as const;
 export type CourseAccent = (typeof COURSE_ACCENTS)[number];
@@ -11,126 +15,172 @@ export type Course = {
   createdAt: number;
 };
 
-const COURSES_KEY = "liquid-courses-v1";
+type CourseRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string | null;
+  created_at: string;
+};
 
-// Pre-migration global notes keys (from the old single-workspace Glass Notes).
-const LEGACY_NOTES_KEY = "glass-notes-v1";
-const LEGACY_COLLECTIONS_KEY = "glass-notes-collections-v1";
-const MIGRATION_FLAG_KEY = "liquid-courses-legacy-migrated-v1";
-const LEGACY_OWNER_KEY = "liquid-courses-legacy-owner-v1";
+const EMPTY: Course[] = [];
 
-const uid = () => Math.random().toString(36).slice(2, 10);
-
-function load<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
+function toCourse(row: CourseRow): Course {
+  const color = (COURSE_ACCENTS as readonly string[]).includes(row.color ?? "")
+    ? (row.color as CourseAccent)
+    : COURSE_ACCENTS[0];
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description ?? "",
+    color,
+    createdAt: new Date(row.created_at).getTime(),
+  };
 }
 
-/**
- * One-time migration: if this browser has notes saved under the old global
- * keys (from before courses existed), move them into a new "My Notes"
- * course instead of losing them. Runs at most once ever, guarded by
- * MIGRATION_FLAG_KEY — safe to ship even after some users already have
- * courses. The original legacy keys are left in place untouched as a backup.
- */
-function migrateLegacyNotesOnce(userId: string, existingCourses: Course[]): Course[] {
-  try {
-    const migrationKey = `${MIGRATION_FLAG_KEY}:${userId}`;
-    const legacyOwner = localStorage.getItem(LEGACY_OWNER_KEY);
-    if (localStorage.getItem(migrationKey) || (legacyOwner && legacyOwner !== userId)) return existingCourses;
-
-    const legacyNotes = load<unknown[]>(LEGACY_NOTES_KEY, []);
-    const legacyCollections = load<unknown[]>(LEGACY_COLLECTIONS_KEY, []);
-
-    // Mark as handled regardless of outcome so this never re-runs.
-    localStorage.setItem(migrationKey, "1");
-    localStorage.setItem(LEGACY_OWNER_KEY, userId);
-
-    const hasLegacyData =
-      (Array.isArray(legacyNotes) && legacyNotes.length > 0) ||
-      (Array.isArray(legacyCollections) && legacyCollections.length > 0);
-
-    if (!hasLegacyData) return existingCourses;
-
-    const migratedCourse: Course = {
-      id: uid(),
-      name: "My Notes",
-      description: "Imported from your previous notes.",
-      color: COURSE_ACCENTS[0],
-      createdAt: Date.now(),
-    };
-
-    localStorage.setItem(`glass-notes-v1:${userId}:${migratedCourse.id}`, JSON.stringify(legacyNotes));
-    localStorage.setItem(
-      `glass-notes-collections-v1:${userId}:${migratedCourse.id}`,
-      JSON.stringify(legacyCollections),
-    );
-
-    return [migratedCourse, ...existingCourses];
-  } catch {
-    return existingCourses;
-  }
-}
-
-/** Course list (the folders on the home screen). Each course owns its own isolated notes store. */
+/** Course list (folders on the home screen), stored in Supabase and scoped by RLS. */
 export function useCourses(userId: string) {
-  const coursesKey = `${COURSES_KEY}:${userId}`;
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+  const queryClient = useQueryClient();
+  const queryKey = useMemo(() => ["courses", userId], [userId]);
+  const [migrated, setMigrated] = useState(false);
 
+  // One-time move of any legacy localStorage data into Supabase.
   useEffect(() => {
-    const loaded = load<Course[]>(coursesKey, []);
-    setCourses(migrateLegacyNotesOnce(userId, loaded));
-    setHydrated(true);
-  }, [coursesKey, userId]);
+    let cancelled = false;
+    if (!userId) return;
+    void runLegacyMigrationOnce(userId)
+      .then((didImport) => {
+        if (cancelled) return;
+        if (didImport) void queryClient.invalidateQueries();
+      })
+      .finally(() => {
+        if (!cancelled) setMigrated(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, queryClient]);
 
-  useEffect(() => {
-    if (!hydrated) return;
-    try {
-      localStorage.setItem(coursesKey, JSON.stringify(courses));
-    } catch {
-      /* ignore quota errors */
-    }
-  }, [courses, hydrated, coursesKey]);
+  const coursesQuery = useQuery({
+    queryKey,
+    enabled: Boolean(userId) && migrated,
+    queryFn: async (): Promise<Course[]> => {
+      const { data, error } = await supabase
+        .from("courses")
+        .select("id, name, description, color, created_at")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return ((data ?? []) as CourseRow[]).map(toCourse);
+    },
+  });
+
+  const courses = coursesQuery.data ?? EMPTY;
+
+  const patchCache = useCallback(
+    (updater: (prev: Course[]) => Course[]) => {
+      queryClient.setQueryData<Course[]>(queryKey, (prev) => updater(prev ?? []));
+    },
+    [queryClient, queryKey],
+  );
+
+  const write = useMutation({
+    mutationFn: async (payload: {
+      op: "insert" | "update" | "delete";
+      id: string;
+      values?: Record<string, unknown>;
+    }) => {
+      if (payload.op === "insert") {
+        const { error } = await supabase
+          .from("courses")
+          .insert({ id: payload.id, user_id: userId, ...payload.values });
+        if (error) throw error;
+        return;
+      }
+      if (payload.op === "update") {
+        const { error } = await supabase
+          .from("courses")
+          .update({ ...payload.values, updated_at: new Date().toISOString() })
+          .eq("id", payload.id);
+        if (error) throw error;
+        return;
+      }
+      const { error } = await supabase.from("courses").delete().eq("id", payload.id);
+      if (error) throw error;
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey: ["course-stats", userId] });
+    },
+  });
 
   const addCourse = useCallback(
     (input: { name: string; description?: string; color?: CourseAccent }) => {
       const name = input.name.trim();
-      if (!name) return null;
+      if (!name || !userId) return null;
       const course: Course = {
-        id: uid(),
+        id: newId(),
         name,
         description: input.description?.trim() ?? "",
         color: input.color ?? COURSE_ACCENTS[0],
         createdAt: Date.now(),
       };
-      setCourses((prev) => [course, ...prev]);
+      patchCache((prev) => [course, ...prev]);
+      write.mutate({
+        op: "insert",
+        id: course.id,
+        values: { name: course.name, description: course.description, color: course.color },
+      });
       return course.id;
     },
-    [],
+    [userId, patchCache, write],
   );
 
   const renameCourse = useCallback(
     (id: string, patch: Partial<Omit<Course, "id" | "createdAt">>) => {
-      setCourses((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+      patchCache((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+      const values: Record<string, unknown> = {};
+      if (patch.name !== undefined) values["name"] = patch.name;
+      if (patch.description !== undefined) values["description"] = patch.description;
+      if (patch.color !== undefined) values["color"] = patch.color;
+      if (Object.keys(values).length === 0) return;
+      write.mutate({ op: "update", id, values });
     },
-    [],
+    [patchCache, write],
   );
 
-  const deleteCourse = useCallback((id: string) => {
-    setCourses((prev) => prev.filter((c) => c.id !== id));
-    try {
-      localStorage.removeItem(`glass-notes-v1:${userId}:${id}`);
-      localStorage.removeItem(`glass-notes-collections-v1:${userId}:${id}`);
-    } catch {
-      /* ignore */
-    }
-  }, [userId]);
+  const deleteCourse = useCallback(
+    (id: string) => {
+      patchCache((prev) => prev.filter((c) => c.id !== id));
+      write.mutate({ op: "delete", id });
+    },
+    [patchCache, write],
+  );
 
-  return { courses, hydrated, addCourse, renameCourse, deleteCourse };
+  return {
+    courses,
+    hydrated: migrated && !coursesQuery.isLoading,
+    addCourse,
+    renameCourse,
+    deleteCourse,
+  };
+}
+
+/** Note count + last-edited timestamp per course, for the course grid. */
+export function useCourseStats(userId: string) {
+  return useQuery({
+    queryKey: ["course-stats", userId],
+    enabled: Boolean(userId),
+    queryFn: async () => {
+      const { data, error } = await supabase.from("notes").select("course_id, updated_at");
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      const lastEdited: Record<string, number | null> = {};
+      for (const row of (data ?? []) as { course_id: string; updated_at: string }[]) {
+        const ts = new Date(row.updated_at).getTime();
+        counts[row.course_id] = (counts[row.course_id] ?? 0) + 1;
+        lastEdited[row.course_id] = Math.max(lastEdited[row.course_id] ?? 0, ts);
+      }
+      return { counts, lastEdited };
+    },
+  });
 }
