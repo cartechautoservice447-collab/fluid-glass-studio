@@ -1,0 +1,58 @@
+name: Export MSIX Signer Certificate
+
+on:
+  workflow_dispatch:
+
+jobs:
+  export-certificate:
+    runs-on: windows-2022
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Find latest successful Windows MSIX FINAL run
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $runs = gh run list --workflow build-liquid-glass-studio-msix-final.yml --status success --limit 1 --json databaseId
+          if (-not $runs) { throw 'No successful Windows MSIX FINAL workflow run was found.' }
+          $run = $runs | ConvertFrom-Json
+          if (-not $run) { throw 'Could not determine the latest successful MSIX run.' }
+          "SOURCE_RUN_ID=$($run.databaseId)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "Using successful MSIX run $($run.databaseId)."
+
+      - name: Download latest successful MSIX artifact
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download $env:SOURCE_RUN_ID --name liquid-glass-studio-msix-final --dir msix-artifact
+          $msix = Get-ChildItem msix-artifact -Recurse -Filter 'Liquid Glass Studio.msix' | Select-Object -First 1
+          if (-not $msix) { throw 'Liquid Glass Studio.msix was not found.' }
+          New-Item -ItemType Directory -Force -Path output | Out-Null
+          Copy-Item $msix.FullName 'output/Liquid Glass Studio.msix' -Force
+
+      - name: Extract public signer certificate
+        shell: pwsh
+        run: |
+          $msixPath = Resolve-Path 'output/Liquid Glass Studio.msix'
+          $signature = Get-AuthenticodeSignature -FilePath $msixPath
+          Write-Host "Signature status: $($signature.Status)"
+          if (-not $signature.SignerCertificate) {
+            throw 'The MSIX has no readable signer certificate. The package is not signed or its signature could not be read.'
+          }
+          $cert = $signature.SignerCertificate
+          Write-Host "Subject: $($cert.Subject)"
+          Write-Host "Issuer: $($cert.Issuer)"
+          Write-Host "Thumbprint: $($cert.Thumbprint)"
+          $cert.ExportCertificatePem() | Set-Content -Path 'output/Liquid Glass Studio Signer Certificate.pem' -Encoding ascii
+          Export-Certificate -Cert $cert -FilePath 'output/Liquid Glass Studio Signer Certificate.cer' -Type CERT | Out-Null
+
+      - name: Upload certificate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: liquid-glass-studio-msix-signer-certificate
+          path: |
+            output/Liquid Glass Studio Signer Certificate.cer
+            output/Liquid Glass Studio Signer Certificate.pem
