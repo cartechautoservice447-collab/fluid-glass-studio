@@ -14,13 +14,14 @@ type Props = {
 
 export function CourseNotesView({ course, onBack, userId }: Props) {
   const notes = useNotes(course.id, userId);
+  const { filter } = notes;
 
   const heading =
-    notes.filter.kind === "all"
+    filter.kind === "all"
       ? "All Notes"
-      : notes.filter.kind === "favorites"
+      : filter.kind === "favorites"
         ? "Favorites"
-        : (notes.collections.find((c) => c.id === notes.filter.id)?.name ?? "Collection");
+        : (notes.collections.find((c) => c.id === filter.id)?.name ?? "Collection");
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col gap-3">
