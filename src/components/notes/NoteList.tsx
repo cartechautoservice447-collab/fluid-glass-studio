@@ -1,8 +1,12 @@
+import { Maximize2, Minimize2 } from "lucide-react";
+
 import { GlassPanel } from "@/components/liquid/GlassPanel";
 import { NoteCard } from "@/components/notes/NoteCard";
 import type { Note } from "@/hooks/useNotes";
 
 type Props = {
+  minimized: boolean;
+  onMinimize: () => void;
   notes: Note[];
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -10,14 +14,40 @@ type Props = {
   heading: string;
 };
 
-export function NoteList({ notes, selectedId, onSelect, onToggleFavorite, heading }: Props) {
+export function NoteList({ minimized, onMinimize, notes, selectedId, onSelect, onToggleFavorite, heading }: Props) {
+  if (minimized) {
+    return (
+      <GlassPanel className="flex h-full items-start justify-center !p-2">
+        <button
+          type="button"
+          onClick={onMinimize}
+          className="flex size-10 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-foreground transition-colors hover:bg-white/20"
+          aria-label="Restore notes panel"
+          title="Restore notes panel"
+        >
+          <Maximize2 className="size-4" />
+        </button>
+      </GlassPanel>
+    );
+  }
   return (
     <GlassPanel className="flex h-full min-h-0 flex-col gap-3 !p-4">
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-[0.62rem] font-bold uppercase tracking-[0.28em] text-foreground">
           {heading}
         </h2>
-        <span className="font-mono text-xs text-muted-foreground">{notes.length}</span>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-xs text-muted-foreground">{notes.length}</span>
+          <button
+            type="button"
+            onClick={onMinimize}
+            className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/15 hover:text-foreground"
+            aria-label="Minimize notes panel"
+            title="Minimize notes panel"
+          >
+            <Minimize2 className="size-3.5" />
+          </button>
+        </div>
       </div>
       <div className="glass-scrollbar -mx-2 -my-2 min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto px-2 py-2">
         {notes.length === 0 ? (
