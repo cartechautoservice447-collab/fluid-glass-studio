@@ -1,5 +1,3 @@
-import { ArrowLeft } from "lucide-react";
-
 import { NoteEditor } from "@/components/notes/NoteEditor";
 import { NoteList } from "@/components/notes/NoteList";
 import { Sidebar } from "@/components/notes/Sidebar";
@@ -9,10 +7,12 @@ import { useNotes } from "@/hooks/useNotes";
 type Props = {
   course: Course;
   onBack: () => void;
+  onLogout: () => void;
   userId: string;
+  email: string | null;
 };
 
-export function CourseNotesView({ course, onBack, userId }: Props) {
+export function CourseNotesView({ course, onBack, onLogout, userId, email }: Props) {
   const notes = useNotes(course.id, userId);
   const { filter } = notes;
 
@@ -25,24 +25,12 @@ export function CourseNotesView({ course, onBack, userId }: Props) {
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col gap-3">
-      <div className="flex items-center gap-3 px-1">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1.5 text-xs font-medium text-foreground on-stage transition-colors hover:bg-white/20"
-        >
-          <ArrowLeft className="size-3.5" />
-          My Courses
-        </button>
-        <span className="text-xs text-muted-foreground on-stage-muted">/</span>
-        <span className="truncate text-sm font-semibold text-foreground on-stage">
-          {course.name}
-        </span>
-      </div>
-
       <div className="relative flex min-h-0 w-full flex-1 flex-row items-stretch gap-4 overflow-x-auto">
         <div className="h-full w-72 min-w-[220px] shrink basis-72">
           <Sidebar
+            email={email}
+            onBack={onBack}
+            onLogout={onLogout}
             collections={notes.collections}
             counts={notes.counts}
             filter={notes.filter}
