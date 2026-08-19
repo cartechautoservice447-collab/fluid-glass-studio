@@ -6,6 +6,7 @@ import { AuthPage } from "@/components/auth/AuthPage";
 import { CourseGrid } from "@/components/courses/CourseGrid";
 import { CourseNotesView } from "@/components/courses/CourseNotesView";
 import { LiquidFilters } from "@/components/liquid/LiquidFilters";
+import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { CustomizationProvider } from "@/context/CustomizationContext";
 import { useCourses, useCourseStats } from "@/hooks/useCourses";
@@ -37,6 +38,7 @@ function Page() {
       <CustomizationProvider>
         <LiquidFilters />
         <AuthenticatedWorkspace />
+        <PwaInstallButton />
       </CustomizationProvider>
     </AuthProvider>
   );
