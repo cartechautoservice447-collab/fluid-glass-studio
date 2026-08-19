@@ -19,7 +19,7 @@ export function NoteList({ notes, selectedId, onSelect, onToggleFavorite, headin
         </h2>
         <span className="font-mono text-xs text-muted-foreground">{notes.length}</span>
       </div>
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+      <div className="glass-scrollbar -mx-2 -my-2 min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto px-2 py-2">
         {notes.length === 0 ? (
           <p className="px-1 py-6 text-sm text-muted-foreground">No notes match this view.</p>
         ) : (
