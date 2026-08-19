@@ -2,7 +2,7 @@ import { Eye, PanelLeft, Pencil, Star, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { GlassPanel } from "@/components/liquid/GlassPanel";
-import { MarkdownPreview } from "@/components/notes/MarkdownPreview";
+import { NotebookPreviewAdditive } from "@/components/notes/NotebookPreviewAdditive";
 import { MarkdownToolbar } from "@/components/notes/MarkdownToolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,7 +49,7 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
     return () => clearTimeout(timer);
   }, [title, body, note, onUpdate]);
 
-    if (minimized) {
+  if (minimized) {
     return (
       <GlassPanel className="flex h-full items-start justify-center !p-3">
         <button
@@ -158,7 +158,7 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
         </Button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto bg-[#0d1117] p-4">
+      <div className={`min-h-0 flex-1 overflow-y-auto bg-[#0d1117] ${mode === "edit" ? "p-4" : "p-0"}`}>
         {mode === "edit" ? (
           <textarea
             ref={textareaRef}
@@ -171,11 +171,11 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
             style={{ fontFamily: "'Fira Code', 'JetBrains Mono', 'Consolas', monospace" }}
           />
         ) : (
-          <MarkdownPreview body={body} />
+          <NotebookPreviewAdditive body={body} />
         )}
       </div>
 
-            <p className="border-t border-white/10 bg-[#0d1117] px-4 py-2 text-[0.65rem] uppercase tracking-[0.2em] text-[#8b949e]">
+      <p className="border-t border-white/10 bg-[#0d1117] px-4 py-2 text-[0.65rem] uppercase tracking-[0.2em] text-[#8b949e]">
         Autosaved · edited {relativeDate(note.updatedAt)}
       </p>
     </GlassPanel>
