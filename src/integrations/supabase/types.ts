@@ -139,7 +139,10 @@ export type Database = {
           liquid_bounce_stiffness: number
           liquid_clearness: number
           liquid_density: number
+          liquid_enabled: boolean
           liquid_gel: number
+          liquid_realism: number
+          liquid_sharpness: number
           liquid_transparency: number
           theme: string
           updated_at: string
@@ -152,7 +155,10 @@ export type Database = {
           liquid_bounce_stiffness?: number
           liquid_clearness?: number
           liquid_density?: number
+          liquid_enabled?: boolean
           liquid_gel?: number
+          liquid_realism?: number
+          liquid_sharpness?: number
           liquid_transparency?: number
           theme?: string
           updated_at?: string
@@ -165,7 +171,10 @@ export type Database = {
           liquid_bounce_stiffness?: number
           liquid_clearness?: number
           liquid_density?: number
+          liquid_enabled?: boolean
           liquid_gel?: number
+          liquid_realism?: number
+          liquid_sharpness?: number
           liquid_transparency?: number
           theme?: string
           updated_at?: string
