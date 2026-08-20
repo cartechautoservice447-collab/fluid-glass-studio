@@ -120,19 +120,20 @@ jobs:
           $bundle = 'windows-app/local-final'
           Copy-Item 'windows-app/release/Liquid Glass Studio.msix' "$bundle/Liquid Glass Studio.msix" -Force
           Copy-Item 'Liquid Glass Studio Local Signing.cer' "$bundle/Liquid Glass Studio Local Signing.cer" -Force
-          @'
-Liquid Glass Studio - Windows Laptop Installation
-
-1. Double-click "Liquid Glass Studio Local Signing.cer".
-2. Choose "Install Certificate".
-3. Select "Current User".
-4. Select "Place all certificates in the following store".
-5. Choose "Trusted People".
-6. Finish the certificate import.
-7. Double-click "Liquid Glass Studio.msix" and install the app.
-
-This certificate is for this local laptop/test distribution only.
-'@ | Set-Content "$bundle/INSTALL.txt" -Encoding UTF8
+          $installLines = @(
+            'Liquid Glass Studio - Windows Laptop Installation',
+            '',
+            '1. Double-click "Liquid Glass Studio Local Signing.cer".',
+            '2. Choose "Install Certificate".',
+            '3. Select "Current User".',
+            '4. Select "Place all certificates in the following store".',
+            '5. Choose "Trusted People".',
+            '6. Finish the certificate import.',
+            '7. Double-click "Liquid Glass Studio.msix" and install the app.',
+            '',
+            'This certificate is for this local laptop/test distribution only.'
+          )
+          $installLines -join [Environment]::NewLine | Set-Content "$bundle/INSTALL.txt" -Encoding UTF8
           Remove-Item 'Liquid Glass Studio Local Signing.pfx' -Force -ErrorAction SilentlyContinue
           Remove-Item 'local-pfx-password.txt' -Force -ErrorAction SilentlyContinue
 
