@@ -1,9 +1,10 @@
-import { BookOpen, Timer } from "lucide-react";
+import { BookOpen, History, Timer } from "lucide-react";
 import { useState } from "react";
 
 import { AddCourseModal } from "@/components/courses/AddCoursesModal";
 import { CourseCard } from "@/components/courses/CourseCard";
 import { PomodoroModal } from "@/components/focus/PomodoroModal";
+import { DistractionHistoryModal } from "@/components/focus/DistractionHistoryModal";
 import { EngineSettingsModal } from "@/components/liquid/EngineSettingsModal";
 import { ThemeToggle } from "@/components/liquid/ThemeToggle";
 import { useCustomization } from "@/context/CustomizationContext";
@@ -21,6 +22,7 @@ type Props = {
 export function CourseGrid({ courses, noteCounts, lastEdited, hiddenCourseId, onOpenCourse, onCreateCourse }: Props) {
   const { displayName } = useCustomization();
   const [pomodoroOpen, setPomodoroOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col gap-6 overflow-y-auto px-2 py-2">
@@ -36,6 +38,10 @@ export function CourseGrid({ courses, noteCounts, lastEdited, hiddenCourseId, on
         <button type="button" onClick={() => setPomodoroOpen(true)} className="liquid-panel group flex min-h-28 items-center gap-4 rounded-3xl p-5 text-left transition duration-200 hover:-translate-y-0.5 hover:brightness-110" style={{ backgroundColor: "var(--water-gel-bg)", backdropFilter: "blur(var(--liquid-density, 12px)) saturate(180%)", borderTop: "1px solid rgba(255,255,255,.32)" }}>
           <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-foreground shadow-inner"><Timer className="size-5" /></span>
           <span><span className="block text-base font-semibold text-foreground">Pomodoro</span><span className="mt-1 block text-xs text-muted-foreground">Focus with a timer</span></span>
+        </button>
+        <button type="button" onClick={() => setHistoryOpen(true)} className="liquid-panel group flex min-h-28 items-center gap-4 rounded-3xl p-5 text-left transition duration-200 hover:-translate-y-0.5 hover:brightness-110" style={{ backgroundColor: "var(--water-gel-bg)", backdropFilter: "blur(var(--liquid-density, 12px)) saturate(180%)", borderTop: "1px solid rgba(255,255,255,.32)" }}>
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-foreground shadow-inner"><History className="size-5" /></span>
+          <span><span className="block text-base font-semibold text-foreground">Distraction History</span><span className="mt-1 block text-xs text-muted-foreground">Review focus sessions</span></span>
         </button>
       </div>
 
@@ -53,6 +59,7 @@ export function CourseGrid({ courses, noteCounts, lastEdited, hiddenCourseId, on
       )}
 
       <PomodoroModal open={pomodoroOpen} onOpenChange={setPomodoroOpen} />
+      <DistractionHistoryModal open={historyOpen} onOpenChange={setHistoryOpen} />
     </div>
   );
 }
