@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { AuthPage } from "@/components/auth/AuthPage";
 import { CourseGrid } from "@/components/courses/CourseGrid";
 import { CourseNotesView } from "@/components/courses/CourseNotesView";
+import { GlassReminderCenter } from "@/components/reminders/GlassReminderCenter";
 import { LiquidFilters } from "@/components/liquid/LiquidFilters";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
@@ -20,7 +21,6 @@ export const Route = createFileRoute("/")({
 });
 
 const DISTRACTION_KEY = "liquid-glass-distraction-mode";
-
 type DistractionSession = { active: boolean; courseId?: string | null; courseName: string; date: string; durationHours: number; endsAt: number | null };
 
 function readDistractionSession(): DistractionSession | null {
@@ -28,13 +28,9 @@ function readDistractionSession(): DistractionSession | null {
     const saved = JSON.parse(localStorage.getItem(DISTRACTION_KEY) ?? "null");
     if (!saved?.active || !saved?.endsAt) return null;
     if (saved.endsAt <= Date.now()) { localStorage.removeItem(DISTRACTION_KEY); return null; }
-    // Older sessions did not identify a real course folder. Clear those so they cannot trap the whole site.
     if (!saved.courseId) { localStorage.removeItem(DISTRACTION_KEY); return null; }
     return saved as DistractionSession;
-  } catch {
-    localStorage.removeItem(DISTRACTION_KEY);
-    return null;
-  }
+  } catch { localStorage.removeItem(DISTRACTION_KEY); return null; }
 }
 
 function Page() { return <AuthProvider><CustomizationProvider><LiquidFilters /><AuthenticatedWorkspace /><PwaInstallButton /></CustomizationProvider></AuthProvider>; }
@@ -54,40 +50,24 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
 
   useEffect(() => {
     const sync = () => setDistraction(readDistractionSession());
-    const onStorage = () => sync();
-    window.addEventListener("storage", onStorage);
+    window.addEventListener("storage", sync);
     const timer = window.setInterval(sync, 500);
-    return () => { window.removeEventListener("storage", onStorage); window.clearInterval(timer); };
+    return () => { window.removeEventListener("storage", sync); window.clearInterval(timer); };
   }, []);
 
   useEffect(() => {
     if (!distraction?.active || !distraction.endsAt) return;
-    if (distraction.endsAt <= Date.now()) {
-      localStorage.removeItem(DISTRACTION_KEY);
-      setDistraction(null);
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      localStorage.removeItem(DISTRACTION_KEY);
-      setDistraction(null);
-      setSelectedCourseId(null);
-    }, Math.max(0, distraction.endsAt - Date.now()));
+    if (distraction.endsAt <= Date.now()) { localStorage.removeItem(DISTRACTION_KEY); setDistraction(null); return; }
+    const timer = window.setTimeout(() => { localStorage.removeItem(DISTRACTION_KEY); setDistraction(null); setSelectedCourseId(null); }, Math.max(0, distraction.endsAt - Date.now()));
     return () => window.clearTimeout(timer);
   }, [distraction]);
 
-  const distractionCourse = distraction?.active
-    ? courses.find((course) => course.id === distraction.courseId) ?? null
-    : null;
-
-  useEffect(() => {
-    if (distractionCourse) setSelectedCourseId(distractionCourse.id);
-  }, [distractionCourse]);
+  const distractionCourse = distraction?.active ? courses.find((course) => course.id === distraction.courseId) ?? null : null;
+  useEffect(() => { if (distractionCourse) setSelectedCourseId(distractionCourse.id); }, [distractionCourse]);
 
   useEffect(() => {
     if (!distraction?.active) return;
-    const onPopState = () => {
-      window.history.pushState({ distractionLock: true }, "", window.location.href);
-    };
+    const onPopState = () => window.history.pushState({ distractionLock: true }, "", window.location.href);
     window.history.pushState({ distractionLock: true }, "", window.location.href);
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -97,31 +77,18 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
   const noteCounts = stats?.counts ?? {};
   const lastEdited = stats?.lastEdited ?? {};
 
-  return (
-    <div className="fixed inset-0 overflow-hidden bg-[#07070c]">
-      <main className="liquid-stage relative flex h-full w-full overflow-hidden p-[10px]">
-        <div className="liquid-orb liquid-orb-a" aria-hidden /><div className="liquid-orb liquid-orb-b" aria-hidden /><div className="liquid-orb liquid-orb-c" aria-hidden />
-        <div className="relative min-h-0 w-full flex-1">
-          <AnimatePresence mode="wait" initial={false}>
-            {selectedCourse ? (
-              <motion.div key={`course-${selectedCourse.id}`} className="absolute inset-0 p-[10px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeInOut" }}>
-                <CourseNotesView course={selectedCourse} userId={userId} email={email} onLogout={distraction?.active ? () => {} : onLogout} onBack={() => { if (!distraction?.active) setSelectedCourseId(null); }} />
-              </motion.div>
-            ) : (
-              <motion.div key="course-grid" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeInOut" }}>
-                <CourseGrid courses={courses} noteCounts={noteCounts} lastEdited={lastEdited} hiddenCourseId={null} onOpenCourse={setSelectedCourseId} onCreateCourse={addCourse} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </main>
-      {distraction?.active && (
-        <div className="pointer-events-none fixed right-5 top-5 z-[1000] rounded-2xl border border-white/15 bg-black/30 px-4 py-2 text-xs text-white/80 shadow-lg backdrop-blur-xl" aria-live="polite">
-          <span className="font-semibold">Distraction Mode</span><span className="mx-2 opacity-40">•</span><span>{distraction.courseName}</span><span className="mx-2 opacity-40">•</span><span>{formatDistractionRemaining(distraction.endsAt ?? Date.now())}</span>
-        </div>
-      )}
-    </div>
-  );
+  return <div className="fixed inset-0 overflow-hidden bg-[#07070c]">
+    <main className="liquid-stage relative flex h-full w-full overflow-hidden p-[10px]">
+      <div className="liquid-orb liquid-orb-a" aria-hidden /><div className="liquid-orb liquid-orb-b" aria-hidden /><div className="liquid-orb liquid-orb-c" aria-hidden />
+      <div className="relative min-h-0 w-full flex-1">
+        <AnimatePresence mode="wait" initial={false}>
+          {selectedCourse ? <motion.div key={`course-${selectedCourse.id}`} className="absolute inset-0 p-[10px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeInOut" }}><CourseNotesView course={selectedCourse} userId={userId} email={email} onLogout={distraction?.active ? () => {} : onLogout} onBack={() => { if (!distraction?.active) setSelectedCourseId(null); }} /></motion.div> : <motion.div key="course-grid" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeInOut" }}><CourseGrid courses={courses} noteCounts={noteCounts} lastEdited={lastEdited} hiddenCourseId={null} onOpenCourse={setSelectedCourseId} onCreateCourse={addCourse} /></motion.div>}
+        </AnimatePresence>
+      </div>
+    </main>
+    {distraction?.active && <div className="pointer-events-none fixed right-5 top-5 z-[1000] rounded-2xl border border-white/15 bg-black/30 px-4 py-2 text-xs text-white/80 shadow-lg backdrop-blur-xl" aria-live="polite"><span className="font-semibold">Distraction Mode</span><span className="mx-2 opacity-40">•</span><span>{distraction.courseName}</span><span className="mx-2 opacity-40">•</span><span>{formatDistractionRemaining(distraction.endsAt ?? Date.now())}</span></div>}
+    {!distraction?.active && <GlassReminderCenter />}
+  </div>;
 }
 
 function formatDistractionRemaining(endsAt: number) {
