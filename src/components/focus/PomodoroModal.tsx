@@ -54,14 +54,17 @@ export function PomodoroModal({
   const [running, setRunning] = useState(false);
   const [deadline, setDeadline] = useState<number | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [restMinutes, setRestMinutes] = useState(5);
   const [locked, setLocked] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     const saved = loadDurations();
     setDurations(saved);
-    setRestMinutes(Math.max(1, Math.round(saved.short / 60)));
+    setMode("focus");
+    setPhase("working");
+    setRemaining(saved.focus);
+    setRunning(false);
+    setDeadline(null);
   }, [open]);
 
   const persistDurations = (next: Record<Mode, number>) => {
@@ -79,9 +82,7 @@ export function PomodoroModal({
   };
 
   const beginRest = () => {
-    const restSeconds = Math.max(1, restMinutes) * 60;
-    const next = { ...durations, short: restSeconds };
-    persistDurations(next);
+    const restSeconds = durations.short;
     setPhase("resting");
     setRemaining(restSeconds);
     setLocked(true);
@@ -101,10 +102,8 @@ export function PomodoroModal({
         setDeadline(null);
 
         if (phase === "working") {
-          // A completed work block immediately locks the whole app into the saved rest period.
           beginRest();
         } else {
-          // Rest is complete: release the lock and make the next focus session available.
           setPhase("working");
           setMode("focus");
           setRemaining(durations.focus);
@@ -116,7 +115,7 @@ export function PomodoroModal({
     tick();
     const id = window.setInterval(tick, 250);
     return () => window.clearInterval(id);
-  }, [running, deadline, phase, durations.focus, restMinutes]);
+  }, [running, deadline, phase, durations.focus, durations.short]);
 
   const formatted = useMemo(() => formatTime(remaining), [remaining]);
 
@@ -139,12 +138,19 @@ export function PomodoroModal({
     setRemaining(durations[mode]);
   };
 
-  const changeRestMinutes = (value: number) => {
-    const safe = Math.min(120, Math.max(1, Math.round(value)));
-    setRestMinutes(safe);
-    const next = { ...durations, short: safe * 60 };
+  const changeDurationMinutes = (item: Mode, value: number) => {
+    const safe = Math.min(180, Math.max(1, Math.round(value)));
+    const next = { ...durations, [item]: safe * 60 };
     persistDurations(next);
-    if (!running && !locked && mode === "short") setRemaining(safe * 60);
+
+    if (!running && !locked && mode === item) {
+      setRemaining(safe * 60);
+    }
+  };
+
+  const resetDurations = () => {
+    persistDurations(DEFAULT_DURATIONS);
+    if (!running && !locked) setRemaining(DEFAULT_DURATIONS[mode]);
   };
 
   return (
@@ -157,7 +163,7 @@ export function PomodoroModal({
               <div className="flex items-center justify-between">
                 <DialogTitle className="text-lg font-semibold tracking-tight">Pomodoro</DialogTitle>
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => setSettingsOpen((value) => !value)} aria-label="Pomodoro settings">
+                  <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => setSettingsOpen((value) => !value)} aria-label="Edit Pomodoro times">
                     <Settings2 className="size-4" />
                   </Button>
                   <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => onOpenChange(false)} aria-label="Close Pomodoro">
@@ -168,23 +174,33 @@ export function PomodoroModal({
 
               {settingsOpen && (
                 <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-                  <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium">Saved rest time</p>
-                      <p className="mt-1 text-xs text-muted-foreground">Used automatically after a work session.</p>
+                      <p className="text-sm font-medium">Edit session times</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Saved automatically for your next sessions.</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        aria-label="Rest minutes"
-                        type="number"
-                        min={1}
-                        max={120}
-                        value={restMinutes}
-                        onChange={(event) => changeRestMinutes(Number(event.target.value))}
-                        className="w-20 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-center text-sm outline-none focus:border-primary/50"
-                      />
-                      <span className="text-xs text-muted-foreground">min</span>
-                    </div>
+                    <Button variant="ghost" size="sm" className="h-8 rounded-xl text-xs" onClick={resetDurations}>Reset</Button>
+                  </div>
+
+                  <div className="mt-4 grid gap-2">
+                    {(Object.keys(LABELS) as Mode[]).map((item) => (
+                      <label key={item} className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-black/10 px-3 py-2.5">
+                        <span className="text-sm text-foreground">{LABELS[item]}</span>
+                        <span className="flex items-center gap-2">
+                          <input
+                            aria-label={`${LABELS[item]} minutes`}
+                            type="number"
+                            min={1}
+                            max={180}
+                            value={Math.round(durations[item] / 60)}
+                            disabled={running || locked}
+                            onChange={(event) => changeDurationMinutes(item, Number(event.target.value))}
+                            className="w-20 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-center text-sm outline-none focus:border-primary/50 disabled:opacity-50"
+                          />
+                          <span className="w-7 text-xs text-muted-foreground">min</span>
+                        </span>
+                      </label>
+                    ))}
                   </div>
                 </div>
               )}
