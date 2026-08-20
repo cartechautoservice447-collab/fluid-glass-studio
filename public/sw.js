@@ -1,5 +1,5 @@
-const CACHE_NAME = "liquid-glass-studio-v1";
-const APP_SHELL = ["/", "/manifest.webmanifest", "/pwa-icon.svg"];
+const CACHE_NAME = "liquid-glass-studio-v3";
+const APP_SHELL = ["/", "/manifest.webmanifest", "/pwa-icon.svg", "/offline.html"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -20,22 +20,22 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
 
-  // Navigation: use the network when available, then fall back to the cached app shell.
   if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
+    const networkUpdate = fetch(request)
+      .then((response) => {
+        if (response.ok) {
           const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put("/", copy));
-          return response;
-        })
-        .catch(() => caches.match("/")),
-    );
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        }
+        return response;
+      })
+      .catch(async () => (await caches.match(request)) || caches.match("/") || caches.match("/offline.html"));
+
+    event.respondWith(caches.match(request).then((cached) => cached || networkUpdate));
+    event.waitUntil(networkUpdate.catch(() => undefined));
     return;
   }
 
-  // Static assets: cache-first with a background refresh. Dynamic/API requests are not
-  // intercepted here, preventing stale or replayed authenticated data mutations.
   const destination = request.destination;
   if (["script", "style", "image", "font", "manifest"].includes(destination)) {
     event.respondWith(
