@@ -5,12 +5,10 @@ import { useState } from "react";
 import { AuthPage } from "@/components/auth/AuthPage";
 import { CourseGrid } from "@/components/courses/CourseGrid";
 import { CourseNotesView } from "@/components/courses/CourseNotesView";
-import { CourseNotesViewMobile } from "@/components/courses/CourseNotesViewMobile";
 import { LiquidFilters } from "@/components/liquid/LiquidFilters";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { CustomizationProvider } from "@/context/CustomizationContext";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useCourses, useCourseStats } from "@/hooks/useCourses";
 
 export const Route = createFileRoute("/")({
@@ -61,7 +59,6 @@ function AuthenticatedWorkspace() {
 function Workspace({ userId, email, onLogout }: { userId: string; email: string | null; onLogout: () => void }) {
   const { courses, addCourse } = useCourses(userId);
   const { data: stats } = useCourseStats(userId);
-  const isMobile = useIsMobile();
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
 
   const selectedCourse = courses.find((c) => c.id === selectedCourseId) ?? null;
@@ -86,23 +83,13 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.28, ease: "easeInOut" }}
               >
-                {isMobile ? (
-                  <CourseNotesViewMobile
-                    course={selectedCourse}
-                    userId={userId}
-                    email={email}
-                    onLogout={onLogout}
-                    onBack={() => setSelectedCourseId(null)}
-                  />
-                ) : (
-                  <CourseNotesView
-                    course={selectedCourse}
-                    userId={userId}
-                    email={email}
-                    onLogout={onLogout}
-                    onBack={() => setSelectedCourseId(null)}
-                  />
-                )}
+                <CourseNotesView
+                  course={selectedCourse}
+                  userId={userId}
+                  email={email}
+                  onLogout={onLogout}
+                  onBack={() => setSelectedCourseId(null)}
+                />
               </motion.div>
             ) : (
               <motion.div
