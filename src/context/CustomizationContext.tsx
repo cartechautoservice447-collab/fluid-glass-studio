@@ -34,6 +34,7 @@ export const LIQUID_DEFAULTS: LiquidSettings = {
 const STORAGE_KEY = "liquid-glass-engine-v1";
 const THEME_KEY = "liquid-glass-theme-v1";
 const DISPLAY_NAME_KEY = "liquid-glass-display-name-v1";
+const PURE_BLACK_KEY = "liquid-glass-pure-black-v1";
 
 export type Theme = "light" | "dark";
 
@@ -46,6 +47,8 @@ type Ctx = {
   toggleTheme: () => void;
   displayName: string;
   setDisplayName: (name: string) => void;
+  pureBlack: boolean;
+  setPureBlack: (value: boolean) => void;
 };
 
 const CustomizationContext = createContext<Ctx | null>(null);
@@ -84,6 +87,7 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
   const [liquid, setLiquidState] = useState<LiquidSettings>(LIQUID_DEFAULTS);
   const [theme, setThemeState] = useState<Theme>("light");
   const [displayName, setDisplayNameState] = useState("");
+  const [pureBlack, setPureBlackState] = useState(false);
   const loadedProfileFor = useRef<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -100,6 +104,8 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
       }
       const storedName = localStorage.getItem(DISPLAY_NAME_KEY);
       if (storedName) setDisplayNameState(storedName);
+      const storedPureBlack = localStorage.getItem(PURE_BLACK_KEY);
+      if (storedPureBlack === "1") setPureBlackState(true);
     } catch {
       /* ignore corrupt storage */
     }
@@ -163,6 +169,18 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
       /* ignore quota errors */
     }
   }, [theme]);
+
+  // Pure Black is additive and local-only (not synced to the profile row):
+  // a flat-black variant of the stage background, layered on top of dark
+  // mode only. It never applies unless the "dark" class is also present.
+  useEffect(() => {
+    document.documentElement.classList.toggle("pure-black", pureBlack);
+    try {
+      localStorage.setItem(PURE_BLACK_KEY, pureBlack ? "1" : "0");
+    } catch {
+      /* ignore quota errors */
+    }
+  }, [pureBlack]);
 
   useEffect(() => {
     try {
@@ -234,8 +252,13 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
           /* ignore quota errors */
         }
       },
+      pureBlack,
+      setPureBlack: (value: boolean) => {
+        if (value) setThemeState("dark");
+        setPureBlackState(value);
+      },
     }),
-    [liquid, theme, displayName, commitLiquid, persist],
+    [liquid, theme, displayName, pureBlack, commitLiquid, persist],
   );
 
   return (
