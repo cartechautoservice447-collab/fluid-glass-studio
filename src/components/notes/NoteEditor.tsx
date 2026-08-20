@@ -36,13 +36,11 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load the selected note into the local draft.
   useEffect(() => {
     setTitle(note?.title ?? "");
     setBody(note?.body ?? "");
   }, [note?.id]);
 
-  // Debounced autosave.
   useEffect(() => {
     if (!note) return;
     if (title === note.title && body === note.body) return;
@@ -85,14 +83,11 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
     );
   }
 
-  // Terminal-output fences are rendered by the exact same TerminalOutput
-  // component in both modes. Remove only those fences from the Markdown body
-  // so Preview never creates a second, different code-snippet box for them.
   const previewBody = body.replace(/```(?:output|terminal-output)\s*\n[\s\S]*?```/gi, "").replace(/\n{3,}/g, "\n\n").trim();
 
   return (
     <GlassPanel className="relative flex h-full min-h-0 flex-col overflow-hidden !p-0">
-      <div className="flex min-h-10 flex-wrap items-center gap-2 border-b border-white/10 p-4 pr-12">
+      <div className="flex min-h-10 flex-wrap items-center gap-2 border-b border-white/10 p-4 pr-4 md:pr-12">
         <Input
           value={title}
           onChange={(event) => setTitle(event.target.value)}
@@ -106,7 +101,7 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
             onUpdate(note.id, { collectionId: value === NO_COLLECTION ? null : value })
           }
         >
-          <SelectTrigger className="h-9 w-[9.5rem] border-white/20 bg-white/10 text-xs" aria-label="Collection">
+          <SelectTrigger className="h-9 w-[7.5rem] sm:w-[9.5rem] border-white/20 bg-white/10 text-xs" aria-label="Collection">
             <SelectValue placeholder="Collection" />
           </SelectTrigger>
           <SelectContent>
@@ -118,21 +113,10 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
             ))}
           </SelectContent>
         </Select>
-        <Button
-          size="icon"
-          variant="ghost"
-          aria-label={note.favorite ? "Remove from favorites" : "Add to favorites"}
-          onClick={() => onToggleFavorite(note.id)}
-        >
+        <Button size="icon" variant="ghost" aria-label={note.favorite ? "Remove from favorites" : "Add to favorites"} onClick={() => onToggleFavorite(note.id)}>
           <Star className={cn("size-4", note.favorite && "fill-amber-300 text-amber-300")} />
         </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          aria-label="Delete note"
-          className="text-destructive"
-          onClick={() => onDelete(note.id)}
-        >
+        <Button size="icon" variant="ghost" aria-label="Delete note" className="text-destructive" onClick={() => onDelete(note.id)}>
           <Trash2 className="size-4" />
         </Button>
       </div>
@@ -147,18 +131,8 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
       </button>
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-[#0d1117] px-3 py-2">
-        <MarkdownToolbar
-          textareaRef={textareaRef}
-          value={body}
-          onChange={setBody}
-          disabled={mode === "preview"}
-        />
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-8 gap-1.5 text-[#c9d1d9] hover:bg-white/10 hover:text-white"
-          onClick={() => setMode((prev) => (prev === "edit" ? "preview" : "edit"))}
-        >
+        <MarkdownToolbar textareaRef={textareaRef} value={body} onChange={setBody} disabled={mode === "preview"} />
+        <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-[#c9d1d9] hover:bg-white/10 hover:text-white" onClick={() => setMode((prev) => (prev === "edit" ? "preview" : "edit"))}>
           {mode === "edit" ? <Eye className="size-3.5" /> : <Pencil className="size-3.5" />}
           <span className="text-xs">{mode === "edit" ? "Preview" : "Edit"}</span>
         </Button>
