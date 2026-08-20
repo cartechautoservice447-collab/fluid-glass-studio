@@ -41,7 +41,7 @@ export function CourseNotesView({ course, onBack, onLogout, userId, email }: Pro
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className={hasMinimizedPanel ? "h-full min-w-[220px] flex-1 basis-0" : "h-full w-[286px] min-w-[220px] shrink basis-[286px]"}
+              className={hasMinimizedPanel ? "h-full min-w-[220px] flex-1 basis-0" : "h-full w-[283px] min-w-[220px] shrink basis-[283px]"}
             >
               <Sidebar
                 minimized={minimized.sidebar}
@@ -70,7 +70,7 @@ export function CourseNotesView({ course, onBack, onLogout, userId, email }: Pro
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className={hasMinimizedPanel ? "h-full min-w-[240px] flex-1 basis-0" : "h-full w-[318px] min-w-[240px] shrink basis-[318px]"}
+              className={hasMinimizedPanel ? "h-full min-w-[240px] flex-1 basis-0" : "h-full w-[315px] min-w-[240px] shrink basis-[315px]"}
             >
               <NoteList
                 minimized={minimized.notes}
