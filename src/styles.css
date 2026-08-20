@@ -389,3 +389,15 @@
 .mobile-notes-panel button[title*="Minimize"] {
   display: none;
 }
+
+/* Pure Black: additive flat-black variant of the stage background.
+   Only ever applies alongside .dark — never changes light mode or
+   any glass panel styling. */
+.dark.pure-black .liquid-stage {
+  background: #000;
+}
+
+.dark.pure-black .liquid-orb {
+  display: none;
+}
+
