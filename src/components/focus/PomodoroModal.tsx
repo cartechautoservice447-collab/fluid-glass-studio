@@ -6,20 +6,12 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 type Mode = "focus" | "short" | "long";
 type SessionPhase = "working" | "resting";
+type PersistedSession = { mode: Mode; phase: SessionPhase; deadline: number; running: boolean };
 
-const DEFAULT_DURATIONS: Record<Mode, number> = {
-  focus: 1 * 60,
-  short: 5 * 60,
-  long: 15 * 60,
-};
-
-const LABELS: Record<Mode, string> = {
-  focus: "Focus",
-  short: "Short Break",
-  long: "Long Break",
-};
-
+const DEFAULT_DURATIONS: Record<Mode, number> = { focus: 60, short: 5 * 60, long: 15 * 60 };
+const LABELS: Record<Mode, string> = { focus: "Focus", short: "Short Break", long: "Long Break" };
 const STORAGE_KEY = "liquid-glass-pomodoro-durations";
+const SESSION_KEY = "liquid-glass-pomodoro-session";
 
 function loadDurations(): Record<Mode, number> {
   try {
@@ -29,9 +21,7 @@ function loadDurations(): Record<Mode, number> {
       short: Number.isFinite(saved?.short) && saved.short > 0 ? saved.short : DEFAULT_DURATIONS.short,
       long: Number.isFinite(saved?.long) && saved.long > 0 ? saved.long : DEFAULT_DURATIONS.long,
     };
-  } catch {
-    return DEFAULT_DURATIONS;
-  }
+  } catch { return DEFAULT_DURATIONS; }
 }
 
 function formatTime(totalSeconds: number) {
@@ -40,8 +30,16 @@ function formatTime(totalSeconds: number) {
   return `${minutes}:${seconds}`;
 }
 
+function loadSession(): PersistedSession | null {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SESSION_KEY) ?? "null");
+    if (!saved || !["focus", "short", "long"].includes(saved.mode) || !["working", "resting"].includes(saved.phase)) return null;
+    return saved;
+  } catch { return null; }
+}
+
 export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const [durations, setDurations] = useState<Record<Mode, number>>(DEFAULT_DURATIONS);
+  const [durations, setDurations] = useState(DEFAULT_DURATIONS);
   const [mode, setMode] = useState<Mode>("focus");
   const [phase, setPhase] = useState<SessionPhase>("working");
   const [remaining, setRemaining] = useState(DEFAULT_DURATIONS.focus);
@@ -60,6 +58,16 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
     setFocusMinutes(Math.max(1, Math.round(saved.focus / 60)));
     setRestMinutes(Math.max(1, Math.round(saved.short / 60)));
     setLongBreakMinutes(Math.max(1, Math.round(saved.long / 60)));
+
+    const session = loadSession();
+    if (session?.running && session.deadline > Date.now()) {
+      setMode(session.mode);
+      setPhase(session.phase);
+      setDeadline(session.deadline);
+      setRunning(true);
+      setLocked(session.phase === "resting" || session.mode !== "focus");
+      setRemaining(Math.max(0, Math.ceil((session.deadline - Date.now()) / 1000)));
+    }
   }, [open]);
 
   const persistDurations = (next: Record<Mode, number>) => {
@@ -67,46 +75,79 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   };
 
+  const persistSession = (next: PersistedSession | null) => {
+    if (next) localStorage.setItem(SESSION_KEY, JSON.stringify(next));
+    else localStorage.removeItem(SESSION_KEY);
+  };
+
+  const startSession = (nextMode: Mode) => {
+    const nextPhase: SessionPhase = nextMode === "focus" ? "working" : "resting";
+    const seconds = durations[nextMode];
+    const nextDeadline = Date.now() + seconds * 1000;
+    setMode(nextMode);
+    setPhase(nextPhase);
+    setRemaining(seconds);
+    setDeadline(nextDeadline);
+    setRunning(true);
+    setLocked(nextPhase === "resting");
+    persistSession({ mode: nextMode, phase: nextPhase, deadline: nextDeadline, running: true });
+  };
+
   const selectMode = (next: Mode) => {
     if (locked) return;
     setMode(next);
-    setPhase("working");
+    setPhase(next === "focus" ? "working" : "resting");
     setRemaining(durations[next]);
     setRunning(false);
     setDeadline(null);
+    setLocked(next !== "focus");
+    persistSession(null);
   };
 
   const beginRest = () => {
     const restSeconds = Math.max(1, restMinutes) * 60;
     const next = { ...durations, short: restSeconds };
     persistDurations(next);
+    const nextDeadline = Date.now() + restSeconds * 1000;
+    setMode("short");
     setPhase("resting");
     setRemaining(restSeconds);
     setLocked(true);
-    setDeadline(Date.now() + restSeconds * 1000);
+    setDeadline(nextDeadline);
     setRunning(true);
+    persistSession({ mode: "short", phase: "resting", deadline: nextDeadline, running: true });
   };
 
   useEffect(() => {
     if (!running || deadline === null) return;
+
     const tick = () => {
       const next = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
       setRemaining(next);
-      if (next === 0) {
-        setRunning(false);
-        setDeadline(null);
-        if (phase === "working") beginRest();
-        else {
-          setPhase("working");
-          setMode("focus");
-          setRemaining(durations.focus);
-          setLocked(false);
-        }
+      if (next !== 0) return;
+
+      setRunning(false);
+      setDeadline(null);
+      persistSession(null);
+
+      if (phase === "working") {
+        beginRest();
+      } else {
+        setPhase("working");
+        setMode("focus");
+        setRemaining(durations.focus);
+        setLocked(false);
       }
     };
+
     tick();
     const id = window.setInterval(tick, 250);
-    return () => window.clearInterval(id);
+    const onVisibility = () => tick();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [running, deadline, phase, durations.focus, restMinutes]);
 
   const formatted = useMemo(() => formatTime(remaining), [remaining]);
@@ -116,10 +157,10 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
     if (running) {
       setRunning(false);
       setDeadline(null);
+      persistSession(null);
       return;
     }
-    setDeadline(Date.now() + remaining * 1000);
-    setRunning(true);
+    startSession(mode);
   };
 
   const reset = () => {
@@ -127,7 +168,10 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
     setRunning(false);
     setDeadline(null);
     setPhase("working");
-    setRemaining(durations[mode]);
+    setMode("focus");
+    setRemaining(durations.focus);
+    setLocked(false);
+    persistSession(null);
   };
 
   const changeDuration = (durationMode: Mode, value: number) => {
@@ -159,13 +203,10 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
                 <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
                   <p className="text-sm font-medium">Edit Pomodoro time</p>
                   <div className="grid grid-cols-3 gap-2">
-                    {([ ["focus", "Focus", focusMinutes], ["short", "Short Break", restMinutes], ["long", "Long Break", longBreakMinutes] ] as const).map(([item, label, value]) => (
+                    {([["focus", "Focus", focusMinutes], ["short", "Short Break", restMinutes], ["long", "Long Break", longBreakMinutes]] as const).map(([item, label, value]) => (
                       <label key={item} className="rounded-xl border border-white/10 bg-black/20 p-2">
                         <span className="block text-[11px] text-muted-foreground">{label}</span>
-                        <div className="mt-1 flex items-center gap-1">
-                          <input aria-label={`${label} minutes`} type="number" min={1} max={120} value={value} onChange={(event) => changeDuration(item, Number(event.target.value))} className="w-full min-w-0 bg-transparent text-sm font-medium outline-none" />
-                          <span className="text-[10px] text-muted-foreground">min</span>
-                        </div>
+                        <div className="mt-1 flex items-center gap-1"><input aria-label={`${label} minutes`} type="number" min={1} max={120} value={value} onChange={(event) => changeDuration(item, Number(event.target.value))} className="w-full min-w-0 bg-transparent text-sm font-medium outline-none" /><span className="text-[10px] text-muted-foreground">min</span></div>
                       </label>
                     ))}
                   </div>
@@ -173,40 +214,27 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
               )}
 
               <div className="mt-6 grid grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-white/[0.045] p-1">
-                {(Object.keys(LABELS) as Mode[]).map((item) => (
-                  <button key={item} type="button" onClick={() => selectMode(item)} className={`rounded-xl px-2 py-2 text-xs font-medium transition ${mode === item ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>{LABELS[item]}</button>
-                ))}
+                {(Object.keys(LABELS) as Mode[]).map((item) => <button key={item} type="button" onClick={() => selectMode(item)} className={`rounded-xl px-2 py-2 text-xs font-medium transition ${mode === item ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>{LABELS[item]}</button>)}
               </div>
 
-              <div className="flex flex-col items-center py-10">
-                <div className="text-7xl font-semibold tabular-nums tracking-[-0.05em] text-foreground sm:text-8xl" aria-live="polite">{formatted}</div>
-                <p className="mt-3 text-sm text-muted-foreground">{running ? "Stay focused" : "Ready when you are"}</p>
-              </div>
+              <div className="flex flex-col items-center py-10"><div className="text-7xl font-semibold tabular-nums tracking-[-0.05em] text-foreground sm:text-8xl" aria-live="polite">{formatted}</div><p className="mt-3 text-sm text-muted-foreground">{running ? "Stay focused" : "Ready when you are"}</p></div>
 
-              <div className="flex items-center justify-center gap-3">
-                <Button variant="ghost" size="icon" className="size-11 rounded-full bg-white/[0.06] hover:bg-white/10" onClick={reset} aria-label="Reset timer"><RotateCcw className="size-4" /></Button>
-                <Button size="lg" className="h-12 rounded-full px-7 shadow-lg" onClick={toggleRunning}>{running ? <Pause className="mr-2 size-4" /> : <Play className="mr-2 size-4" />}{running ? "Pause" : "Start"}</Button>
-              </div>
+              <div className="flex items-center justify-center gap-3"><Button variant="ghost" size="icon" className="size-11 rounded-full bg-white/[0.06] hover:bg-white/10" onClick={reset} aria-label="Reset timer"><RotateCcw className="size-4" /></Button><Button size="lg" className="h-12 rounded-full px-7 shadow-lg" onClick={toggleRunning}>{running ? <Pause className="mr-2 size-4" /> : <Play className="mr-2 size-4" />}{running ? "Pause" : "Start"}</Button></div>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {locked && (
-        <div className="fixed inset-0 z-[100] flex min-h-screen items-center justify-center overflow-hidden bg-black/60 p-5 backdrop-blur-xl" role="dialog" aria-modal="true" aria-label="Rest period in progress">
-          <div className="pointer-events-none absolute -left-24 -top-24 size-80 rounded-full bg-primary/20 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-28 -right-20 size-96 rounded-full bg-white/10 blur-3xl" />
-          <div className="relative w-full max-w-lg rounded-[32px] border border-white/20 bg-black/35 p-7 text-center shadow-2xl backdrop-blur-2xl sm:p-10">
-            <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.07] text-foreground"><span className="text-lg font-semibold tabular-nums">1</span></div>
-            <p className="mt-6 text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">Session complete</p>
-            <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Rest before the next session</h2>
-            <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">The workspace is temporarily locked so your saved rest period can finish.</p>
-            <div className="mt-9 text-7xl font-semibold tabular-nums tracking-[-0.05em] sm:text-8xl">{formatted}</div>
-            <p className="mt-3 text-sm text-muted-foreground">Rest time remaining</p>
-            <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-xs text-muted-foreground">Your notes, course folders, and dashboard will become available when the rest timer reaches zero.</div>
-          </div>
+      {locked && <div className="fixed inset-0 z-[100] flex min-h-screen items-center justify-center overflow-hidden bg-black/60 p-5 backdrop-blur-xl" role="dialog" aria-modal="true" aria-label="Rest period in progress">
+        <div className="pointer-events-none absolute -left-24 -top-24 size-80 rounded-full bg-primary/20 blur-3xl" /><div className="pointer-events-none absolute -bottom-28 -right-20 size-96 rounded-full bg-white/10 blur-3xl" />
+        <div className="relative w-full max-w-lg rounded-[32px] border border-white/20 bg-black/35 p-7 text-center shadow-2xl backdrop-blur-2xl sm:p-10">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">Rest session</p>
+          <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Website locked</h2>
+          <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">Your notes, course folders, dashboard, and workspace are unavailable until the rest timer finishes.</p>
+          <div className="mt-9 text-7xl font-semibold tabular-nums tracking-[-0.05em] sm:text-8xl">{formatted}</div>
+          <p className="mt-3 text-sm text-muted-foreground">Rest time remaining</p>
         </div>
-      )}
+      </div>}
     </>
   );
 }
