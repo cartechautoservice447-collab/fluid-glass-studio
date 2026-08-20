@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { useCustomization } from "@/context/CustomizationContext";
 
 type Props = {
@@ -20,7 +21,7 @@ type Props = {
 };
 
 export function EngineSettingsModal({ trigger = "button" }: Props) {
-  const { liquid, setLiquid, reset, theme, displayName, setDisplayName } = useCustomization();
+const { liquid, setLiquid, reset, theme, displayName, setDisplayName, pureBlack, setPureBlack } = useCustomization();
   const [open, setOpen] = useState(false);
 
   return (
