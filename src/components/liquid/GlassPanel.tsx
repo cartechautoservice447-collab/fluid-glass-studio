@@ -44,7 +44,8 @@ export function GlassPanel({
         backgroundColor: "var(--water-gel-bg)",
         backdropFilter: "blur(var(--liquid-density, 12px)) saturate(200%) contrast(105%)",
         borderRadius: `${18 + gel * 26}px`,
-        borderTop: "1px solid rgba(255, 255, 255, 0.4)",
+        border: "1px solid rgba(255, 255, 255, 0.22)",
+        borderTopColor: "rgba(255, 255, 255, 0.4)",
         boxShadow: `inset 0 ${1 + gel * 1.5}px ${2 + gel * 3}px 0 rgba(255, 255, 255, ${0.35 + gel * 0.3}), inset 0 -${2 + gel * 3}px ${4 + gel * 6}px 0 rgba(0, 0, 0, ${0.16 + gel * 0.2}), 0 ${8 + gel * 10}px ${32 + gel * 24}px 0 rgba(0, 0, 0, ${0.2 + gel * 0.22})`,
       }}
       className={cn(
