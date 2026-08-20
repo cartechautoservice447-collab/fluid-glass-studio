@@ -69,7 +69,7 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
   const lastEdited = stats?.lastEdited ?? {};
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-[#07070c]">
+    <div className="fixed inset-0 overflow-hidden bg-[#07070c]" style={{ height: "100dvh" }}>
       <main className="liquid-stage relative flex h-full w-full overflow-hidden px-3 pb-3 pt-3 sm:px-5 sm:pb-4 sm:pt-3">
         <div className="liquid-orb liquid-orb-a" aria-hidden />
         <div className="liquid-orb liquid-orb-b" aria-hidden />
