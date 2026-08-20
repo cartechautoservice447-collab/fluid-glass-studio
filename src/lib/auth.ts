@@ -16,6 +16,8 @@ const publishableKey = import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
 
 type TokenResponse = { access_token: string; refresh_token: string; expires_at?: number; expires_in?: number; user: AuthUser };
 
+type OAuthCallback = { access_token: string; refresh_token: string; expires_in?: string; expires_at?: string; error?: string; error_description?: string };
+
 function configured() {
   if (!url || !publishableKey) throw new Error("Authentication is not configured for this deployment yet.");
 }
@@ -62,5 +64,28 @@ export async function sendPasswordReset(email: string): Promise<void> {
 export function signInWithGoogle(): void {
   configured();
   const redirectTo = window.location.origin;
-  window.location.assign(`${url}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectTo)}`);
+  const authorizeUrl = new URL(`${url}/auth/v1/authorize`);
+  authorizeUrl.searchParams.set("provider", "google");
+  authorizeUrl.searchParams.set("redirect_to", redirectTo);
+  authorizeUrl.searchParams.set("prompt", "select_account");
+  window.location.assign(authorizeUrl.toString());
+}
+
+export async function consumeGoogleCallback(): Promise<AuthSession | null> {
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const query = new URLSearchParams(window.location.search);
+  const error = hash.get("error") ?? query.get("error");
+  const errorDescription = hash.get("error_description") ?? query.get("error_description");
+  if (error) throw new Error(errorDescription ? decodeURIComponent(errorDescription) : "Google sign-in was cancelled or failed.");
+
+  const accessToken = hash.get("access_token");
+  const refreshToken = hash.get("refresh_token");
+  if (!accessToken || !refreshToken) return null;
+
+  const expiresIn = Number(hash.get("expires_in") ?? 3600);
+  const expiresAt = Number(hash.get("expires_at") ?? Math.floor(Date.now() / 1000) + expiresIn);
+  const user = await getUser(accessToken);
+
+  window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+  return { access_token: accessToken, refresh_token: refreshToken, expires_at: expiresAt, user };
 }
