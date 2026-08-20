@@ -27,7 +27,7 @@ export const Route = createFileRoute("/")({
 
 const DISTRACTION_KEY = "liquid-glass-distraction-mode";
 
-type DistractionSession = { active: boolean; courseId: string | null; courseName: string; date: string; durationHours: number; endsAt: number | null };
+type DistractionSession = { active: boolean; courseId?: string | null; courseName: string; date: string; durationHours: number; endsAt: number | null };
 
 function readDistractionSession(): DistractionSession | null {
   try {
@@ -37,7 +37,7 @@ function readDistractionSession(): DistractionSession | null {
       localStorage.removeItem(DISTRACTION_KEY);
       return null;
     }
-    return saved;
+    return saved as DistractionSession;
   } catch {
     return null;
   }
@@ -74,10 +74,32 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
       if (distraction.endsAt && distraction.endsAt <= Date.now()) {
         localStorage.removeItem(DISTRACTION_KEY);
         setDistraction(null);
+        setSelectedCourseId(null);
       }
     };
     finish();
   }, [distraction]);
+
+  const distractionCourse = distraction?.active
+    ? courses.find((course) => course.id === distraction.courseId || course.name.trim().toLowerCase() === distraction.courseName.trim().toLowerCase()) ?? null
+    : null;
+
+  useEffect(() => {
+    if (distractionCourse && selectedCourseId !== distractionCourse.id) setSelectedCourseId(distractionCourse.id);
+  }, [distractionCourse, selectedCourseId]);
+
+  useEffect(() => {
+    if (!distraction?.active) return;
+
+    // Keep browser-history navigation inside the study workspace while the session is active.
+    const lockHistory = () => {
+      window.history.pushState({ distractionLock: true }, "", window.location.href);
+    };
+    lockHistory();
+    const onPopState = () => lockHistory();
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [distraction?.active]);
 
   const selectedCourse = courses.find((c) => c.id === selectedCourseId) ?? null;
   const noteCounts = stats?.counts ?? {};
@@ -91,27 +113,36 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
           <AnimatePresence mode="wait" initial={false}>
             {selectedCourse ? (
               <motion.div key={`course-${selectedCourse.id}`} className="absolute inset-0 p-[10px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeInOut" }}>
-                <CourseNotesView course={selectedCourse} userId={userId} email={email} onLogout={onLogout} onBack={() => { if (!distraction) setSelectedCourseId(null); }} />
+                <CourseNotesView
+                  course={selectedCourse}
+                  userId={userId}
+                  email={email}
+                  onLogout={distraction?.active ? () => {} : onLogout}
+                  onBack={() => { if (!distraction?.active) setSelectedCourseId(null); }}
+                />
               </motion.div>
             ) : (
               <motion.div key="course-grid" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeInOut" }}>
-                <CourseGrid courses={courses} noteCounts={noteCounts} lastEdited={lastEdited} hiddenCourseId={null} onOpenCourse={(id) => { if (!distraction) setSelectedCourseId(id); }} onCreateCourse={addCourse} />
+                <CourseGrid
+                  courses={courses}
+                  noteCounts={noteCounts}
+                  lastEdited={lastEdited}
+                  hiddenCourseId={null}
+                  onOpenCourse={setSelectedCourseId}
+                  onCreateCourse={addCourse}
+                />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </main>
-      {distraction?.active && distraction.endsAt && (
-        <div className="fixed inset-0 z-[1000] flex min-h-screen items-center justify-center bg-black/70 p-5 backdrop-blur-2xl" role="dialog" aria-modal="true" aria-label="Distraction Mode active">
-          <div className="w-full max-w-lg rounded-[34px] border border-white/20 bg-black/45 p-8 text-center shadow-2xl backdrop-blur-2xl sm:p-10">
-            <div className="mx-auto flex size-16 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.07]"><span className="text-2xl">🔒</span></div>
-            <p className="mt-6 text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">Distraction Mode</p>
-            <h2 className="mt-3 text-3xl font-semibold">Stay focused</h2>
-            <p className="mt-2 text-sm text-muted-foreground">{distraction.courseName} · {distraction.date}</p>
-            <div className="mt-9 text-6xl font-semibold tabular-nums tracking-[-0.05em] sm:text-7xl">{formatDistractionRemaining(distraction.endsAt)}</div>
-            <p className="mt-3 text-sm text-muted-foreground">Study time remaining</p>
-            <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-xs leading-5 text-muted-foreground">The entire Glass Notes workspace is locked. Course folders, notes, editor, dashboard, back navigation, and controls are unavailable until the session ends.</div>
-          </div>
+      {distraction?.active && (
+        <div className="pointer-events-none fixed right-5 top-5 z-[1000] rounded-2xl border border-white/15 bg-black/30 px-4 py-2 text-xs text-white/80 shadow-lg backdrop-blur-xl" aria-live="polite">
+          <span className="font-semibold">Distraction Mode</span>
+          <span className="mx-2 opacity-40">•</span>
+          <span>{distraction.courseName}</span>
+          <span className="mx-2 opacity-40">•</span>
+          <span>{formatDistractionRemaining(distraction.endsAt ?? Date.now())}</span>
         </div>
       )}
     </div>
