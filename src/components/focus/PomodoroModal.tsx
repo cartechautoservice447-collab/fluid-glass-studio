@@ -8,7 +8,7 @@ type Mode = "focus" | "short" | "long";
 type SessionPhase = "working" | "resting";
 
 const DEFAULT_DURATIONS: Record<Mode, number> = {
-  focus: 25 * 60,
+  focus: 1 * 60,
   short: 5 * 60,
   long: 15 * 60,
 };
@@ -40,13 +40,7 @@ function formatTime(totalSeconds: number) {
   return `${minutes}:${seconds}`;
 }
 
-export function PomodoroModal({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
+export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const [durations, setDurations] = useState<Record<Mode, number>>(DEFAULT_DURATIONS);
   const [mode, setMode] = useState<Mode>("focus");
   const [phase, setPhase] = useState<SessionPhase>("working");
@@ -54,17 +48,18 @@ export function PomodoroModal({
   const [running, setRunning] = useState(false);
   const [deadline, setDeadline] = useState<number | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [focusMinutes, setFocusMinutes] = useState(1);
+  const [restMinutes, setRestMinutes] = useState(5);
+  const [longBreakMinutes, setLongBreakMinutes] = useState(15);
   const [locked, setLocked] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     const saved = loadDurations();
     setDurations(saved);
-    setMode("focus");
-    setPhase("working");
-    setRemaining(saved.focus);
-    setRunning(false);
-    setDeadline(null);
+    setFocusMinutes(Math.max(1, Math.round(saved.focus / 60)));
+    setRestMinutes(Math.max(1, Math.round(saved.short / 60)));
+    setLongBreakMinutes(Math.max(1, Math.round(saved.long / 60)));
   }, [open]);
 
   const persistDurations = (next: Record<Mode, number>) => {
@@ -82,7 +77,9 @@ export function PomodoroModal({
   };
 
   const beginRest = () => {
-    const restSeconds = durations.short;
+    const restSeconds = Math.max(1, restMinutes) * 60;
+    const next = { ...durations, short: restSeconds };
+    persistDurations(next);
     setPhase("resting");
     setRemaining(restSeconds);
     setLocked(true);
@@ -92,18 +89,14 @@ export function PomodoroModal({
 
   useEffect(() => {
     if (!running || deadline === null) return;
-
     const tick = () => {
       const next = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
       setRemaining(next);
-
       if (next === 0) {
         setRunning(false);
         setDeadline(null);
-
-        if (phase === "working") {
-          beginRest();
-        } else {
+        if (phase === "working") beginRest();
+        else {
           setPhase("working");
           setMode("focus");
           setRemaining(durations.focus);
@@ -111,11 +104,10 @@ export function PomodoroModal({
         }
       }
     };
-
     tick();
     const id = window.setInterval(tick, 250);
     return () => window.clearInterval(id);
-  }, [running, deadline, phase, durations.focus, durations.short]);
+  }, [running, deadline, phase, durations.focus, restMinutes]);
 
   const formatted = useMemo(() => formatTime(remaining), [remaining]);
 
@@ -138,19 +130,14 @@ export function PomodoroModal({
     setRemaining(durations[mode]);
   };
 
-  const changeDurationMinutes = (item: Mode, value: number) => {
-    const safe = Math.min(180, Math.max(1, Math.round(value)));
-    const next = { ...durations, [item]: safe * 60 };
+  const changeDuration = (durationMode: Mode, value: number) => {
+    const safe = Math.min(120, Math.max(1, Math.round(value)));
+    const next = { ...durations, [durationMode]: safe * 60 };
     persistDurations(next);
-
-    if (!running && !locked && mode === item) {
-      setRemaining(safe * 60);
-    }
-  };
-
-  const resetDurations = () => {
-    persistDurations(DEFAULT_DURATIONS);
-    if (!running && !locked) setRemaining(DEFAULT_DURATIONS[mode]);
+    if (durationMode === "focus") setFocusMinutes(safe);
+    if (durationMode === "short") setRestMinutes(safe);
+    if (durationMode === "long") setLongBreakMinutes(safe);
+    if (!running && !locked && mode === durationMode) setRemaining(safe * 60);
   };
 
   return (
@@ -163,42 +150,22 @@ export function PomodoroModal({
               <div className="flex items-center justify-between">
                 <DialogTitle className="text-lg font-semibold tracking-tight">Pomodoro</DialogTitle>
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => setSettingsOpen((value) => !value)} aria-label="Edit Pomodoro times">
-                    <Settings2 className="size-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => onOpenChange(false)} aria-label="Close Pomodoro">
-                    <X className="size-4" />
-                  </Button>
+                  <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => setSettingsOpen((value) => !value)} aria-label="Pomodoro settings"><Settings2 className="size-4" /></Button>
+                  <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => onOpenChange(false)} aria-label="Close Pomodoro"><X className="size-4" /></Button>
                 </div>
               </div>
 
               {settingsOpen && (
-                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">Edit session times</p>
-                      <p className="mt-1 text-xs text-muted-foreground">Saved automatically for your next sessions.</p>
-                    </div>
-                    <Button variant="ghost" size="sm" className="h-8 rounded-xl text-xs" onClick={resetDurations}>Reset</Button>
-                  </div>
-
-                  <div className="mt-4 grid gap-2">
-                    {(Object.keys(LABELS) as Mode[]).map((item) => (
-                      <label key={item} className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-black/10 px-3 py-2.5">
-                        <span className="text-sm text-foreground">{LABELS[item]}</span>
-                        <span className="flex items-center gap-2">
-                          <input
-                            aria-label={`${LABELS[item]} minutes`}
-                            type="number"
-                            min={1}
-                            max={180}
-                            value={Math.round(durations[item] / 60)}
-                            disabled={running || locked}
-                            onChange={(event) => changeDurationMinutes(item, Number(event.target.value))}
-                            className="w-20 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-center text-sm outline-none focus:border-primary/50 disabled:opacity-50"
-                          />
-                          <span className="w-7 text-xs text-muted-foreground">min</span>
-                        </span>
+                <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                  <p className="text-sm font-medium">Edit Pomodoro time</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([ ["focus", "Focus", focusMinutes], ["short", "Short Break", restMinutes], ["long", "Long Break", longBreakMinutes] ] as const).map(([item, label, value]) => (
+                      <label key={item} className="rounded-xl border border-white/10 bg-black/20 p-2">
+                        <span className="block text-[11px] text-muted-foreground">{label}</span>
+                        <div className="mt-1 flex items-center gap-1">
+                          <input aria-label={`${label} minutes`} type="number" min={1} max={120} value={value} onChange={(event) => changeDuration(item, Number(event.target.value))} className="w-full min-w-0 bg-transparent text-sm font-medium outline-none" />
+                          <span className="text-[10px] text-muted-foreground">min</span>
+                        </div>
                       </label>
                     ))}
                   </div>
@@ -207,9 +174,7 @@ export function PomodoroModal({
 
               <div className="mt-6 grid grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-white/[0.045] p-1">
                 {(Object.keys(LABELS) as Mode[]).map((item) => (
-                  <button key={item} type="button" onClick={() => selectMode(item)} className={`rounded-xl px-2 py-2 text-xs font-medium transition ${mode === item ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>
-                    {LABELS[item]}
-                  </button>
+                  <button key={item} type="button" onClick={() => selectMode(item)} className={`rounded-xl px-2 py-2 text-xs font-medium transition ${mode === item ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>{LABELS[item]}</button>
                 ))}
               </div>
 
@@ -220,10 +185,7 @@ export function PomodoroModal({
 
               <div className="flex items-center justify-center gap-3">
                 <Button variant="ghost" size="icon" className="size-11 rounded-full bg-white/[0.06] hover:bg-white/10" onClick={reset} aria-label="Reset timer"><RotateCcw className="size-4" /></Button>
-                <Button size="lg" className="h-12 rounded-full px-7 shadow-lg" onClick={toggleRunning}>
-                  {running ? <Pause className="mr-2 size-4" /> : <Play className="mr-2 size-4" />}
-                  {running ? "Pause" : "Start"}
-                </Button>
+                <Button size="lg" className="h-12 rounded-full px-7 shadow-lg" onClick={toggleRunning}>{running ? <Pause className="mr-2 size-4" /> : <Play className="mr-2 size-4" />}{running ? "Pause" : "Start"}</Button>
               </div>
             </div>
           </div>
@@ -235,9 +197,7 @@ export function PomodoroModal({
           <div className="pointer-events-none absolute -left-24 -top-24 size-80 rounded-full bg-primary/20 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-28 -right-20 size-96 rounded-full bg-white/10 blur-3xl" />
           <div className="relative w-full max-w-lg rounded-[32px] border border-white/20 bg-black/35 p-7 text-center shadow-2xl backdrop-blur-2xl sm:p-10">
-            <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.07] text-foreground">
-              <TimerIcon />
-            </div>
+            <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.07] text-foreground"><span className="text-lg font-semibold tabular-nums">1</span></div>
             <p className="mt-6 text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">Session complete</p>
             <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Rest before the next session</h2>
             <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">The workspace is temporarily locked so your saved rest period can finish.</p>
@@ -249,8 +209,4 @@ export function PomodoroModal({
       )}
     </>
   );
-}
-
-function TimerIcon() {
-  return <span className="text-lg font-semibold tabular-nums">25</span>;
 }
