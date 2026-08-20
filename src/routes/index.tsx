@@ -12,16 +12,10 @@ import { CustomizationProvider } from "@/context/CustomizationContext";
 import { useCourses, useCourseStats } from "@/hooks/useCourses";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "Glass Notes — Liquid Glass course workspaces" },
-      { name: "description", content: "Course folders open into an isolated Liquid Glass notes workspace: sidebar with engine settings, a live note list, and a markdown editor with autosave." },
-      { property: "og:title", content: "Glass Notes — Liquid Glass course workspaces" },
-      { property: "og:description", content: "Pick a course folder, then take notes inside a liquid-glass three-column workspace." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
+  head: () => ({ meta: [
+    { title: "Glass Notes — Liquid Glass course workspaces" },
+    { name: "description", content: "Course folders open into an isolated Liquid Glass notes workspace." },
+  ] }),
   component: Page,
 });
 
@@ -33,19 +27,17 @@ function readDistractionSession(): DistractionSession | null {
   try {
     const saved = JSON.parse(localStorage.getItem(DISTRACTION_KEY) ?? "null");
     if (!saved?.active || !saved?.endsAt) return null;
-    if (saved.endsAt <= Date.now()) {
-      localStorage.removeItem(DISTRACTION_KEY);
-      return null;
-    }
+    if (saved.endsAt <= Date.now()) { localStorage.removeItem(DISTRACTION_KEY); return null; }
+    // Older sessions did not identify a real course folder. Clear those so they cannot trap the whole site.
+    if (!saved.courseId) { localStorage.removeItem(DISTRACTION_KEY); return null; }
     return saved as DistractionSession;
   } catch {
+    localStorage.removeItem(DISTRACTION_KEY);
     return null;
   }
 }
 
-function Page() {
-  return <AuthProvider><CustomizationProvider><LiquidFilters /><AuthenticatedWorkspace /><PwaInstallButton /></CustomizationProvider></AuthProvider>;
-}
+function Page() { return <AuthProvider><CustomizationProvider><LiquidFilters /><AuthenticatedWorkspace /><PwaInstallButton /></CustomizationProvider></AuthProvider>; }
 
 function AuthenticatedWorkspace() {
   const { user, loading, logout } = useAuth();
@@ -70,38 +62,38 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
 
   useEffect(() => {
     if (!distraction?.active || !distraction.endsAt) return;
-    const finish = () => {
-      if (distraction.endsAt && distraction.endsAt <= Date.now()) {
-        localStorage.removeItem(DISTRACTION_KEY);
-        setDistraction(null);
-        setSelectedCourseId(null);
-      }
-    };
-    finish();
+    if (distraction.endsAt <= Date.now()) {
+      localStorage.removeItem(DISTRACTION_KEY);
+      setDistraction(null);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      localStorage.removeItem(DISTRACTION_KEY);
+      setDistraction(null);
+      setSelectedCourseId(null);
+    }, Math.max(0, distraction.endsAt - Date.now()));
+    return () => window.clearTimeout(timer);
   }, [distraction]);
 
   const distractionCourse = distraction?.active
-    ? courses.find((course) => course.id === distraction.courseId || course.name.trim().toLowerCase() === distraction.courseName.trim().toLowerCase()) ?? null
+    ? courses.find((course) => course.id === distraction.courseId) ?? null
     : null;
 
   useEffect(() => {
-    if (distractionCourse && selectedCourseId !== distractionCourse.id) setSelectedCourseId(distractionCourse.id);
-  }, [distractionCourse, selectedCourseId]);
+    if (distractionCourse) setSelectedCourseId(distractionCourse.id);
+  }, [distractionCourse]);
 
   useEffect(() => {
     if (!distraction?.active) return;
-
-    // Keep browser-history navigation inside the study workspace while the session is active.
-    const lockHistory = () => {
+    const onPopState = () => {
       window.history.pushState({ distractionLock: true }, "", window.location.href);
     };
-    lockHistory();
-    const onPopState = () => lockHistory();
+    window.history.pushState({ distractionLock: true }, "", window.location.href);
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, [distraction?.active]);
 
-  const selectedCourse = courses.find((c) => c.id === selectedCourseId) ?? null;
+  const selectedCourse = courses.find((course) => course.id === selectedCourseId) ?? null;
   const noteCounts = stats?.counts ?? {};
   const lastEdited = stats?.lastEdited ?? {};
 
@@ -113,24 +105,11 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
           <AnimatePresence mode="wait" initial={false}>
             {selectedCourse ? (
               <motion.div key={`course-${selectedCourse.id}`} className="absolute inset-0 p-[10px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeInOut" }}>
-                <CourseNotesView
-                  course={selectedCourse}
-                  userId={userId}
-                  email={email}
-                  onLogout={distraction?.active ? () => {} : onLogout}
-                  onBack={() => { if (!distraction?.active) setSelectedCourseId(null); }}
-                />
+                <CourseNotesView course={selectedCourse} userId={userId} email={email} onLogout={distraction?.active ? () => {} : onLogout} onBack={() => { if (!distraction?.active) setSelectedCourseId(null); }} />
               </motion.div>
             ) : (
               <motion.div key="course-grid" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeInOut" }}>
-                <CourseGrid
-                  courses={courses}
-                  noteCounts={noteCounts}
-                  lastEdited={lastEdited}
-                  hiddenCourseId={null}
-                  onOpenCourse={setSelectedCourseId}
-                  onCreateCourse={addCourse}
-                />
+                <CourseGrid courses={courses} noteCounts={noteCounts} lastEdited={lastEdited} hiddenCourseId={null} onOpenCourse={setSelectedCourseId} onCreateCourse={addCourse} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -138,11 +117,7 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
       </main>
       {distraction?.active && (
         <div className="pointer-events-none fixed right-5 top-5 z-[1000] rounded-2xl border border-white/15 bg-black/30 px-4 py-2 text-xs text-white/80 shadow-lg backdrop-blur-xl" aria-live="polite">
-          <span className="font-semibold">Distraction Mode</span>
-          <span className="mx-2 opacity-40">•</span>
-          <span>{distraction.courseName}</span>
-          <span className="mx-2 opacity-40">•</span>
-          <span>{formatDistractionRemaining(distraction.endsAt ?? Date.now())}</span>
+          <span className="font-semibold">Distraction Mode</span><span className="mx-2 opacity-40">•</span><span>{distraction.courseName}</span><span className="mx-2 opacity-40">•</span><span>{formatDistractionRemaining(distraction.endsAt ?? Date.now())}</span>
         </div>
       )}
     </div>
