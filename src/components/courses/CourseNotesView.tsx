@@ -31,7 +31,7 @@ export function CourseNotesView({ course, onBack, onLogout, userId, email }: Pro
 
   return (
     <div className="relative flex h-full min-h-0 w-full flex-col gap-[10px]">
-      <div className="relative flex min-h-0 w-full flex-1 flex-row items-stretch gap-3 overflow-x-auto">
+      <div className="relative flex min-h-0 w-full flex-1 flex-row items-stretch gap-[14px] overflow-x-auto">
         <AnimatePresence initial={false}>
           {!minimized.sidebar && (
             <motion.div
