@@ -1,10 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
 import { useEffect, useState } from "react";
 
 import { AuthPage } from "@/components/auth/AuthPage";
 import { CourseGrid } from "@/components/courses/CourseGrid";
 import { CourseNotesView } from "@/components/courses/CourseNotesView";
+import { GlassRefraction, LiquidNavigationMorph } from "@/components/animations/AdvancedGlassTransitions";
 import { LiquidFilters } from "@/components/liquid/LiquidFilters";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
@@ -28,7 +28,6 @@ function readDistractionSession(): DistractionSession | null {
     const saved = JSON.parse(localStorage.getItem(DISTRACTION_KEY) ?? "null");
     if (!saved?.active || !saved?.endsAt) return null;
     if (saved.endsAt <= Date.now()) { localStorage.removeItem(DISTRACTION_KEY); return null; }
-    // Older sessions did not identify a real course folder. Clear those so they cannot trap the whole site.
     if (!saved.courseId) { localStorage.removeItem(DISTRACTION_KEY); return null; }
     return saved as DistractionSession;
   } catch {
@@ -75,9 +74,7 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
     return () => window.clearTimeout(timer);
   }, [distraction]);
 
-  const distractionCourse = distraction?.active
-    ? courses.find((course) => course.id === distraction.courseId) ?? null
-    : null;
+  const distractionCourse = distraction?.active ? courses.find((course) => course.id === distraction.courseId) ?? null : null;
 
   useEffect(() => {
     if (distractionCourse) setSelectedCourseId(distractionCourse.id);
@@ -85,9 +82,7 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
 
   useEffect(() => {
     if (!distraction?.active) return;
-    const onPopState = () => {
-      window.history.pushState({ distractionLock: true }, "", window.location.href);
-    };
+    const onPopState = () => window.history.pushState({ distractionLock: true }, "", window.location.href);
     window.history.pushState({ distractionLock: true }, "", window.location.href);
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -104,13 +99,13 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
         <div className="relative min-h-0 w-full flex-1">
           <AnimatePresence mode="wait" initial={false}>
             {selectedCourse ? (
-              <motion.div key={`course-${selectedCourse.id}`} className="absolute inset-0 p-[10px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeInOut" }}>
-                <CourseNotesView course={selectedCourse} userId={userId} email={email} onLogout={distraction?.active ? () => {} : onLogout} onBack={() => { if (!distraction?.active) setSelectedCourseId(null); }} />
-              </motion.div>
+              <LiquidNavigationMorph key={`course-${selectedCourse.id}`} className="absolute inset-0 p-[10px]">
+                <GlassRefraction className="h-full w-full"><CourseNotesView course={selectedCourse} userId={userId} email={email} onLogout={distraction?.active ? () => {} : onLogout} onBack={() => { if (!distraction?.active) setSelectedCourseId(null); }} /></GlassRefraction>
+              </LiquidNavigationMorph>
             ) : (
-              <motion.div key="course-grid" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeInOut" }}>
-                <CourseGrid courses={courses} noteCounts={noteCounts} lastEdited={lastEdited} hiddenCourseId={null} onOpenCourse={setSelectedCourseId} onCreateCourse={addCourse} />
-              </motion.div>
+              <LiquidNavigationMorph key="course-grid" className="absolute inset-0">
+                <GlassRefraction className="h-full w-full"><CourseGrid courses={courses} noteCounts={noteCounts} lastEdited={lastEdited} hiddenCourseId={null} onOpenCourse={setSelectedCourseId} onCreateCourse={addCourse} /></GlassRefraction>
+              </LiquidNavigationMorph>
             )}
           </AnimatePresence>
         </div>
