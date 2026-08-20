@@ -21,7 +21,8 @@ type Props = {
 };
 
 export function EngineSettingsModal({ trigger = "button" }: Props) {
-const { liquid, setLiquid, reset, theme, displayName, setDisplayName, pureBlack, setPureBlack } = useCustomization();
+  const { liquid, setLiquid, reset, theme, displayName, setDisplayName, pureBlack, setPureBlack } =
+    useCustomization();
   const [open, setOpen] = useState(false);
 
   return (
@@ -85,6 +86,18 @@ const { liquid, setLiquid, reset, theme, displayName, setDisplayName, pureBlack,
               </p>
             </div>
             <ThemeToggle />
+          </div>
+
+          <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/20 bg-white/5 p-4">
+            <div>
+              <p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-foreground">
+                Pure Black
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Flat black background instead of the gradient glow. Glass panels stay as they are.
+              </p>
+            </div>
+            <Switch checked={pureBlack} onCheckedChange={setPureBlack} aria-label="Toggle pure black background" />
           </div>
 
           <div className="flex items-center gap-3">
