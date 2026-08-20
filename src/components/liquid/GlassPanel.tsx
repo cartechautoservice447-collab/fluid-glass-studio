@@ -12,11 +12,6 @@ type GlassPanelProps = {
   onClick?: () => void;
 };
 
-/**
- * A crystal-clear 3D water-gel lens: transparent tinted interior, layered
- * inset lighting bevel, vivid backdrop optics, diagonal surface gloss sheen,
- * and organic spring physics driven by the Liquid Bounce slider.
- */
 export function GlassPanel({
   children,
   className,
@@ -42,8 +37,8 @@ export function GlassPanel({
       dragElastic={0.25}
       dragConstraints={{ left: -40, right: 40, top: -30, bottom: 30 }}
       dragSnapToOrigin
-      whileHover={interactive ? { scale: 1.025, y: -4 } : undefined}
-      whileTap={interactive ? { scale: 0.96 } : undefined}
+      whileHover={interactive ? { scale: 1.025, y: -4 } : {}}
+      whileTap={interactive ? { scale: 0.96 } : {}}
       transition={spring}
       style={{
         backgroundColor: "var(--water-gel-bg)",
@@ -58,22 +53,19 @@ export function GlassPanel({
         className,
       )}
     >
-      {/* 3D surface gloss sheen across the top half */}
       <span
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
         style={{
-  background:
-    "linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 55%, rgba(255, 255, 255, 0.09) 100%)",
-}}
+          background:
+            "linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 55%, rgba(255, 255, 255, 0.09) 100%)",
+        }}
       />
-      {/* refracted liquid edge */}
       <span
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] border border-white/35 opacity-70 mix-blend-screen"
         style={{ filter: "url(#liquid-refraction)" }}
       />
-      {/* legibility veil — keeps text readable on both frosted and obsidian glass */}
       <span aria-hidden className="liquid-veil pointer-events-none absolute inset-0 -z-10 rounded-[inherit]" />
       {children}
     </motion.div>
