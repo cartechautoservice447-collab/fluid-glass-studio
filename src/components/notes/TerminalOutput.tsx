@@ -5,14 +5,9 @@ type TerminalOutputProps = {
   className?: string;
 };
 
-/**
- * Read-only terminal output presentation.
- * It deliberately does not execute user code; it displays output written in
- * fenced `output` / `terminal-output` blocks in the note.
- */
 export function TerminalOutput({ value, className = "" }: TerminalOutputProps) {
   const outputBlocks = [...value.matchAll(/```(?:output|terminal-output)\s*\n([\s\S]*?)```/gi)]
-    .map((match) => match[1].replace(/\n$/, ""))
+    .map((match) => match[1]?.replace(/\n$/, "") ?? "")
     .filter(Boolean);
 
   if (!outputBlocks.length) return null;
