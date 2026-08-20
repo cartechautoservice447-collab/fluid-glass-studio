@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AuthPage } from "@/components/auth/AuthPage";
 import { CourseGrid } from "@/components/courses/CourseGrid";
@@ -15,16 +15,9 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Glass Notes — Liquid Glass course workspaces" },
-      {
-        name: "description",
-        content:
-          "Course folders open into an isolated Liquid Glass notes workspace: sidebar with engine settings, a live note list, and a markdown editor with autosave.",
-      },
+      { name: "description", content: "Course folders open into an isolated Liquid Glass notes workspace: sidebar with engine settings, a live note list, and a markdown editor with autosave." },
       { property: "og:title", content: "Glass Notes — Liquid Glass course workspaces" },
-      {
-        property: "og:description",
-        content: "Pick a course folder, then take notes inside a liquid-glass three-column workspace.",
-      },
+      { property: "og:description", content: "Pick a course folder, then take notes inside a liquid-glass three-column workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -32,27 +25,32 @@ export const Route = createFileRoute("/")({
   component: Page,
 });
 
+const DISTRACTION_KEY = "liquid-glass-distraction-mode";
+
+type DistractionSession = { active: boolean; courseId: string | null; courseName: string; date: string; durationHours: number; endsAt: number | null };
+
+function readDistractionSession(): DistractionSession | null {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DISTRACTION_KEY) ?? "null");
+    if (!saved?.active || !saved?.endsAt) return null;
+    if (saved.endsAt <= Date.now()) {
+      localStorage.removeItem(DISTRACTION_KEY);
+      return null;
+    }
+    return saved;
+  } catch {
+    return null;
+  }
+}
+
 function Page() {
-  return (
-    <AuthProvider>
-      <CustomizationProvider>
-        <LiquidFilters />
-        <AuthenticatedWorkspace />
-        <PwaInstallButton />
-      </CustomizationProvider>
-    </AuthProvider>
-  );
+  return <AuthProvider><CustomizationProvider><LiquidFilters /><AuthenticatedWorkspace /><PwaInstallButton /></CustomizationProvider></AuthProvider>;
 }
 
 function AuthenticatedWorkspace() {
   const { user, loading, logout } = useAuth();
-
-  if (loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-[#07070c] text-sm text-slate-300">Loading your workspace…</div>;
-  }
-
+  if (loading) return <div className="flex min-h-screen items-center justify-center bg-[#07070c] text-sm text-slate-300">Loading your workspace…</div>;
   if (!user) return <AuthPage />;
-
   return <Workspace userId={user.id} email={user.email} onLogout={() => void logout()} />;
 }
 
@@ -60,6 +58,26 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
   const { courses, addCourse } = useCourses(userId);
   const { data: stats } = useCourseStats(userId);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [distraction, setDistraction] = useState<DistractionSession | null>(() => readDistractionSession());
+
+  useEffect(() => {
+    const sync = () => setDistraction(readDistractionSession());
+    const onStorage = () => sync();
+    window.addEventListener("storage", onStorage);
+    const timer = window.setInterval(sync, 500);
+    return () => { window.removeEventListener("storage", onStorage); window.clearInterval(timer); };
+  }, []);
+
+  useEffect(() => {
+    if (!distraction?.active || !distraction.endsAt) return;
+    const finish = () => {
+      if (distraction.endsAt && distraction.endsAt <= Date.now()) {
+        localStorage.removeItem(DISTRACTION_KEY);
+        setDistraction(null);
+      }
+    };
+    finish();
+  }, [distraction]);
 
   const selectedCourse = courses.find((c) => c.id === selectedCourseId) ?? null;
   const noteCounts = stats?.counts ?? {};
@@ -68,51 +86,42 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#07070c]">
       <main className="liquid-stage relative flex h-full w-full overflow-hidden p-[10px]">
-        <div className="liquid-orb liquid-orb-a" aria-hidden />
-        <div className="liquid-orb liquid-orb-b" aria-hidden />
-        <div className="liquid-orb liquid-orb-c" aria-hidden />
-
+        <div className="liquid-orb liquid-orb-a" aria-hidden /><div className="liquid-orb liquid-orb-b" aria-hidden /><div className="liquid-orb liquid-orb-c" aria-hidden />
         <div className="relative min-h-0 w-full flex-1">
           <AnimatePresence mode="wait" initial={false}>
             {selectedCourse ? (
-              <motion.div
-                key={`course-${selectedCourse.id}`}
-                className="absolute inset-0 p-[10px]"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.28, ease: "easeInOut" }}
-              >
-                <CourseNotesView
-                  course={selectedCourse}
-                  userId={userId}
-                  email={email}
-                  onLogout={onLogout}
-                  onBack={() => setSelectedCourseId(null)}
-                />
+              <motion.div key={`course-${selectedCourse.id}`} className="absolute inset-0 p-[10px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeInOut" }}>
+                <CourseNotesView course={selectedCourse} userId={userId} email={email} onLogout={onLogout} onBack={() => { if (!distraction) setSelectedCourseId(null); }} />
               </motion.div>
             ) : (
-              <motion.div
-                key="course-grid"
-                className="absolute inset-0"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.28, ease: "easeInOut" }}
-              >
-                <CourseGrid
-                  courses={courses}
-                  noteCounts={noteCounts}
-                  lastEdited={lastEdited}
-                  hiddenCourseId={null}
-                  onOpenCourse={setSelectedCourseId}
-                  onCreateCourse={addCourse}
-                />
+              <motion.div key="course-grid" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeInOut" }}>
+                <CourseGrid courses={courses} noteCounts={noteCounts} lastEdited={lastEdited} hiddenCourseId={null} onOpenCourse={(id) => { if (!distraction) setSelectedCourseId(id); }} onCreateCourse={addCourse} />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </main>
+      {distraction?.active && distraction.endsAt && (
+        <div className="fixed inset-0 z-[1000] flex min-h-screen items-center justify-center bg-black/70 p-5 backdrop-blur-2xl" role="dialog" aria-modal="true" aria-label="Distraction Mode active">
+          <div className="w-full max-w-lg rounded-[34px] border border-white/20 bg-black/45 p-8 text-center shadow-2xl backdrop-blur-2xl sm:p-10">
+            <div className="mx-auto flex size-16 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.07]"><span className="text-2xl">🔒</span></div>
+            <p className="mt-6 text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">Distraction Mode</p>
+            <h2 className="mt-3 text-3xl font-semibold">Stay focused</h2>
+            <p className="mt-2 text-sm text-muted-foreground">{distraction.courseName} · {distraction.date}</p>
+            <div className="mt-9 text-6xl font-semibold tabular-nums tracking-[-0.05em] sm:text-7xl">{formatDistractionRemaining(distraction.endsAt)}</div>
+            <p className="mt-3 text-sm text-muted-foreground">Study time remaining</p>
+            <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-xs leading-5 text-muted-foreground">The entire Glass Notes workspace is locked. Course folders, notes, editor, dashboard, back navigation, and controls are unavailable until the session ends.</div>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function formatDistractionRemaining(endsAt: number) {
+  const totalSeconds = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+  const hours = Math.floor(totalSeconds / 3600).toString().padStart(2, "0");
+  const minutes = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, "0");
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  return `${hours}:${minutes}:${seconds}`;
 }
