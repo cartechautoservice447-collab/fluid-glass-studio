@@ -4,18 +4,12 @@ import { CalendarDays, Clock3, PanelLeft, ShieldCheck, X } from "lucide-react";
 import { NoteEditor } from "@/components/notes/NoteEditor";
 import { NoteList } from "@/components/notes/NoteList";
 import { Sidebar } from "@/components/notes/Sidebar";
+import { StudyBrowser } from "@/components/study/StudyBrowser";
 import type { Course } from "@/hooks/useCourses";
 import { useNotes } from "@/hooks/useNotes";
 import { useState } from "react";
 
-type Props = {
-  course: Course;
-  onBack: () => void;
-  onLogout: () => void;
-  userId: string;
-  email: string | null;
-};
-
+type Props = { course: Course; onBack: () => void; onLogout: () => void; userId: string; email: string | null };
 const DISTRACTION_KEY = "liquid-glass-distraction-mode";
 
 export function CourseNotesView({ course, onBack, onLogout, userId, email }: Props) {
@@ -24,31 +18,18 @@ export function CourseNotesView({ course, onBack, onLogout, userId, email }: Pro
   const [minimized, setMinimized] = useState({ sidebar: false, notes: false, editor: false });
   const [distractionOpen, setDistractionOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [browserOpen, setBrowserOpen] = useState(false);
   const [durationHours, setDurationHours] = useState(1);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const hasMinimizedPanel = minimized.sidebar || minimized.notes || minimized.editor;
-
-  const heading =
-    filter.kind === "all"
-      ? "All Notes"
-      : filter.kind === "favorites"
-        ? "Favorites"
-        : (notes.collections.find((c) => c.id === filter.id)?.name ?? "Collection");
+  const heading = filter.kind === "all" ? "All Notes" : filter.kind === "favorites" ? "Favorites" : (notes.collections.find((c) => c.id === filter.id)?.name ?? "Collection");
 
   const startDistraction = () => {
     const hours = Math.min(24, Math.max(1, Number(durationHours) || 1));
-    const session = {
-      active: true,
-      courseId: course.id,
-      courseName: course.name,
-      date,
-      durationHours: hours,
-      endsAt: Date.now() + hours * 60 * 60 * 1000,
-    };
+    const session = { active: true, courseId: course.id, courseName: course.name, date, durationHours: hours, endsAt: Date.now() + hours * 60 * 60 * 1000 };
     const value = JSON.stringify(session);
     localStorage.setItem(DISTRACTION_KEY, value);
-    setConfirmOpen(false);
-    setDistractionOpen(false);
+    setConfirmOpen(false); setDistractionOpen(false);
     window.dispatchEvent(new StorageEvent("storage", { key: DISTRACTION_KEY, newValue: value }));
   };
 
@@ -56,54 +37,27 @@ export function CourseNotesView({ course, onBack, onLogout, userId, email }: Pro
     <div className="relative flex h-full min-h-0 w-full flex-col gap-[10px]">
       <div className="flex shrink-0 items-center justify-between rounded-2xl border border-white/15 bg-white/[0.04] px-4 py-2 backdrop-blur-xl">
         <div className="min-w-0"><p className="truncate text-sm font-semibold text-foreground">{course.name}</p><p className="text-[11px] text-muted-foreground">Course workspace</p></div>
-        <button type="button" onClick={() => setDistractionOpen(true)} className="flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-white/10"><ShieldCheck className="size-3.5" /> Distraction Mode</button>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setBrowserOpen((open) => !open)} className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-white/10">Study Browser</button>
+          <button type="button" onClick={() => setDistractionOpen(true)} className="flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-white/10"><ShieldCheck className="size-3.5" /> Distraction Mode</button>
+        </div>
       </div>
 
-      <div className="relative flex min-h-0 w-full flex-1 flex-row items-stretch gap-[16px] overflow-x-auto">
+      <div className="relative flex min-h-0 w-full flex-1 flex-row items-stretch gap-[16px] overflow-hidden">
         <AnimatePresence initial={false}>
-          {!minimized.sidebar && (
-            <motion.div key="sidebar" layout initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.2, ease: "easeOut" }} className={hasMinimizedPanel ? "h-full min-w-[220px] flex-1 basis-0" : "h-full w-[286px] min-w-[220px] shrink basis-[286px]"}>
-              <Sidebar minimized={minimized.sidebar} onMinimize={() => setMinimized((current) => ({ ...current, sidebar: !current.sidebar }))} email={email} onBack={onBack} onLogout={onLogout} collections={notes.collections} counts={notes.counts} filter={notes.filter} setFilter={notes.setFilter} query={notes.query} setQuery={notes.setQuery} onCreateNote={notes.createNote} onAddCollection={notes.addCollection} onRenameCollection={notes.renameCollection} onDeleteCollection={notes.deleteCollection} />
-            </motion.div>
-          )}
-          {!minimized.notes && (
-            <motion.div key="notes" layout initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.2, ease: "easeOut" }} className={hasMinimizedPanel ? "h-full min-w-[240px] flex-1 basis-0" : "h-full w-[318px] min-w-[240px] shrink basis-[318px]"}>
-              <NoteList minimized={minimized.notes} onMinimize={() => setMinimized((current) => ({ ...current, notes: !current.notes }))} notes={notes.visibleNotes} selectedId={notes.selectedId} onSelect={notes.setSelectedId} onToggleFavorite={notes.toggleFavorite} heading={heading} />
-            </motion.div>
-          )}
-          {!minimized.editor && (
-            <motion.div key="editor" layout initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.2, ease: "easeOut" }} className={hasMinimizedPanel ? "h-full min-w-[280px] flex-[1.35] basis-0" : "h-full min-w-[280px] flex-1"}>
-              <NoteEditor minimized={minimized.editor} onMinimize={() => setMinimized((current) => ({ ...current, editor: !current.editor }))} note={notes.selected} collections={notes.collections} onUpdate={notes.updateNote} onDelete={notes.deleteNote} onToggleFavorite={notes.toggleFavorite} />
-            </motion.div>
-          )}
+          {!minimized.sidebar && <motion.div key="sidebar" layout initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.2, ease: "easeOut" }} className={hasMinimizedPanel ? "h-full min-w-[220px] flex-1 basis-0" : "h-full w-[286px] min-w-[220px] shrink basis-[286px]"}><Sidebar minimized={minimized.sidebar} onMinimize={() => setMinimized((current) => ({ ...current, sidebar: !current.sidebar }))} email={email} onBack={onBack} onLogout={onLogout} collections={notes.collections} counts={notes.counts} filter={notes.filter} setFilter={notes.setFilter} query={notes.query} setQuery={notes.setQuery} onCreateNote={notes.createNote} onAddCollection={notes.addCollection} onRenameCollection={notes.renameCollection} onDeleteCollection={notes.deleteCollection} /></motion.div>}
+          {!minimized.notes && <motion.div key="notes" layout initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.2, ease: "easeOut" }} className={hasMinimizedPanel ? "h-full min-w-[240px] flex-1 basis-0" : "h-full w-[318px] min-w-[240px] shrink basis-[318px]"}><NoteList minimized={minimized.notes} onMinimize={() => setMinimized((current) => ({ ...current, notes: !current.notes }))} notes={notes.visibleNotes} selectedId={notes.selectedId} onSelect={notes.setSelectedId} onToggleFavorite={notes.toggleFavorite} heading={heading} /></motion.div>}
+          {!minimized.editor && <motion.div key="editor" layout initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.2, ease: "easeOut" }} className={hasMinimizedPanel ? "h-full min-w-[280px] flex-[1.35] basis-0" : "h-full min-w-[280px] flex-1"}><NoteEditor minimized={minimized.editor} onMinimize={() => setMinimized((current) => ({ ...current, editor: !current.editor }))} note={notes.selected} collections={notes.collections} onUpdate={notes.updateNote} onDelete={notes.deleteNote} onToggleFavorite={notes.toggleFavorite} /></motion.div>}
         </AnimatePresence>
       </div>
 
-      {hasMinimizedPanel && (
-        <div className="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-full border border-white/25 bg-white/10 p-1.5 text-foreground backdrop-blur-xl">
-          {minimized.sidebar && <button type="button" onClick={() => setMinimized((current) => ({ ...current, sidebar: false }))} className="flex size-8 items-center justify-center rounded-full transition-colors hover:bg-white/20" aria-label="Restore navigation panel" title="Restore navigation panel"><PanelLeft className="size-4" /></button>}
-          {minimized.notes && <button type="button" onClick={() => setMinimized((current) => ({ ...current, notes: false }))} className="flex size-8 items-center justify-center rounded-full transition-colors hover:bg-white/20" aria-label="Restore notes panel" title="Restore notes panel"><PanelLeft className="size-4" /></button>}
-          {minimized.editor && <button type="button" onClick={() => setMinimized((current) => ({ ...current, editor: false }))} className="flex size-8 items-center justify-center rounded-full transition-colors hover:bg-white/20" aria-label="Restore editor panel" title="Restore editor panel"><PanelLeft className="size-4" /></button>}
-        </div>
-      )}
+      {browserOpen && <div className="fixed inset-4 z-[120] flex items-center justify-center"><div className="h-full w-full max-w-6xl"><StudyBrowser /></div></div>}
 
-      {distractionOpen && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/35 p-5 backdrop-blur-md" role="dialog" aria-modal="true" aria-label="Distraction Mode setup">
-          <div className="w-full max-w-md rounded-[30px] border border-white/20 bg-black/40 p-6 shadow-2xl backdrop-blur-2xl">
-            <div className="flex items-center justify-between"><div><p className="text-lg font-semibold">Distraction Mode</p><p className="mt-1 text-xs text-muted-foreground">Study inside this course folder.</p></div><button type="button" onClick={() => setDistractionOpen(false)} className="rounded-full p-2 text-muted-foreground hover:bg-white/10" aria-label="Close"><X className="size-4" /></button></div>
-            <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.05] p-4"><div className="flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="size-4" /> Selected course</div><p className="mt-1 text-base font-semibold">{course.name}</p></div>
-            <div className="mt-4 grid grid-cols-2 gap-3"><label className="block"><span className="mb-2 block text-xs font-medium text-muted-foreground"><Clock3 className="mr-1 inline size-3.5" />Study hours</span><input type="number" min={1} max={24} value={durationHours} onChange={(event) => setDurationHours(Math.min(24, Math.max(1, Number(event.target.value) || 1)))} className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm outline-none" /></label><label className="block"><span className="mb-2 block text-xs font-medium text-muted-foreground"><CalendarDays className="mr-1 inline size-3.5" />Date</span><input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm outline-none" /></label></div>
-            <button type="button" onClick={() => setConfirmOpen(true)} className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-foreground px-5 py-3 text-sm font-semibold text-background"><ShieldCheck className="size-4" /> Continue</button>
-            <p className="mt-3 text-center text-[11px] leading-5 text-muted-foreground">Inside this course you keep full access to notes and study tools. Back/exit is released only when the timer ends.</p>
-          </div>
-        </div>
-      )}
+      {hasMinimizedPanel && <div className="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-full border border-white/25 bg-white/10 p-1.5 text-foreground backdrop-blur-xl">{minimized.sidebar && <button type="button" onClick={() => setMinimized((current) => ({ ...current, sidebar: false }))} className="flex size-8 items-center justify-center rounded-full hover:bg-white/20" aria-label="Restore navigation panel"><PanelLeft className="size-4" /></button>}{minimized.notes && <button type="button" onClick={() => setMinimized((current) => ({ ...current, notes: false }))} className="flex size-8 items-center justify-center rounded-full hover:bg-white/20" aria-label="Restore notes panel"><PanelLeft className="size-4" /></button>}{minimized.editor && <button type="button" onClick={() => setMinimized((current) => ({ ...current, editor: false }))} className="flex size-8 items-center justify-center rounded-full hover:bg-white/20" aria-label="Restore editor panel"><PanelLeft className="size-4" /></button>}</div>}
 
-      {confirmOpen && (
-        <div className="fixed inset-0 z-[180] flex items-center justify-center bg-black/55 p-5 backdrop-blur-md" role="alertdialog" aria-modal="true" aria-labelledby="course-distraction-confirm">
-          <div className="w-full max-w-sm rounded-[28px] border border-white/20 bg-black/45 p-6 text-center shadow-2xl backdrop-blur-2xl"><div className="mx-auto flex size-14 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.07]"><ShieldCheck className="size-6" /></div><h3 id="course-distraction-confirm" className="mt-5 text-xl font-semibold">Start Distraction Mode?</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">{course.name} will stay open for {durationHours} hour{durationHours === 1 ? "" : "s"}. You can use everything inside the course, but Back and exit controls are unavailable until the timer ends.</p><div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={() => setConfirmOpen(false)} className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-medium">Cancel</button><button type="button" onClick={startDistraction} className="rounded-2xl bg-foreground px-4 py-3 text-sm font-semibold text-background">Confirm & Lock</button></div></div>
-        </div>
-      )}
+      {distractionOpen && <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/35 p-5 backdrop-blur-md" role="dialog" aria-modal="true"><div className="w-full max-w-md rounded-[30px] border border-white/20 bg-black/40 p-6 shadow-2xl backdrop-blur-2xl"><div className="flex items-center justify-between"><div><p className="text-lg font-semibold">Distraction Mode</p><p className="mt-1 text-xs text-muted-foreground">Study inside this course folder.</p></div><button type="button" onClick={() => setDistractionOpen(false)} className="rounded-full p-2 text-muted-foreground hover:bg-white/10" aria-label="Close"><X className="size-4" /></button></div><div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.05] p-4"><div className="flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="size-4" /> Selected course</div><p className="mt-1 text-base font-semibold">{course.name}</p></div><div className="mt-4 grid grid-cols-2 gap-3"><label className="block"><span className="mb-2 block text-xs font-medium text-muted-foreground"><Clock3 className="mr-1 inline size-3.5" />Study hours</span><input type="number" min={1} max={24} value={durationHours} onChange={(event) => setDurationHours(Math.min(24, Math.max(1, Number(event.target.value) || 1)))} className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm outline-none" /></label><label className="block"><span className="mb-2 block text-xs font-medium text-muted-foreground"><CalendarDays className="mr-1 inline size-3.5" />Date</span><input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm outline-none" /></label></div><button type="button" onClick={() => setConfirmOpen(true)} className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-foreground px-5 py-3 text-sm font-semibold text-background"><ShieldCheck className="size-4" /> Continue</button><p className="mt-3 text-center text-[11px] leading-5 text-muted-foreground">Inside this course you keep full access to notes, browser and study tools. Back/exit is released only when the timer ends.</p></div></div>}
+
+      {confirmOpen && <div className="fixed inset-0 z-[180] flex items-center justify-center bg-black/55 p-5 backdrop-blur-md" role="alertdialog" aria-modal="true"><div className="w-full max-w-sm rounded-[28px] border border-white/20 bg-black/45 p-6 text-center shadow-2xl backdrop-blur-2xl"><div className="mx-auto flex size-14 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.07]"><ShieldCheck className="size-6" /></div><h3 className="mt-5 text-xl font-semibold">Start Distraction Mode?</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">{course.name} will stay open for {durationHours} hour{durationHours === 1 ? "" : "s"}. You can use everything inside the course, but Back and exit controls are unavailable until the timer ends.</p><div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={() => setConfirmOpen(false)} className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-medium">Cancel</button><button type="button" onClick={startDistraction} className="rounded-2xl bg-foreground px-4 py-3 text-sm font-semibold text-background">Confirm & Lock</button></div></div></div>}
     </div>
   );
 }
