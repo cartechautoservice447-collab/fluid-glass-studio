@@ -394,10 +394,24 @@
    Only ever applies alongside .dark — never changes light mode or
    any glass panel styling. */
 .dark.pure-black .liquid-stage {
-  background: #000;
+  background:
+    radial-gradient(120% 90% at 10% 0%, oklch(0.06 0.02 265) 0%, transparent 60%),
+    radial-gradient(100% 80% at 100% 10%, oklch(0.05 0.02 285) 0%, transparent 55%),
+    linear-gradient(170deg, oklch(0.03 0.01 265), oklch(0.01 0 0));
 }
 
 .dark.pure-black .liquid-orb {
-  display: none;
+  opacity: 0.14;
 }
 
+.dark.pure-black .liquid-orb-a {
+  background: oklch(0.3 0.12 265);
+}
+
+.dark.pure-black .liquid-orb-b {
+  background: oklch(0.28 0.12 330);
+}
+
+.dark.pure-black .liquid-orb-c {
+  background: oklch(0.3 0.1 195);
+}
