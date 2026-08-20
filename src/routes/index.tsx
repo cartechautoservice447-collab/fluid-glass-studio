@@ -67,7 +67,7 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#07070c]">
-      <main className="liquid-stage relative flex h-full w-full overflow-hidden px-3 pb-3 pt-3 sm:px-5 sm:pb-4 sm:pt-3">
+      <main className="liquid-stage relative flex h-full w-full overflow-hidden p-3">
         <div className="liquid-orb liquid-orb-a" aria-hidden />
         <div className="liquid-orb liquid-orb-b" aria-hidden />
         <div className="liquid-orb liquid-orb-c" aria-hidden />
@@ -77,7 +77,7 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
             {selectedCourse ? (
               <motion.div
                 key={`course-${selectedCourse.id}`}
-                className="absolute inset-0 p-3 sm:p-5"
+                className="absolute inset-0 p-3"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
