@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 export type AuthUser = {
   id: string;
   email: string | null;
-  user_metadata?: { display_name?: string };
+  user_metadata?: { display_name?: string } | undefined;
 };
 
 type AuthContextValue = {
