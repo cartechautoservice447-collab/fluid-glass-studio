@@ -92,7 +92,7 @@ export function useCourses(userId: string) {
       if (payload.op === "insert") {
         const { error } = await supabase
           .from("courses")
-          .insert({ id: payload.id, user_id: userId, ...payload.values });
+          .insert({ id: payload.id, user_id: userId, ...payload.values } as never);
         if (error) throw error;
         return;
       }

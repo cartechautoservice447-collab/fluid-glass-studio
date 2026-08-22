@@ -15,7 +15,7 @@ export function ReminderCenter({ open, onOpenChange }: { open: boolean; onOpenCh
   const [at, setAt] = useState("");
   const [reminders, setReminders] = useState<Reminder[]>(readReminders);
 
-  useEffect(() => { localStorage.setItem(PERFORMANCE_KEY, performance); document.documentElement.dataset.glassPerformance = performance; }, [performance]);
+  useEffect(() => { localStorage.setItem(PERFORMANCE_KEY, performance); document.documentElement.dataset['glassPerformance'] = performance; }, [performance]);
   useEffect(() => { localStorage.setItem(REMINDER_KEY, JSON.stringify(reminders)); }, [reminders]);
   useEffect(() => { localStorage.setItem(NOTIFICATION_KEY, String(notifications)); }, [notifications]);
   useEffect(() => { const timer = window.setInterval(() => { const now = Date.now(); const due = reminders.filter(r => new Date(r.at).getTime() <= now); if (!due.length) return; due.forEach(r => { if (notifications && typeof Notification !== "undefined" && Notification.permission === "granted") new Notification("Glass Notes", { body: r.title }); }); setReminders(prev => prev.filter(r => new Date(r.at).getTime() > now)); }, 1000); return () => window.clearInterval(timer); }, [reminders, notifications]);
