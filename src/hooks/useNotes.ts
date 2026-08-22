@@ -182,7 +182,7 @@ export function useNotes(courseId?: string, userId?: string) {
           user_id: userId!,
           course_id: courseId!,
           ...payload.values,
-        });
+        } as never);
         if (error) throw error;
         return;
       }
