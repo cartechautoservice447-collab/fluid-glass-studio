@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { AuthPage } from "@/components/auth/AuthPage";
 import { CourseGrid } from "@/components/courses/CourseGrid";
 import { CourseNotesView } from "@/components/courses/CourseNotesView";
-import { GlassReminderCenter } from "@/components/reminders/GlassReminderCenter";
 import { LiquidFilters } from "@/components/liquid/LiquidFilters";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
@@ -57,7 +56,7 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
 
   useEffect(() => {
     if (!distraction?.active || !distraction.endsAt) return;
-    if (distraction.endsAt <= Date.now()) { localStorage.removeItem(DISTRACTION_KEY); setDistraction(null); return; }
+    if (distraction.endsAt <= Date.now()) { localStorage.removeItem(DISTRACTION_KEY); setDistraction(null); setSelectedCourseId(null); return; }
     const timer = window.setTimeout(() => { localStorage.removeItem(DISTRACTION_KEY); setDistraction(null); setSelectedCourseId(null); }, Math.max(0, distraction.endsAt - Date.now()));
     return () => window.clearTimeout(timer);
   }, [distraction]);
@@ -87,7 +86,6 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
       </div>
     </main>
     {distraction?.active && <div className="pointer-events-none fixed right-5 top-5 z-[1000] rounded-2xl border border-white/15 bg-black/30 px-4 py-2 text-xs text-white/80 shadow-lg backdrop-blur-xl" aria-live="polite"><span className="font-semibold">Distraction Mode</span><span className="mx-2 opacity-40">•</span><span>{distraction.courseName}</span><span className="mx-2 opacity-40">•</span><span>{formatDistractionRemaining(distraction.endsAt ?? Date.now())}</span></div>}
-    {!distraction?.active && <GlassReminderCenter />}
   </div>;
 }
 
