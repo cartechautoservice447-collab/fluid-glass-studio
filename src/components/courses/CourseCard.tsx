@@ -14,7 +14,7 @@ const ACCENT_COLOR: Record<Course["color"], string> = {
   cyan: "oklch(0.78 0.13 200)",
 };
 
-type Props = { course: Course; noteCount: number; lastEditedAt: number | null; onOpen: () => void; onDelete: () => void; };
+type Props = { course: Course; noteCount: number; lastEditedAt: number | null; onOpen: () => void; onDelete: () => void };
 
 export function CourseCard({ course, noteCount, lastEditedAt, onOpen, onDelete }: Props) {
   const { liquid } = useCustomization();
@@ -34,7 +34,7 @@ export function CourseCard({ course, noteCount, lastEditedAt, onOpen, onDelete }
         <div className="min-w-0 space-y-1.5"><h3 className="truncate text-base font-semibold text-foreground">{course.name}</h3><span className="inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.15em] text-foreground" style={{ backgroundColor: `color-mix(in oklab, ${accent} 30%, transparent)` }}>{course.color}</span>{course.description && <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{course.description}</p>}</div>
         <div className="flex items-center justify-between border-t border-white/10 pt-3"><span className="text-[0.68rem] text-muted-foreground">{lastEditedAt ? `Last edited ${relativeDate(lastEditedAt)}` : "No notes yet"}</span><span aria-hidden className="flex size-7 items-center justify-center rounded-full bg-white/15 text-foreground transition-transform group-hover:translate-x-0.5"><ArrowRight className="size-3.5" /></span></div>
       </button>
-      <button type="button" onClick={confirmDelete} className="absolute bottom-3 right-3 z-10 flex size-8 items-center justify-center rounded-full border border-white/15 bg-white/[0.08] text-foreground/70 backdrop-blur-xl transition-colors hover:bg-white/[0.16] hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30" aria-label={`Delete ${course.name}`} title="Delete course"><Trash2 className="size-3.5" /></button>
+      <button type="button" onClick={confirmDelete} className="absolute bottom-3 right-3 z-10 flex size-7 items-center justify-center text-foreground/65 transition-colors hover:text-foreground focus-visible:outline-none" aria-label={`Delete ${course.name}`} title="Delete course"><Trash2 className="size-4" /></button>
     </motion.div>
   );
 }
