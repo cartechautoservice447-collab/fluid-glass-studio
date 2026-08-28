@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 
 import { AuthPage } from "@/components/auth/AuthPage";
+import { BackgroundImageLayer } from "@/components/liquid/BackgroundImageLayer";
 import { CourseGrid } from "@/components/courses/CourseGrid";
 import { CourseNotesView } from "@/components/courses/CourseNotesView";
 import { LiquidFilters } from "@/components/liquid/LiquidFilters";
@@ -32,7 +33,7 @@ function readDistractionSession(): DistractionSession | null {
   } catch { localStorage.removeItem(DISTRACTION_KEY); return null; }
 }
 
-function Page() { return <AuthProvider><CustomizationProvider><LiquidFilters /><AuthenticatedWorkspace /><PwaInstallButton /></CustomizationProvider></AuthProvider>; }
+function Page() { return <AuthProvider><CustomizationProvider><LiquidFilters /><BackgroundImageLayer /><AuthenticatedWorkspace /><PwaInstallButton /></CustomizationProvider></AuthProvider>; }
 
 function AuthenticatedWorkspace() {
   const { user, loading, logout } = useAuth();
@@ -76,7 +77,7 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
   const noteCounts = stats?.counts ?? {};
   const lastEdited = stats?.lastEdited ?? {};
 
-  return <div className="fixed inset-0 overflow-hidden bg-[#07070c]">
+  return <div className="fixed inset-0 z-10 overflow-hidden bg-[#07070c]">
     <main className="liquid-stage relative flex h-full w-full overflow-hidden p-[10px]">
       <div className="liquid-orb liquid-orb-a" aria-hidden /><div className="liquid-orb liquid-orb-b" aria-hidden /><div className="liquid-orb liquid-orb-c" aria-hidden />
       <div className="relative min-h-0 w-full flex-1">
