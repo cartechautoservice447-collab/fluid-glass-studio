@@ -14,6 +14,9 @@ export type LiquidSettings = {
   gel: number;
   bounceStiffness: number;
   bounceDamping: number;
+  saturation: number;
+  sheen: number;
+  refraction: number;
 };
 
 export const LIQUID_DEFAULTS: LiquidSettings = {
@@ -23,6 +26,9 @@ export const LIQUID_DEFAULTS: LiquidSettings = {
   gel: 55,
   bounceStiffness: 200,
   bounceDamping: 24,
+  saturation: 200,
+  sheen: 50,
+  refraction: 40,
 };
 
 const STORAGE_KEY = "liquid-glass-engine-v1";
@@ -60,6 +66,9 @@ function sanitize(raw: unknown): LiquidSettings {
     gel: clamp(Number(v.gel ?? LIQUID_DEFAULTS.gel), 0, 100),
     bounceStiffness: clamp(Number(v.bounceStiffness ?? LIQUID_DEFAULTS.bounceStiffness), 100, 500),
     bounceDamping: clamp(Number(v.bounceDamping ?? LIQUID_DEFAULTS.bounceDamping), 10, 40),
+    saturation: clamp(Number(v.saturation ?? LIQUID_DEFAULTS.saturation), 50, 250),
+    sheen: clamp(Number(v.sheen ?? LIQUID_DEFAULTS.sheen), 0, 100),
+    refraction: clamp(Number(v.refraction ?? LIQUID_DEFAULTS.refraction), 0, 100),
   };
 }
 
@@ -131,6 +140,9 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
     root.style.setProperty("--liquid-gel", `${liquid.gel}`);
     root.style.setProperty("--liquid-bounce", `${liquid.bounceStiffness}`);
     root.style.setProperty("--liquid-bounce-damping", `${liquid.bounceDamping}`);
+    root.style.setProperty("--liquid-saturation", `${liquid.saturation}%`);
+    root.style.setProperty("--liquid-sheen", `${liquid.sheen}`);
+    root.style.setProperty("--liquid-refraction", `${liquid.refraction}`);
   }, [liquid]);
 
   useEffect(() => {
