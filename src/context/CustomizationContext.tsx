@@ -30,7 +30,6 @@ export const LIQUID_DEFAULTS: LiquidSettings = {
   bounceDamping: 24,
 };
 
-// Kept as an offline cache only — Supabase is the source of truth once signed in.
 const STORAGE_KEY = "liquid-glass-engine-v1";
 const THEME_KEY = "liquid-glass-theme-v1";
 const DISPLAY_NAME_KEY = "liquid-glass-display-name-v1";
@@ -91,7 +90,6 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
   const loadedProfileFor = useRef<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Local cache first (instant paint, works offline / signed out).
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -111,7 +109,6 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Then hydrate from the signed-in user's profile row (source of truth).
   useEffect(() => {
     if (!userId || loadedProfileFor.current === userId) return;
     let cancelled = false;
@@ -126,18 +123,35 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
       if (cancelled || error || !data) return;
       const row = data as ProfileRow;
       loadedProfileFor.current = userId;
-      setLiquidState(
-        sanitize({
-          density: Number(row.liquid_density ?? LIQUID_DEFAULTS.density),
-          transparency: Number(row.liquid_transparency ?? LIQUID_DEFAULTS.transparency),
-          clearness: Number(row.liquid_clearness ?? LIQUID_DEFAULTS.clearness),
-          gel: Number(row.liquid_gel ?? LIQUID_DEFAULTS.gel),
-          bounceStiffness: Number(row.liquid_bounce_stiffness ?? LIQUID_DEFAULTS.bounceStiffness),
-          bounceDamping: Number(row.liquid_bounce_damping ?? LIQUID_DEFAULTS.bounceDamping),
-        }),
-      );
+
+      // Only let the cloud overwrite the local cache when that setting is
+      // actually present. This prevents an older/partial profile row from
+      // wiping valid slider values during a page refresh.
+      const hasLiquidProfile = [
+        row.liquid_density,
+        row.liquid_transparency,
+        row.liquid_clearness,
+        row.liquid_gel,
+        row.liquid_bounce_stiffness,
+        row.liquid_bounce_damping,
+      ].some((value) => value !== null && value !== undefined);
+
+      if (hasLiquidProfile) {
+        setLiquidState(
+          sanitize({
+            density: row.liquid_density ?? LIQUID_DEFAULTS.density,
+            transparency: row.liquid_transparency ?? LIQUID_DEFAULTS.transparency,
+            clearness: row.liquid_clearness ?? LIQUID_DEFAULTS.clearness,
+            gel: row.liquid_gel ?? LIQUID_DEFAULTS.gel,
+            bounceStiffness: row.liquid_bounce_stiffness ?? LIQUID_DEFAULTS.bounceStiffness,
+            bounceDamping: row.liquid_bounce_damping ?? LIQUID_DEFAULTS.bounceDamping,
+          }),
+        );
+      }
       if (row.theme === "light" || row.theme === "dark") setThemeState(row.theme);
-      if (row.display_name) setDisplayNameState(row.display_name);
+      if (row.display_name !== null && row.display_name !== undefined) {
+        setDisplayNameState(row.display_name);
+      }
     })();
     return () => {
       cancelled = true;
@@ -148,14 +162,13 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
     if (!userId) loadedProfileFor.current = null;
   }, [userId]);
 
-  // Debounced persistence to the profile row.
   const persist = useCallback(
     (patch: Record<string, unknown>) => {
       if (!userId) return;
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => {
         void supabase.from("profiles").upsert({ id: userId, ...patch });
-      }, 400);
+      }, 250);
     },
     [userId],
   );
@@ -170,9 +183,6 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
     }
   }, [theme]);
 
-  // Pure Black is additive and local-only (not synced to the profile row):
-  // a flat-black variant of the stage background, layered on top of dark
-  // mode only. It never applies unless the "dark" class is also present.
   useEffect(() => {
     document.documentElement.classList.toggle("pure-black", pureBlack);
     try {
