@@ -43,7 +43,7 @@ function AuthenticatedWorkspace() {
 }
 
 function Workspace({ userId, email, onLogout }: { userId: string; email: string | null; onLogout: () => void }) {
-  const { courses, addCourse } = useCourses(userId);
+  const { courses, addCourse, deleteCourse } = useCourses(userId);
   const { data: stats } = useCourseStats(userId);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [distraction, setDistraction] = useState<DistractionSession | null>(() => readDistractionSession());
@@ -82,7 +82,7 @@ function Workspace({ userId, email, onLogout }: { userId: string; email: string 
       <div className="liquid-orb liquid-orb-a" aria-hidden /><div className="liquid-orb liquid-orb-b" aria-hidden /><div className="liquid-orb liquid-orb-c" aria-hidden />
       <div className="relative min-h-0 w-full flex-1">
         <AnimatePresence mode="wait" initial={false}>
-          {selectedCourse ? <motion.div key={`course-${selectedCourse.id}`} className="absolute inset-0 p-[10px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeInOut" }}><CourseNotesView course={selectedCourse} userId={userId} email={email} onLogout={distraction?.active ? () => {} : onLogout} onBack={() => { if (!distraction?.active) setSelectedCourseId(null); }} /></motion.div> : <motion.div key="course-grid" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeInOut" }}><CourseGrid courses={courses} noteCounts={noteCounts} lastEdited={lastEdited} hiddenCourseId={null} onOpenCourse={setSelectedCourseId} onCreateCourse={addCourse} /></motion.div>}
+          {selectedCourse ? <motion.div key={`course-${selectedCourse.id}`} className="absolute inset-0 p-[10px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeInOut" }}><CourseNotesView course={selectedCourse} userId={userId} email={email} onLogout={distraction?.active ? () => {} : onLogout} onBack={() => { if (!distraction?.active) setSelectedCourseId(null); }} /></motion.div> : <motion.div key="course-grid" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeInOut" }}><CourseGrid courses={courses} noteCounts={noteCounts} lastEdited={lastEdited} hiddenCourseId={null} onOpenCourse={setSelectedCourseId} onCreateCourse={addCourse} onDeleteCourse={deleteCourse} /></motion.div>}
         </AnimatePresence>
       </div>
     </main>
