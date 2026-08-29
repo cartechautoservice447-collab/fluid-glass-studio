@@ -1,6 +1,5 @@
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -104,9 +103,6 @@ function readPureBlack(): boolean {
 }
 
 export function CustomizationProvider({ children }: { children: ReactNode }) {
-  // Read persisted values during initial state creation. This is important:
-  // loading them in an effect after mount allowed the default values to be
-  // written back to localStorage before the stored values were applied.
   const [liquid, setLiquidState] = useState<LiquidSettings>(readLiquid);
   const [theme, setThemeState] = useState<Theme>(readTheme);
   const [displayName, setDisplayNameState] = useState<string>(readDisplayName);
@@ -126,7 +122,11 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
     root.style.setProperty("--liquid-glass-alpha", `${transparency}`);
     root.style.setProperty("--liquid-glass-dark-alpha", `${transparency * 0.16}`);
     root.style.setProperty("--liquid-veil-alpha", `${transparency * 0.36}`);
-    root.style.setProperty("--liquid-dark-veil-alpha", `${0.46 - transparency * 0.4}`);
+    // Keep the original behavior at/above the default, but prevent the dark
+    // navy veil from flooding the glass when transparency is reduced below 45%.
+    const darkVeilAlpha =
+      transparency <= 0.45 ? 0.0775 + 0.45 * transparency : 0.46 - 0.4 * transparency;
+    root.style.setProperty("--liquid-dark-veil-alpha", `${darkVeilAlpha}`);
     root.style.setProperty("--liquid-clearness", `${liquid.clearness}`);
     root.style.setProperty("--liquid-gel", `${liquid.gel}`);
     root.style.setProperty("--liquid-bounce", `${liquid.bounceStiffness}`);
@@ -155,13 +155,11 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
   const value = useMemo<Ctx>(
     () => ({
       liquid,
-      setLiquid: (patch) =>
-        setLiquidState((prev) => sanitize({ ...prev, ...patch })),
+      setLiquid: (patch) => setLiquidState((prev) => sanitize({ ...prev, ...patch })),
       reset: () => setLiquidState(LIQUID_DEFAULTS),
       theme,
       setTheme: (next: Theme) => setThemeState(next),
-      toggleTheme: () =>
-        setThemeState((prev) => (prev === "dark" ? "light" : "dark")),
+      toggleTheme: () => setThemeState((prev) => (prev === "dark" ? "light" : "dark")),
       displayName,
       setDisplayName: (name: string) => {
         const trimmed = name.trim().slice(0, 40);
@@ -182,9 +180,7 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
     [liquid, theme, displayName, pureBlack],
   );
 
-  return (
-    <CustomizationContext.Provider value={value}>{children}</CustomizationContext.Provider>
-  );
+  return <CustomizationContext.Provider value={value}>{children}</CustomizationContext.Provider>;
 }
 
 export function useCustomization() {
