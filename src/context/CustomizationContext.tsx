@@ -4,13 +4,9 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
-
-import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabaseClient";
 
 export type LiquidSettings = {
   density: number;
@@ -68,136 +64,61 @@ function sanitize(raw: unknown): LiquidSettings {
   };
 }
 
-type ProfileRow = {
-  theme?: string | null;
-  display_name?: string | null;
-  liquid_density?: number | null;
-  liquid_transparency?: number | null;
-  liquid_clearness?: number | null;
-  liquid_gel?: number | null;
-  liquid_bounce_stiffness?: number | null;
-  liquid_bounce_damping?: number | null;
-};
+function readLiquid(): LiquidSettings {
+  if (typeof window === "undefined") return LIQUID_DEFAULTS;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? sanitize(JSON.parse(stored)) : LIQUID_DEFAULTS;
+  } catch {
+    return LIQUID_DEFAULTS;
+  }
+}
+
+function readTheme(): Theme {
+  if (typeof window === "undefined") return "light";
+  try {
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored === "light" || stored === "dark") return stored;
+  } catch {
+    // Ignore storage failures.
+  }
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function readDisplayName(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return localStorage.getItem(DISPLAY_NAME_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function readPureBlack(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(PURE_BLACK_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 export function CustomizationProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
-  const userId = user?.id ?? null;
-
-  const [liquid, setLiquidState] = useState<LiquidSettings>(LIQUID_DEFAULTS);
-  const [theme, setThemeState] = useState<Theme>("light");
-  const [displayName, setDisplayNameState] = useState("");
-  const [pureBlack, setPureBlackState] = useState(false);
-  const loadedProfileFor = useRef<string | null>(null);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) setLiquidState(sanitize(JSON.parse(stored)));
-      const storedTheme = localStorage.getItem(THEME_KEY);
-      if (storedTheme === "light" || storedTheme === "dark") {
-        setThemeState(storedTheme);
-      } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-        setThemeState("dark");
-      }
-      const storedName = localStorage.getItem(DISPLAY_NAME_KEY);
-      if (storedName) setDisplayNameState(storedName);
-      const storedPureBlack = localStorage.getItem(PURE_BLACK_KEY);
-      if (storedPureBlack === "1") setPureBlackState(true);
-    } catch {
-      /* ignore corrupt storage */
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!userId || loadedProfileFor.current === userId) return;
-    let cancelled = false;
-    void (async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select(
-          "theme, display_name, liquid_density, liquid_transparency, liquid_clearness, liquid_gel, liquid_bounce_stiffness, liquid_bounce_damping",
-        )
-        .eq("id", userId)
-        .maybeSingle();
-      if (cancelled || error || !data) return;
-      const row = data as ProfileRow;
-      loadedProfileFor.current = userId;
-
-      // Only let the cloud overwrite the local cache when that setting is
-      // actually present. This prevents an older/partial profile row from
-      // wiping valid slider values during a page refresh.
-      const hasLiquidProfile = [
-        row.liquid_density,
-        row.liquid_transparency,
-        row.liquid_clearness,
-        row.liquid_gel,
-        row.liquid_bounce_stiffness,
-        row.liquid_bounce_damping,
-      ].some((value) => value !== null && value !== undefined);
-
-      if (hasLiquidProfile) {
-        setLiquidState(
-          sanitize({
-            density: row.liquid_density ?? LIQUID_DEFAULTS.density,
-            transparency: row.liquid_transparency ?? LIQUID_DEFAULTS.transparency,
-            clearness: row.liquid_clearness ?? LIQUID_DEFAULTS.clearness,
-            gel: row.liquid_gel ?? LIQUID_DEFAULTS.gel,
-            bounceStiffness: row.liquid_bounce_stiffness ?? LIQUID_DEFAULTS.bounceStiffness,
-            bounceDamping: row.liquid_bounce_damping ?? LIQUID_DEFAULTS.bounceDamping,
-          }),
-        );
-      }
-      if (row.theme === "light" || row.theme === "dark") setThemeState(row.theme);
-      if (row.display_name !== null && row.display_name !== undefined) {
-        setDisplayNameState(row.display_name);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
-
-  useEffect(() => {
-    if (!userId) loadedProfileFor.current = null;
-  }, [userId]);
-
-  const persist = useCallback(
-    (patch: Record<string, unknown>) => {
-      if (!userId) return;
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        void supabase.from("profiles").upsert({ id: userId, ...patch });
-      }, 250);
-    },
-    [userId],
-  );
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    document.documentElement.style.colorScheme = theme;
-    try {
-      localStorage.setItem(THEME_KEY, theme);
-    } catch {
-      /* ignore quota errors */
-    }
-  }, [theme]);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("pure-black", pureBlack);
-    try {
-      localStorage.setItem(PURE_BLACK_KEY, pureBlack ? "1" : "0");
-    } catch {
-      /* ignore quota errors */
-    }
-  }, [pureBlack]);
+  // Read persisted values during initial state creation. This is important:
+  // loading them in an effect after mount allowed the default values to be
+  // written back to localStorage before the stored values were applied.
+  const [liquid, setLiquidState] = useState<LiquidSettings>(readLiquid);
+  const [theme, setThemeState] = useState<Theme>(readTheme);
+  const [displayName, setDisplayNameState] = useState<string>(readDisplayName);
+  const [pureBlack, setPureBlackState] = useState<boolean>(readPureBlack);
 
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(liquid));
     } catch {
-      /* ignore quota errors */
+      /* ignore quota/storage errors */
     }
+
     const root = document.documentElement;
     const transparency = liquid.transparency / 100;
     root.style.setProperty("--liquid-density", `${liquid.density}px`);
@@ -212,54 +133,44 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
     root.style.setProperty("--liquid-bounce-damping", `${liquid.bounceDamping}`);
   }, [liquid]);
 
-  const commitLiquid = useCallback(
-    (next: LiquidSettings) => {
-      persist({
-        liquid_density: next.density,
-        liquid_transparency: next.transparency,
-        liquid_clearness: next.clearness,
-        liquid_gel: next.gel,
-        liquid_bounce_stiffness: next.bounceStiffness,
-        liquid_bounce_damping: next.bounceDamping,
-      });
-    },
-    [persist],
-  );
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    document.documentElement.style.colorScheme = theme;
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch {
+      /* ignore storage errors */
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("pure-black", pureBlack);
+    try {
+      localStorage.setItem(PURE_BLACK_KEY, pureBlack ? "1" : "0");
+    } catch {
+      /* ignore storage errors */
+    }
+  }, [pureBlack]);
 
   const value = useMemo<Ctx>(
     () => ({
       liquid,
       setLiquid: (patch) =>
-        setLiquidState((prev) => {
-          const next = sanitize({ ...prev, ...patch });
-          commitLiquid(next);
-          return next;
-        }),
-      reset: () => {
-        setLiquidState(LIQUID_DEFAULTS);
-        commitLiquid(LIQUID_DEFAULTS);
-      },
+        setLiquidState((prev) => sanitize({ ...prev, ...patch })),
+      reset: () => setLiquidState(LIQUID_DEFAULTS),
       theme,
-      setTheme: (next: Theme) => {
-        setThemeState(next);
-        persist({ theme: next });
-      },
+      setTheme: (next: Theme) => setThemeState(next),
       toggleTheme: () =>
-        setThemeState((prev) => {
-          const next = prev === "dark" ? "light" : "dark";
-          persist({ theme: next });
-          return next;
-        }),
+        setThemeState((prev) => (prev === "dark" ? "light" : "dark")),
       displayName,
       setDisplayName: (name: string) => {
         const trimmed = name.trim().slice(0, 40);
         setDisplayNameState(trimmed);
-        persist({ display_name: trimmed || null });
         try {
           if (trimmed) localStorage.setItem(DISPLAY_NAME_KEY, trimmed);
           else localStorage.removeItem(DISPLAY_NAME_KEY);
         } catch {
-          /* ignore quota errors */
+          /* ignore storage errors */
         }
       },
       pureBlack,
@@ -268,7 +179,7 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
         setPureBlackState(value);
       },
     }),
-    [liquid, theme, displayName, pureBlack, commitLiquid, persist],
+    [liquid, theme, displayName, pureBlack],
   );
 
   return (
