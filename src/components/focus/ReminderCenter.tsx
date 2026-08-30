@@ -2,6 +2,7 @@ import { BookOpen, NotebookPen, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { CourseNotesView } from "@/components/courses/CourseNotesView";
+import { StudyHubSplitResize } from "@/components/focus/StudyHubSplitResize";
 import type { Course } from "@/hooks/useCourses";
 
 type Cs50Link = { label: string; url: string; embeddable: boolean };
@@ -112,15 +113,17 @@ export function ReminderCenter({ open, onOpenChange, courses, userId, email, onL
 
       {notesOpen && courses.length > 0 && <div className="flex shrink-0 items-center gap-2 border-b border-white/10 px-4 py-2 sm:px-6"><span className="text-[11px] text-muted-foreground">Course</span><select value={activeCourseId ?? ""} onChange={(event) => setActiveCourseId(event.target.value || null)} className="min-w-0 max-w-xs rounded-lg border border-white/10 bg-white/[.05] px-2.5 py-1 text-xs text-foreground outline-none">{courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}</select></div>}
 
-      <div className="min-h-0 flex-1 overflow-hidden">
-        <div className="flex h-full" onPointerMove={(event) => { if ((event.currentTarget as HTMLElement).dataset.resizing === "true") adjustSplit(event as unknown as React.PointerEvent<HTMLDivElement>); }} onPointerUp={(event) => { (event.currentTarget as HTMLElement).dataset.resizing = "false"; }} onPointerLeave={(event) => { if ((event.currentTarget as HTMLElement).dataset.resizing === "true") adjustSplit(event as unknown as React.PointerEvent<HTMLDivElement>); }}>
-          <div className="flex min-h-0 min-w-0 flex-col" style={{ width: notesOpen && activeCourse ? `${splitRatio}%` : "100%" }}><div className="min-h-0 flex-1 bg-black"><iframe key={iframeKey} src={browserUrl} title="CS50 lecture viewer" className="h-full w-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen /></div></div>
-          {notesOpen && activeCourse ? <>
-            <div role="separator" aria-label="Resize lecture and note editor panes" aria-orientation="vertical" tabIndex={0} className="group relative z-10 w-2 shrink-0 cursor-col-resize bg-white/[.04] hover:bg-white/[.12] focus:bg-white/[.15]" onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); const parent = event.currentTarget.parentElement; if (parent) parent.dataset.resizing = "true"; }} onKeyDown={(event) => { if (event.key === "ArrowLeft") setSplitRatio((value) => Math.max(25, value - 5)); if (event.key === "ArrowRight") setSplitRatio((value) => Math.min(75, value + 5)); }}><span className="absolute left-1/2 top-1/2 h-16 w-px -translate-x-1/2 -translate-y-1/2 bg-white/20 transition group-hover:bg-white/45" /></div>
-            <div className="min-h-0 min-w-0 flex-1 overflow-hidden p-2 md:p-3"><CourseNotesView course={activeCourse} userId={userId} email={email} onLogout={onLogout} onBack={() => setNotesOpen(false)} studyHubMode /></div>
-          </> : null}
+      <StudyHubSplitResize>
+        <div className="h-full overflow-hidden">
+          <div className="flex h-full" onPointerMove={(event) => { if ((event.currentTarget as HTMLElement).dataset.resizing === "true") adjustSplit(event as unknown as React.PointerEvent<HTMLDivElement>); }} onPointerUp={(event) => { (event.currentTarget as HTMLElement).dataset.resizing = "false"; }} onPointerLeave={(event) => { if ((event.currentTarget as HTMLElement).dataset.resizing === "true") adjustSplit(event as unknown as React.PointerEvent<HTMLDivElement>); }}>
+            <div className="flex min-h-0 min-w-0 flex-col" style={{ width: notesOpen && activeCourse ? `${splitRatio}%` : "100%" }}><div className="min-h-0 flex-1 bg-black"><iframe key={iframeKey} src={browserUrl} title="CS50 lecture viewer" className="h-full w-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen /></div></div>
+            {notesOpen && activeCourse ? <>
+              <div role="separator" aria-label="Resize lecture and note editor panes" aria-orientation="vertical" tabIndex={0} className="group relative z-10 w-2 shrink-0 cursor-col-resize bg-white/[.04] hover:bg-white/[.12] focus:bg-white/[.15]" onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); const parent = event.currentTarget.parentElement; if (parent) parent.dataset.resizing = "true"; }} onKeyDown={(event) => { if (event.key === "ArrowLeft") setSplitRatio((value) => Math.max(25, value - 5)); if (event.key === "ArrowRight") setSplitRatio((value) => Math.min(75, value + 5)); }}><span className="absolute left-1/2 top-1/2 h-16 w-px -translate-x-1/2 -translate-y-1/2 bg-white/20 transition group-hover:bg-white/45" /></div>
+              <div className="min-h-0 min-w-0 flex-1 overflow-hidden p-2 md:p-3"><CourseNotesView course={activeCourse} userId={userId} email={email} onLogout={onLogout} onBack={() => setNotesOpen(false)} studyHubMode /></div>
+            </> : null}
+          </div>
         </div>
-      </div>
+      </StudyHubSplitResize>
     </div>
   );
 }
