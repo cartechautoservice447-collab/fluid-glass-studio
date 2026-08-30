@@ -9,6 +9,7 @@ export type Note = {
   body: string;
   favorite: boolean;
   collectionId: string | null;
+  createdAt: number;
   updatedAt: number;
 };
 
@@ -22,6 +23,7 @@ type NoteRow = {
   body: string | null;
   favorite: boolean | null;
   collection_id: string | null;
+  created_at: string;
   updated_at: string;
 };
 
@@ -31,13 +33,16 @@ const EMPTY_NOTES: Note[] = [];
 const EMPTY_COLLECTIONS: Collection[] = [];
 
 function toNote(row: NoteRow): Note {
+  const createdAt = new Date(row.created_at).getTime();
+  const updatedAt = new Date(row.updated_at).getTime();
   return {
     id: row.id,
     title: row.title ?? "Untitled note",
     body: row.body ?? "",
     favorite: Boolean(row.favorite),
     collectionId: row.collection_id,
-    updatedAt: new Date(row.updated_at).getTime(),
+    createdAt: Number.isFinite(createdAt) ? createdAt : updatedAt,
+    updatedAt: Number.isFinite(updatedAt) ? updatedAt : createdAt,
   };
 }
 
@@ -79,9 +84,9 @@ export function useNotes(courseId?: string, userId?: string) {
     queryFn: async (): Promise<Note[]> => {
       const { data, error } = await supabase
         .from("notes")
-        .select("id, title, body, favorite, collection_id, updated_at")
+        .select("id, title, body, favorite, collection_id, created_at, updated_at")
         .eq("course_id", courseId!)
-        .order("updated_at", { ascending: false });
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return dedupeNotes(((data ?? []) as NoteRow[]).map(toNote));
     },
@@ -167,11 +172,16 @@ export function useNotes(courseId?: string, userId?: string) {
         const { error } = await supabase
           .from("notes")
           .update({ ...payload.values, updated_at: new Date().toISOString() })
-          .eq("id", payload.id);
+          .eq("id", payload.id)
+          .eq("course_id", courseId!);
         if (error) throw error;
         return;
       }
-      const { error } = await supabase.from("notes").delete().eq("id", payload.id);
+      const { error } = await supabase
+        .from("notes")
+        .delete()
+        .eq("id", payload.id)
+        .eq("course_id", courseId!);
       if (error) throw error;
     },
     onSettled: invalidateNotes,
@@ -212,13 +222,15 @@ export function useNotes(courseId?: string, userId?: string) {
 
   const createNote = useCallback(() => {
     if (!enabled) return "";
+    const now = Date.now();
     const note: Note = {
       id: newId(),
       title: "Untitled note",
       body: "",
       favorite: false,
       collectionId: filter.kind === "collection" ? filter.id : null,
-      updatedAt: Date.now(),
+      createdAt: now,
+      updatedAt: now,
     };
     patchNotesCache((prev) => [note, ...prev]);
     setSelectedId(note.id);
@@ -312,7 +324,7 @@ export function useNotes(courseId?: string, userId?: string) {
         if (!q) return true;
         return n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q);
       })
-      .sort((a, b) => b.updatedAt - a.updatedAt);
+      .sort((a, b) => b.createdAt - a.createdAt);
   }, [notes, filter, query]);
 
   const counts = useMemo(
