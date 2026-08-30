@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, FileDown, Pause, Play, RotateCcw, Settings2, X } from "lucide-react";
+import { Bell, Pause, Play, RotateCcw, Settings2, X } from "lucide-react";
 
-import { PdfGeneratorModal } from "@/components/focus/PdfGeneratorModal";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
@@ -290,7 +289,6 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
               <div className="flex items-center justify-between">
                 <DialogTitle className="text-lg font-semibold tracking-tight">Pomodoro</DialogTitle>
                 <div className="flex items-center gap-1">
-                  <PdfGeneratorModal />
                   {notifPermission !== "granted" && notifPermission !== "unsupported" && (
                     <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={enableAlerts} aria-label="Enable rest notifications"><Bell className="size-4" /></Button>
                   )}
