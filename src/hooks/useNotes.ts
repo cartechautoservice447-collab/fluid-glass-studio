@@ -41,6 +41,15 @@ function toNote(row: NoteRow): Note {
   };
 }
 
+function dedupeNotes(items: Note[]): Note[] {
+  const byId = new Map<string, Note>();
+  for (const note of items) {
+    const existing = byId.get(note.id);
+    if (!existing || note.updatedAt >= existing.updatedAt) byId.set(note.id, note);
+  }
+  return Array.from(byId.values());
+}
+
 export function relativeDate(ts: number) {
   const diff = Date.now() - ts;
   const min = Math.round(diff / 60000);
@@ -74,7 +83,7 @@ export function useNotes(courseId?: string, userId?: string) {
         .eq("course_id", courseId!)
         .order("updated_at", { ascending: false });
       if (error) throw error;
-      return ((data ?? []) as NoteRow[]).map(toNote);
+      return dedupeNotes(((data ?? []) as NoteRow[]).map(toNote));
     },
   });
 
@@ -99,14 +108,12 @@ export function useNotes(courseId?: string, userId?: string) {
   const [filter, setFilter] = useState<Filter>({ kind: "all" });
   const [query, setQuery] = useState("");
 
-  // Reset view state when switching course/user.
   useEffect(() => {
     setSelectedId(null);
     setFilter({ kind: "all" });
     setQuery("");
   }, [courseId, userId]);
 
-  // Keep a sane selection once notes arrive.
   useEffect(() => {
     if (notes.length === 0) {
       if (selectedId !== null) setSelectedId(null);
@@ -119,7 +126,7 @@ export function useNotes(courseId?: string, userId?: string) {
 
   const patchNotesCache = useCallback(
     (updater: (prev: Note[]) => Note[]) => {
-      queryClient.setQueryData<Note[]>(notesKey, (prev) => updater(prev ?? []));
+      queryClient.setQueryData<Note[]>(notesKey, (prev) => dedupeNotes(updater(dedupeNotes(prev ?? []))));
     },
     [queryClient, notesKey],
   );
@@ -298,7 +305,7 @@ export function useNotes(courseId?: string, userId?: string) {
 
   const visibleNotes = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return notes
+    return dedupeNotes(notes)
       .filter((n) => {
         if (filter.kind === "favorites" && !n.favorite) return false;
         if (filter.kind === "collection" && n.collectionId !== filter.id) return false;
@@ -310,19 +317,19 @@ export function useNotes(courseId?: string, userId?: string) {
 
   const counts = useMemo(
     () => ({
-      all: notes.length,
-      favorites: notes.filter((n) => n.favorite).length,
+      all: dedupeNotes(notes).length,
+      favorites: dedupeNotes(notes).filter((n) => n.favorite).length,
       byCollection: Object.fromEntries(
-        collections.map((c) => [c.id, notes.filter((n) => n.collectionId === c.id).length]),
+        collections.map((c) => [c.id, dedupeNotes(notes).filter((n) => n.collectionId === c.id).length]),
       ) as Record<string, number>,
     }),
     [notes, collections],
   );
 
-  const selected = notes.find((n) => n.id === selectedId) ?? null;
+  const selected = dedupeNotes(notes).find((n) => n.id === selectedId) ?? null;
 
   return {
-    notes,
+    notes: dedupeNotes(notes),
     visibleNotes,
     collections,
     counts,
