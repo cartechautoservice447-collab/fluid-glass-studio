@@ -1,0 +1,62 @@
+import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import { useRef, useState } from "react";
+
+type Props = { children: ReactNode };
+
+export function StudyHubSplitResize({ children }: Props) {
+  const [height, setHeight] = useState(100);
+  const resizingRef = useRef(false);
+  const MIN_HEIGHT = 55;
+  const MAX_HEIGHT = 100;
+
+  const updateHeight = (clientY: number) => {
+    const viewportHeight = Math.max(window.innerHeight || 1, 1);
+    const next = (clientY / viewportHeight) * 100;
+    setHeight(Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, next)));
+  };
+
+  const stopResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    resizingRef.current = false;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  return (
+    <div className="relative min-h-0 flex-1 overflow-hidden bg-black/10">
+      <div className="absolute inset-x-0 top-0 overflow-hidden" style={{ height: `${height}%` }}>
+        {children}
+      </div>
+      <div
+        role="separator"
+        aria-label="Resize Study Hub vertically"
+        aria-orientation="horizontal"
+        tabIndex={0}
+        className="group absolute left-0 right-0 z-30 flex h-4 -translate-y-1/2 cursor-row-resize items-center justify-center touch-none select-none"
+        style={{ top: `${height}%` }}
+        onPointerDown={(event) => {
+          resizingRef.current = true;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          updateHeight(event.clientY);
+        }}
+        onPointerMove={(event) => {
+          if (resizingRef.current) updateHeight(event.clientY);
+        }}
+        onPointerUp={stopResize}
+        onPointerCancel={stopResize}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowUp") {
+            event.preventDefault();
+            setHeight((value) => Math.min(MAX_HEIGHT, value + 5));
+          }
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            setHeight((value) => Math.max(MIN_HEIGHT, value - 5));
+          }
+        }}
+      >
+        <span className="absolute left-1/2 h-1.5 w-24 -translate-x-1/2 rounded-full bg-white/35 shadow-[0_0_12px_rgba(255,255,255,.3)] transition-all group-hover:h-2 group-hover:w-32 group-hover:bg-white/75 group-focus:bg-white/75" />
+      </div>
+    </div>
+  );
+}
