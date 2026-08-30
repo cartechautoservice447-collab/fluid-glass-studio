@@ -1,14 +1,17 @@
-import { FileText, Upload } from "lucide-react";
+import { FileText, Moon, Sun, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 type Props = {
   active: boolean;
 };
 
+type PdfTheme = "light" | "dark";
+
 export function PdfStudyViewer({ active }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfName, setPdfName] = useState("");
+  const [theme, setTheme] = useState<PdfTheme>("light");
 
   useEffect(() => {
     return () => {
@@ -35,6 +38,30 @@ export function PdfStudyViewer({ active }: Props) {
         <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
           {pdfName || "No PDF imported"}
         </span>
+        {pdfUrl && (
+          <div className="flex shrink-0 items-center rounded-md border border-white/10 bg-white/[.04] p-0.5">
+            <button
+              type="button"
+              onClick={() => setTheme("light")}
+              className={`inline-flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium transition ${theme === "light" ? "bg-white/15 text-foreground" : "text-muted-foreground hover:bg-white/10"}`}
+              aria-pressed={theme === "light"}
+              title="PDF light theme"
+            >
+              <Sun className="size-3" />
+              Light
+            </button>
+            <button
+              type="button"
+              onClick={() => setTheme("dark")}
+              className={`inline-flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium transition ${theme === "dark" ? "bg-white/15 text-foreground" : "text-muted-foreground hover:bg-white/10"}`}
+              aria-pressed={theme === "dark"}
+              title="PDF dark theme"
+            >
+              <Moon className="size-3" />
+              Dark
+            </button>
+          </div>
+        )}
         <input
           ref={inputRef}
           type="file"
@@ -52,14 +79,17 @@ export function PdfStudyViewer({ active }: Props) {
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden bg-zinc-900">
+      <div className={`min-h-0 flex-1 overflow-hidden ${theme === "dark" ? "bg-neutral-950" : "bg-zinc-900"}`}>
         {pdfUrl ? (
-          <iframe
-            key={pdfUrl}
-            src={pdfUrl}
-            title={pdfName || "PDF viewer"}
-            className="h-full w-full"
-          />
+          <div className={`h-full w-full overflow-hidden ${theme === "dark" ? "bg-neutral-950" : "bg-zinc-900"}`}>
+            <iframe
+              key={`${pdfUrl}-${theme}`}
+              src={pdfUrl}
+              title={pdfName || "PDF viewer"}
+              className="h-full w-full origin-center"
+              style={theme === "dark" ? { filter: "invert(0.92) hue-rotate(180deg) contrast(0.95)" } : undefined}
+            />
+          </div>
         ) : (
           <button
             type="button"
