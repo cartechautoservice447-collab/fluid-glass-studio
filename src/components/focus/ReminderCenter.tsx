@@ -1,8 +1,5 @@
-import { BookOpen, X, Zap } from "lucide-react";
-import { useEffect, useState } from "react";
-
-const PERFORMANCE_KEY = "liquid-glass-performance-mode";
-const PERFORMANCE_EVENT = "glass-performance-changed";
+import { BookOpen, X } from "lucide-react";
+import { useState } from "react";
 
 type Cs50Link = { label: string; url: string; embeddable: boolean };
 
@@ -68,26 +65,16 @@ function toEmbeddableUrl(raw: string): string | null {
 }
 
 export function ReminderCenter({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const [performance, setPerformance] = useState(() => localStorage.getItem(PERFORMANCE_KEY) ?? "high");
   const [browserUrl, setBrowserUrl] = useState(CS50_LINKS[0].url);
   const [urlInput, setUrlInput] = useState("");
   const [iframeKey, setIframeKey] = useState(0);
-
-  useEffect(() => { localStorage.setItem(PERFORMANCE_KEY, performance); document.documentElement.dataset['glassPerformance'] = performance; window.dispatchEvent(new CustomEvent(PERFORMANCE_EVENT, { detail: performance })); }, [performance]);
-  useEffect(() => {
-    const onExternalChange = (event: Event) => {
-      const detail = (event as CustomEvent<string>).detail;
-      if (detail && detail !== performance) setPerformance(detail);
-    };
-    window.addEventListener(PERFORMANCE_EVENT, onExternalChange);
-    return () => window.removeEventListener(PERFORMANCE_EVENT, onExternalChange);
-  }, [performance]);
 
   if (!open) return null;
 
   const openLink = (link: Cs50Link) => {
     if (link.embeddable) {
       setBrowserUrl(link.url);
+      setUrlInput(link.url);
       setIframeKey((k) => k + 1);
     } else {
       window.open(link.url, "_blank", "noopener,noreferrer");
@@ -105,15 +92,12 @@ export function ReminderCenter({ open, onOpenChange }: { open: boolean; onOpenCh
   return (
     <div className="fixed inset-0 z-[150] flex flex-col bg-black/70 backdrop-blur-2xl animate-in fade-in duration-300">
       <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-5 py-4 sm:px-8">
-        <div className="flex items-center gap-3"><BookOpen className="size-5" /><div><h2 className="text-lg font-semibold text-foreground">Study Hub</h2><p className="text-xs text-muted-foreground">Performance & CS50 lectures</p></div></div>
+        <div className="flex items-center gap-3"><BookOpen className="size-5" /><div><h2 className="text-lg font-semibold text-foreground">Study Hub</h2><p className="text-xs text-muted-foreground">CS50 lectures</p></div></div>
         <button onClick={() => onOpenChange(false)} aria-label="Close Study Hub" className="rounded-full p-2 text-muted-foreground hover:bg-white/10"><X className="size-5" /></button>
       </div>
 
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-white/10 px-5 py-3 sm:px-8">
-        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><Zap className="size-3.5" />Performance:</span>
-        <button onClick={() => setPerformance("high")} className={`rounded-xl border px-3 py-1.5 text-xs font-medium ${performance === "high" ? "border-white/40 bg-white/15 text-foreground" : "border-white/10 bg-white/[.03] text-muted-foreground"}`}>High</button>
-        <button onClick={() => setPerformance("ultra")} className={`rounded-xl border px-3 py-1.5 text-xs font-medium ${performance === "ultra" ? "border-white/40 bg-white/15 text-foreground" : "border-white/10 bg-white/[.03] text-muted-foreground"}`}>Ultra</button>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {CS50_LINKS.map((link) => <button key={link.url} onClick={() => openLink(link)} className={`rounded-xl border px-3 py-1.5 text-xs font-medium ${link.embeddable && browserUrl === link.url ? "border-white/40 bg-white/15 text-foreground" : "border-white/10 bg-white/[.03] text-muted-foreground"}`}>{link.label}</button>)}
         </div>
       </div>
