@@ -7,7 +7,6 @@ import { OverviewModal } from "@/components/focus/OverviewModal";
 import { ReminderCenter } from "@/components/focus/ReminderCenter";
 import { EngineSettingsModal } from "@/components/liquid/EngineSettingsModal";
 import { ThemeToggle } from "@/components/liquid/ThemeToggle";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useCustomization } from "@/context/CustomizationContext";
 import type { Course, CourseAccent } from "@/hooks/useCourses";
 
@@ -35,7 +34,7 @@ export function CourseGrid({ courses, noteCounts, lastEdited, hiddenCourseId, on
   const setPerformanceMode = (mode: "high" | "ultra") => {
     setPerformance(mode);
     localStorage.setItem(PERFORMANCE_KEY, mode);
-    document.documentElement.dataset['glassPerformance'] = mode;
+    document.documentElement.dataset["glassPerformance"] = mode;
     window.dispatchEvent(new CustomEvent(PERFORMANCE_EVENT, { detail: mode }));
   };
 
@@ -47,20 +46,11 @@ export function CourseGrid({ courses, noteCounts, lastEdited, hiddenCourseId, on
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.16] via-transparent to-transparent" aria-hidden />
       <div className="relative"><h1 className="text-xl font-semibold tracking-tight text-foreground">Welcome back{displayName ? `, ${displayName}` : ""}! 👋</h1><p className="text-sm text-muted-foreground">Select a course folder to access your workspace</p></div>
       <div className="relative flex flex-wrap items-center justify-end gap-2">
-        <Popover>
-          <PopoverTrigger asChild>
-            <button type="button" className="inline-flex items-center gap-1 rounded-xl border border-white/10 bg-white/[.06] px-3 py-2 text-xs text-muted-foreground hover:bg-white/10">
-              <Zap className="size-3.5"/>Performance: <b className="text-foreground">{performance === "ultra" ? "Ultra" : "High"}</b>
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-64 border-white/15 bg-black/70 backdrop-blur-2xl">
-            <p className="text-xs font-semibold">Adaptive Engine Performance</p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => setPerformanceMode("high")} className={`rounded-xl border p-3 text-left ${performance === "high" ? "border-white/40 bg-white/10" : "border-white/10 bg-white/[.03]"}`}><b className="text-xs">High</b><span className="mt-1 block text-[10px] text-muted-foreground">Default balanced mode</span></button>
-              <button type="button" onClick={() => setPerformanceMode("ultra")} className={`rounded-xl border p-3 text-left ${performance === "ultra" ? "border-white/40 bg-white/10" : "border-white/10 bg-white/[.03]"}`}><b className="text-xs">Ultra</b><span className="mt-1 block text-[10px] text-muted-foreground">Maximum visual effects</span></button>
-            </div>
-          </PopoverContent>
-        </Popover>
+        <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[.06] p-1.5 backdrop-blur-xl">
+          <span className="inline-flex items-center gap-1.5 px-2 text-xs text-muted-foreground"><Zap className="size-3.5" />Performance</span>
+          <button type="button" onClick={() => setPerformanceMode("high")} className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition ${performance === "high" ? "border-white/40 bg-white/15 text-foreground" : "border-white/10 bg-white/[.03] text-muted-foreground hover:bg-white/10"}`}>High</button>
+          <button type="button" onClick={() => setPerformanceMode("ultra")} className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition ${performance === "ultra" ? "border-white/40 bg-white/15 text-foreground" : "border-white/10 bg-white/[.03] text-muted-foreground hover:bg-white/10"}`}>Ultra</button>
+        </div>
         <ThemeToggle /><EngineSettingsModal />
       </div>
     </div>
