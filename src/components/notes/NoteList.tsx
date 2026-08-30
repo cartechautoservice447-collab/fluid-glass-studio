@@ -15,6 +15,8 @@ type Props = {
 };
 
 export function NoteList({ minimized, onMinimize, notes, selectedId, onSelect, onToggleFavorite, heading }: Props) {
+  const uniqueNotes = Array.from(new Map(notes.map((note) => [note.id, note])).values());
+
   if (minimized) {
     return (
       <GlassPanel className="flex h-full items-start justify-center !p-3">
@@ -36,7 +38,7 @@ export function NoteList({ minimized, onMinimize, notes, selectedId, onSelect, o
         <h2 className="text-[0.62rem] font-bold uppercase tracking-[0.28em] text-foreground">
           {heading}
         </h2>
-        <span className="font-mono text-xs text-muted-foreground">{notes.length}</span>
+        <span className="font-mono text-xs text-muted-foreground">{uniqueNotes.length}</span>
       </div>
       <button
         type="button"
@@ -48,10 +50,10 @@ export function NoteList({ minimized, onMinimize, notes, selectedId, onSelect, o
         <PanelLeft className="size-4 stroke-[1.8]" />
       </button>
       <div className="glass-scrollbar -mx-2 -my-2 min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto px-2 py-2">
-        {notes.length === 0 ? (
+        {uniqueNotes.length === 0 ? (
           <p className="px-1 py-6 text-sm text-muted-foreground">No notes match this view.</p>
         ) : (
-          notes.map((note) => (
+          uniqueNotes.map((note) => (
             <NoteCard
               key={note.id}
               note={note}
