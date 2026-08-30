@@ -77,6 +77,7 @@ export function ReminderCenter({ open, onOpenChange, courses, userId, email, onL
   const [iframeKey, setIframeKey] = useState(0);
   const [notesOpen, setNotesOpen] = useState(false);
   const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
+  const [splitRatio, setSplitRatio] = useState(50);
 
   useEffect(() => {
     if (!activeCourseId || !courses.some((course) => course.id === activeCourseId)) {
@@ -96,61 +97,96 @@ export function ReminderCenter({ open, onOpenChange, courses, userId, email, onL
     setIframeKey((k) => k + 1);
   };
 
+  const adjustSplit = (event: React.PointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.parentElement?.getBoundingClientRect();
+    if (!rect || !notesOpen || !activeCourse) return;
+    const next = ((event.clientX - rect.left) / rect.width) * 100;
+    setSplitRatio(Math.min(75, Math.max(25, next)));
+  };
+
   return (
     <div className="fixed inset-0 z-[150] flex flex-col bg-black/70 backdrop-blur-2xl animate-in fade-in duration-300">
-      <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-white/10 px-5 py-3.5 sm:px-8">
-        <div className="flex shrink-0 items-center gap-3 mr-auto">
-          <BookOpen className="size-5" />
-          <h2 className="text-lg font-semibold text-foreground">Study Hub</h2>
+      <div className="flex shrink-0 items-center gap-3 border-b border-white/10 px-4 py-2.5 sm:px-6">
+        <div className="flex min-w-0 shrink-0 items-center gap-2">
+          <BookOpen className="size-4" />
+          <h2 className="text-sm font-semibold text-foreground">Study Hub</h2>
         </div>
-
-        <div className="order-3 flex min-w-0 basis-full items-center gap-2 sm:order-none sm:basis-auto sm:w-[min(38vw,420px)]">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <input
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") loadCustomUrl(); }}
-            placeholder="Paste YouTube / lecture URL"
+            placeholder="Paste URL"
             aria-label="Lecture URL"
-            className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs outline-none"
+            className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-xs outline-none"
           />
-          <button type="button" onClick={loadCustomUrl} className="shrink-0 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-medium">Go</button>
+          <button type="button" onClick={loadCustomUrl} className="shrink-0 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-xs font-medium">Go</button>
         </div>
-
         {courses.length > 0 && (
           <button
             type="button"
             onClick={() => setNotesOpen((value) => !value)}
-            className={`inline-flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium ${notesOpen ? "border-white/40 bg-white/15 text-foreground" : "border-white/10 bg-white/[.03] text-muted-foreground hover:bg-white/10"}`}
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium ${notesOpen ? "border-white/40 bg-white/15 text-foreground" : "border-white/10 bg-white/[.03] text-muted-foreground hover:bg-white/10"}`}
           >
             <NotebookPen className="size-3.5" />
-            {notesOpen ? "Hide Notes" : "Note Editor"}
+            Note Editor
           </button>
         )}
-
-        <button type="button" onClick={() => onOpenChange(false)} aria-label="Close Study Hub" className="shrink-0 rounded-full p-2 text-muted-foreground hover:bg-white/10">
-          <X className="size-5" />
+        <button type="button" onClick={() => onOpenChange(false)} aria-label="Close Study Hub" className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-white/10">
+          <X className="size-4" />
         </button>
       </div>
 
-      <div className={`min-h-0 flex-1 ${notesOpen && activeCourse ? "grid grid-cols-1 md:grid-cols-2" : "flex flex-col"}`}>
-        <div className="flex min-h-0 flex-col">
-          <div className="min-h-0 flex-1 bg-black">
-            <iframe
-              key={iframeKey}
-              src={browserUrl}
-              title="CS50 lecture viewer"
-              className="h-full w-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-            />
-          </div>
+      {notesOpen && courses.length > 0 && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-white/10 px-4 py-2 sm:px-6">
+          <span className="text-[11px] text-muted-foreground">Course</span>
+          <select value={activeCourseId ?? ""} onChange={(event) => setActiveCourseId(event.target.value || null)} className="min-w-0 max-w-xs rounded-lg border border-white/10 bg-white/[.05] px-2.5 py-1 text-xs text-foreground outline-none">
+            {courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}
+          </select>
         </div>
+      )}
 
-        {notesOpen && activeCourse ? (
-          <div className="min-h-0 overflow-hidden border-l border-white/10 p-2 md:p-3">
-            <CourseNotesView course={activeCourse} userId={userId} email={email} onLogout={onLogout} onBack={() => setNotesOpen(false)} />
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <div
+          className="flex h-full"
+          onPointerMove={(event) => {
+            if ((event.currentTarget as HTMLElement).dataset.resizing === "true") adjustSplit(event as unknown as React.PointerEvent<HTMLDivElement>);
+          }}
+          onPointerUp={(event) => { (event.currentTarget as HTMLElement).dataset.resizing = "false"; }}
+          onPointerLeave={(event) => { if ((event.currentTarget as HTMLElement).dataset.resizing === "true") adjustSplit(event as unknown as React.PointerEvent<HTMLDivElement>); }}
+        >
+          <div className="flex min-h-0 min-w-0 flex-col" style={{ width: notesOpen && activeCourse ? `${splitRatio}%` : "100%" }}>
+            <div className="min-h-0 flex-1 bg-black">
+              <iframe key={iframeKey} src={browserUrl} title="CS50 lecture viewer" className="h-full w-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />
+            </div>
           </div>
-        ) : null}
+
+          {notesOpen && activeCourse ? (
+            <>
+              <div
+                role="separator"
+                aria-label="Resize lecture and note editor panes"
+                aria-orientation="vertical"
+                tabIndex={0}
+                className="group relative z-10 w-2 shrink-0 cursor-col-resize bg-white/[.04] hover:bg-white/[.12] focus:bg-white/[.15]"
+                onPointerDown={(event) => {
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  const parent = event.currentTarget.parentElement;
+                  if (parent) parent.dataset.resizing = "true";
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowLeft") setSplitRatio((value) => Math.max(25, value - 5));
+                  if (event.key === "ArrowRight") setSplitRatio((value) => Math.min(75, value + 5));
+                }}
+              >
+                <span className="absolute left-1/2 top-1/2 h-16 w-px -translate-x-1/2 -translate-y-1/2 bg-white/20 transition group-hover:bg-white/45" />
+              </div>
+              <div className="min-h-0 min-w-0 flex-1 overflow-hidden p-2 md:p-3">
+                <CourseNotesView course={activeCourse} userId={userId} email={email} onLogout={onLogout} onBack={() => setNotesOpen(false)} />
+              </div>
+            </>
+          ) : null}
+        </div>
       </div>
     </div>
   );
