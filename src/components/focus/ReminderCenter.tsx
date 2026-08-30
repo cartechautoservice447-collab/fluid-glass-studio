@@ -21,6 +21,52 @@ function normalizeUrl(raw: string): string | null {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
+function toEmbeddableUrl(raw: string): string | null {
+  const normalized = normalizeUrl(raw);
+  if (!normalized) return null;
+
+  try {
+    const url = new URL(normalized);
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      if (url.pathname === "/watch") {
+        const videoId = url.searchParams.get("v");
+        if (!videoId) return normalized;
+        const embed = new URL(`https://www.youtube.com/embed/${encodeURIComponent(videoId)}`);
+        const playlistId = url.searchParams.get("list");
+        if (playlistId) embed.searchParams.set("list", playlistId);
+        return embed.toString();
+      }
+
+      const shortsMatch = url.pathname.match(/^\/shorts\/([^/]+)/i);
+      if (shortsMatch?.[1]) return `https://www.youtube.com/embed/${encodeURIComponent(shortsMatch[1])}`;
+
+      const embedMatch = url.pathname.match(/^\/embed\/([^/]+)/i);
+      if (embedMatch?.[1]) return normalized;
+
+      if (url.pathname === "/playlist") {
+        const playlistId = url.searchParams.get("list");
+        return playlistId ? `https://www.youtube.com/embed/videoseries?list=${encodeURIComponent(playlistId)}` : normalized;
+      }
+    }
+
+    if (host === "youtu.be") {
+      const videoId = url.pathname.split("/").filter(Boolean)[0];
+      if (videoId) {
+        const embed = new URL(`https://www.youtube.com/embed/${encodeURIComponent(videoId)}`);
+        const playlistId = url.searchParams.get("list");
+        if (playlistId) embed.searchParams.set("list", playlistId);
+        return embed.toString();
+      }
+    }
+
+    return normalized;
+  } catch {
+    return normalized;
+  }
+}
+
 export function ReminderCenter({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const [performance, setPerformance] = useState(() => localStorage.getItem(PERFORMANCE_KEY) ?? "high");
   const [browserUrl, setBrowserUrl] = useState(CS50_LINKS[0].url);
@@ -49,9 +95,10 @@ export function ReminderCenter({ open, onOpenChange }: { open: boolean; onOpenCh
   };
 
   const loadCustomUrl = () => {
-    const normalized = normalizeUrl(urlInput);
-    if (!normalized) return;
-    setBrowserUrl(normalized);
+    const embeddableUrl = toEmbeddableUrl(urlInput);
+    if (!embeddableUrl) return;
+    setBrowserUrl(embeddableUrl);
+    setUrlInput(embeddableUrl);
     setIframeKey((k) => k + 1);
   };
 
@@ -72,12 +119,12 @@ export function ReminderCenter({ open, onOpenChange }: { open: boolean; onOpenCh
       </div>
 
       <div className="flex shrink-0 items-center gap-2 border-b border-white/10 px-5 py-3 sm:px-8">
-        <input value={urlInput} onChange={(e) => setUrlInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") loadCustomUrl(); }} placeholder="Paste any embeddable video/lecture URL" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs outline-none" />
+        <input value={urlInput} onChange={(e) => setUrlInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") loadCustomUrl(); }} placeholder="Paste a YouTube or embeddable video/lecture URL" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs outline-none" />
         <button onClick={loadCustomUrl} className="shrink-0 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-medium">Go</button>
       </div>
 
       <div className="min-h-0 flex-1 bg-black">
-        <iframe key={iframeKey} src={browserUrl} title="CS50 lecture viewer" className="h-full w-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+        <iframe key={iframeKey} src={browserUrl} title="CS50 lecture viewer" className="h-full w-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />
       </div>
     </div>
   );
