@@ -3,6 +3,7 @@ import { PanelLeft } from "lucide-react";
 import { GlassPanel } from "@/components/liquid/GlassPanel";
 import { NoteCard } from "@/components/notes/NoteCard";
 import type { Note } from "@/hooks/useNotes";
+import { cn } from "@/lib/utils";
 
 type Props = {
   minimized: boolean;
@@ -23,7 +24,7 @@ export function NoteList({ minimized, onMinimize, notes, selectedId, onSelect, o
       if (!existing || note.id === selectedId || note.updatedAt > existing.updatedAt) map.set(fingerprint, note);
       return map;
     }, new Map<string, Note>()).values(),
-  );
+  ).sort((a, b) => b.createdAt - a.createdAt);
 
   if (minimized) {
     return (
