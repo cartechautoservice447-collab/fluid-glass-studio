@@ -55,6 +55,19 @@ function dedupeNotes(items: Note[]): Note[] {
   return Array.from(byId.values());
 }
 
+function normalizeTitle(value: string) {
+  return value.trim() || "Untitled note";
+}
+
+function sameLogicalNote(a: Note, b: Pick<Note, "title" | "body" | "favorite" | "collectionId">) {
+  return (
+    normalizeTitle(a.title) === normalizeTitle(b.title) &&
+    a.body === b.body &&
+    a.collectionId === b.collectionId &&
+    a.favorite === b.favorite
+  );
+}
+
 export function relativeDate(ts: number) {
   const diff = Date.now() - ts;
   const min = Math.round(diff / 60000);
@@ -224,13 +237,32 @@ export function useNotes(courseId?: string, userId?: string) {
 
   const createNote = useCallback(() => {
     if (!enabled) return "";
-    const now = Date.now();
-    const note: Note = {
-      id: newId(),
+
+    const collectionId = filter.kind === "collection" ? filter.id : null;
+    const logicalNote = {
       title: "Untitled note",
       body: "",
       favorite: false,
-      collectionId: filter.kind === "collection" ? filter.id : null,
+      collectionId,
+    };
+
+    // Never create a second blank note in the same course/collection. This also
+    // closes the rapid double-click race at the UI/cache layer.
+    const existing = dedupeNotes(queryClient.getQueryData<Note[]>(notesKey) ?? notes).find((note) =>
+      sameLogicalNote(note, logicalNote),
+    );
+    if (existing) {
+      setSelectedId(existing.id);
+      return existing.id;
+    }
+
+    const now = Date.now();
+    const note: Note = {
+      id: newId(),
+      title: logicalNote.title,
+      body: logicalNote.body,
+      favorite: logicalNote.favorite,
+      collectionId: logicalNote.collectionId,
       createdAt: now,
       updatedAt: now,
     };
@@ -247,7 +279,7 @@ export function useNotes(courseId?: string, userId?: string) {
       },
     });
     return note.id;
-  }, [enabled, filter, patchNotesCache, writeNote]);
+  }, [enabled, filter, notes, notesKey, patchNotesCache, queryClient, writeNote]);
 
   const updateNote = useCallback(
     (id: string, patch: Partial<Omit<Note, "id">>) => {
@@ -271,9 +303,6 @@ export function useNotes(courseId?: string, userId?: string) {
       const target = currentNotes.find((note) => note.id === id);
       if (!target) return;
 
-      // When a buggy creation/restore path produced exact content copies with
-      // different IDs, deleting the visible note must remove that entire
-      // duplicate set so an identical copy cannot remain visible.
       const duplicateIds =
         target.body.trim().length > 0
           ? currentNotes
