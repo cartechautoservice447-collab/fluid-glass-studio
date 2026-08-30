@@ -156,6 +156,7 @@ export function useNotes(courseId?: string, userId?: string) {
     mutationFn: async (payload: {
       op: "insert" | "update" | "delete";
       id: string;
+      ids?: string[];
       values?: Record<string, unknown>;
     }) => {
       if (payload.op === "insert") {
@@ -177,10 +178,11 @@ export function useNotes(courseId?: string, userId?: string) {
         if (error) throw error;
         return;
       }
+      const ids = payload.ids?.length ? payload.ids : [payload.id];
       const { error } = await supabase
         .from("notes")
         .delete()
-        .eq("id", payload.id)
+        .in("id", ids)
         .eq("course_id", courseId!);
       if (error) throw error;
     },
@@ -265,11 +267,31 @@ export function useNotes(courseId?: string, userId?: string) {
 
   const deleteNote = useCallback(
     (id: string) => {
-      patchNotesCache((prev) => prev.filter((n) => n.id !== id));
-      setSelectedId((cur) => (cur === id ? null : cur));
-      writeNote.mutate({ op: "delete", id });
+      const currentNotes = dedupeNotes(queryClient.getQueryData<Note[]>(notesKey) ?? notes);
+      const target = currentNotes.find((note) => note.id === id);
+      if (!target) return;
+
+      // When a buggy creation/restore path produced exact content copies with
+      // different IDs, deleting the visible note must remove that entire
+      // duplicate set so an identical copy cannot remain visible.
+      const duplicateIds =
+        target.body.trim().length > 0
+          ? currentNotes
+              .filter(
+                (note) =>
+                  note.id !== id &&
+                  note.body === target.body &&
+                  note.collectionId === target.collectionId,
+              )
+              .map((note) => note.id)
+          : [];
+      const idsToDelete = [id, ...duplicateIds];
+
+      patchNotesCache((prev) => prev.filter((note) => !idsToDelete.includes(note.id)));
+      setSelectedId((cur) => (cur === id || idsToDelete.includes(cur ?? "") ? null : cur));
+      writeNote.mutate({ op: "delete", id, ids: idsToDelete });
     },
-    [patchNotesCache, writeNote],
+    [notes, notesKey, patchNotesCache, queryClient, writeNote],
   );
 
   const toggleFavorite = useCallback(
