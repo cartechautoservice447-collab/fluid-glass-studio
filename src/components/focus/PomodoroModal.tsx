@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Pause, Play, RotateCcw, Settings2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Bell, Pause, Play, RotateCcw, Settings2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -12,6 +12,7 @@ const DEFAULT_DURATIONS: Record<Mode, number> = { focus: 60, short: 5 * 60, long
 const LABELS: Record<Mode, string> = { focus: "Focus", short: "Short Break", long: "Long Break" };
 const STORAGE_KEY = "liquid-glass-pomodoro-durations";
 const SESSION_KEY = "liquid-glass-pomodoro-session";
+const FLASH_TITLE = "⏰ Break Time!";
 
 function loadDurations(): Record<Mode, number> {
   try {
@@ -50,6 +51,20 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
   const [restMinutes, setRestMinutes] = useState(5);
   const [longBreakMinutes, setLongBreakMinutes] = useState(15);
   const [locked, setLocked] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
+
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const originalTitleRef = useRef<string>("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    originalTitleRef.current = document.title;
+    if (!("Notification" in window)) {
+      setNotifPermission("unsupported");
+      return;
+    }
+    setNotifPermission(Notification.permission);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -78,6 +93,60 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
   const persistSession = (next: PersistedSession | null) => {
     if (next) localStorage.setItem(SESSION_KEY, JSON.stringify(next));
     else localStorage.removeItem(SESSION_KEY);
+  };
+
+  const ensureAudioContext = () => {
+    if (typeof window === "undefined") return null;
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return null;
+    if (!audioCtxRef.current) audioCtxRef.current = new Ctx();
+    if (audioCtxRef.current.state === "suspended") audioCtxRef.current.resume().catch(() => {});
+    return audioCtxRef.current;
+  };
+
+  const playChime = () => {
+    const ctx = ensureAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    [660, 880].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, now + i * 0.22);
+      gain.gain.exponentialRampToValueAtTime(0.35, now + i * 0.22 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.22 + 0.32);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + i * 0.22);
+      osc.stop(now + i * 0.22 + 0.34);
+    });
+  };
+
+  const enableAlerts = () => {
+    ensureAudioContext();
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().then((result) => setNotifPermission(result)).catch(() => {});
+    }
+  };
+
+  const notifyRestStart = (seconds: number) => {
+    playChime();
+    if (typeof window === "undefined" || !("Notification" in window) || Notification.permission !== "granted") return;
+    try {
+      const n = new Notification("Break time!", {
+        body: `Time to rest for ${Math.round(seconds / 60)} min. Step away from the screen.`,
+        icon: "/pwa-icon-192.svg",
+        tag: "liquid-glass-pomodoro-rest",
+        renotify: true,
+      });
+      n.onclick = () => {
+        window.focus();
+        n.close();
+      };
+    } catch {
+      /* Notification constructor can throw on some platforms (e.g. iOS Safari) — sound/title flash still cover it. */
+    }
   };
 
   const startSession = (nextMode: Mode) => {
@@ -116,6 +185,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
     setDeadline(nextDeadline);
     setRunning(true);
     persistSession({ mode: "short", phase: "resting", deadline: nextDeadline, running: true });
+    notifyRestStart(restSeconds);
   };
 
   useEffect(() => {
@@ -150,6 +220,30 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
     };
   }, [running, deadline, phase, durations.focus, restMinutes]);
 
+  // Flash the browser tab title while resting and the tab is in the background,
+  // so switching away from the site doesn't mean missing the rest period.
+  useEffect(() => {
+    if (phase !== "resting" || !running) {
+      document.title = originalTitleRef.current;
+      return;
+    }
+    let flashOn = false;
+    const flashTitle = () => {
+      if (!document.hidden) {
+        document.title = originalTitleRef.current;
+        return;
+      }
+      flashOn = !flashOn;
+      document.title = flashOn ? FLASH_TITLE : originalTitleRef.current;
+    };
+    flashTitle();
+    const id = window.setInterval(flashTitle, 1000);
+    return () => {
+      window.clearInterval(id);
+      document.title = originalTitleRef.current;
+    };
+  }, [phase, running]);
+
   const formatted = useMemo(() => formatTime(remaining), [remaining]);
 
   const toggleRunning = () => {
@@ -160,6 +254,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
       persistSession(null);
       return;
     }
+    enableAlerts();
     startSession(mode);
   };
 
@@ -194,10 +289,24 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
               <div className="flex items-center justify-between">
                 <DialogTitle className="text-lg font-semibold tracking-tight">Pomodoro</DialogTitle>
                 <div className="flex items-center gap-1">
+                  {notifPermission !== "granted" && notifPermission !== "unsupported" && (
+                    <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={enableAlerts} aria-label="Enable rest notifications"><Bell className="size-4" /></Button>
+                  )}
                   <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => setSettingsOpen((value) => !value)} aria-label="Pomodoro settings"><Settings2 className="size-4" /></Button>
                   <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => onOpenChange(false)} aria-label="Close Pomodoro"><X className="size-4" /></Button>
                 </div>
               </div>
+
+              {notifPermission === "default" && (
+                <button type="button" onClick={enableAlerts} className="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-left text-xs text-muted-foreground hover:bg-white/[0.08]">
+                  🔔 Tap to enable a sound + notification when rest starts
+                </button>
+              )}
+              {notifPermission === "denied" && (
+                <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-muted-foreground">
+                  Notifications are blocked for this site — you'll still get a sound and a flashing tab title when rest starts. Allow notifications in your browser's site settings for the full popup.
+                </p>
+              )}
 
               {settingsOpen && (
                 <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
