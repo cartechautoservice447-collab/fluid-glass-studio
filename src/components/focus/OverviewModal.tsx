@@ -1,14 +1,37 @@
 import { useState } from "react";
 import { LayoutDashboard, X } from "lucide-react";
 import { StudyFeaturesPanel } from "@/components/study/StudyFeaturesPanel";
-import { useNotes } from "@/hooks/useNotes";
+import { useNotes, type Note } from "@/hooks/useNotes";
 import type { Course } from "@/hooks/useCourses";
 
 type Props = { open: boolean; onOpenChange: (open: boolean) => void; courses: Course[]; userId: string };
 
 function CourseStudyFeatures({ course, userId }: { course: Course; userId: string }) {
   const notes = useNotes(course.id, userId);
-  return <StudyFeaturesPanel courseName={course.name} notes={notes.notes} onRestoreNote={(note) => { const id = notes.createNote(); if (id) notes.updateNote(id, { title: note.title, body: note.body, favorite: note.favorite, collectionId: note.collectionId }); }} />;
+
+  const restoreNote = (note: Note) => {
+    const existing = notes.notes.find((current) => current.id === note.id);
+    if (existing) {
+      notes.updateNote(note.id, {
+        title: note.title,
+        body: note.body,
+        favorite: note.favorite,
+        collectionId: note.collectionId,
+      });
+      return;
+    }
+
+    const newId = notes.createNote();
+    if (!newId) return;
+    notes.updateNote(newId, {
+      title: note.title,
+      body: note.body,
+      favorite: note.favorite,
+      collectionId: note.collectionId,
+    });
+  };
+
+  return <StudyFeaturesPanel courseName={course.name} notes={notes.notes} onRestoreNote={restoreNote} />;
 }
 
 export function OverviewModal({ open, onOpenChange, courses, userId }: Props) {
