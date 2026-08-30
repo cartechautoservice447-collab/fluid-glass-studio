@@ -6,19 +6,51 @@ import type { Course } from "@/hooks/useCourses";
 
 type Props = { open: boolean; onOpenChange: (open: boolean) => void; courses: Course[]; userId: string };
 
+function normalize(value: string) {
+  return value.replace(/\r\n/g, "\n").trim();
+}
+
+function sameLogicalNote(a: Note, b: Note) {
+  return (
+    normalize(a.title || "Untitled note") === normalize(b.title || "Untitled note") &&
+    a.body === b.body &&
+    a.collectionId === b.collectionId &&
+    a.favorite === b.favorite
+  );
+}
+
 function CourseStudyFeatures({ course, userId }: { course: Course; userId: string }) {
   const notes = useNotes(course.id, userId);
 
   const restoreNote = (note: Note) => {
-    const existing = notes.notes.find((current) => current.id === note.id);
-    if (existing) {
-      notes.updateNote(note.id, { title: note.title, body: note.body, favorite: note.favorite, collectionId: note.collectionId });
+    const existingById = notes.notes.find((current) => current.id === note.id);
+    if (existingById) {
+      notes.updateNote(note.id, {
+        title: note.title,
+        body: note.body,
+        favorite: note.favorite,
+        collectionId: note.collectionId,
+      });
       notes.setSelectedId(note.id);
       return;
     }
+
+    // Imported/backed-up/trash/history notes may carry an old ID. Never create
+    // another database row when an identical logical note already exists.
+    const existingLogical = notes.notes.find((current) => sameLogicalNote(current, note));
+    if (existingLogical) {
+      notes.setSelectedId(existingLogical.id);
+      return;
+    }
+
     const createdId = notes.createNote();
     if (!createdId) return;
-    notes.updateNote(createdId, { title: note.title, body: note.body, favorite: note.favorite, collectionId: note.collectionId });
+    notes.updateNote(createdId, {
+      title: note.title,
+      body: note.body,
+      favorite: note.favorite,
+      collectionId: note.collectionId,
+    });
     notes.setSelectedId(createdId);
   };
 
