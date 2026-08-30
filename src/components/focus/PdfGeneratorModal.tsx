@@ -4,10 +4,12 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
-type Block = { kind: "heading" | "code" | "text"; text: string; level?: number };
+type Block = { kind: "heading" | "code" | "text"; text: string; level?: number; html?: string };
 type PreviewSource = "content" | "url";
 
 const INITIAL_CONTENT = "Paste your content here.\n\n# Heading\n\nNormal text stays exactly as pasted.\n\n```js\nconst example = true;\n```";
+
+const ALLOWED_INLINE = new Set(["B", "STRONG", "I", "EM", "U", "A", "BR", "CODE", "SPAN", "MARK", "SUP", "SUB"]);
 
 function normalizeUrl(raw: string) {
   const value = raw.trim();
@@ -19,9 +21,49 @@ function textFromElement(element: Element) {
   return (element.textContent ?? "").replace(/\r\n/g, "\n").replace(/\u00a0/g, " ");
 }
 
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
+}
+
+// Keeps only a safe set of inline formatting tags (bold, italic, underline,
+// color, links) from pasted HTML — everything else is stripped or unwrapped.
+// This is what lets a Google Docs / Word paste keep looking like itself.
+function sanitizeInline(node: Node): string {
+  let out = "";
+  node.childNodes.forEach((child) => {
+    if (child.nodeType === Node.TEXT_NODE) {
+      out += escapeHtml(child.textContent ?? "");
+      return;
+    }
+    if (child.nodeType !== Node.ELEMENT_NODE) return;
+    const el = child as HTMLElement;
+    const tag = el.tagName;
+    if (tag === "BR") { out += "<br />"; return; }
+    if (!ALLOWED_INLINE.has(tag)) { out += sanitizeInline(el); return; }
+    const inner = sanitizeInline(el);
+    if (tag === "A") {
+      const href = el.getAttribute("href") ?? "";
+      const safeHref = /^https?:\/\//i.test(href) ? href : "#";
+      out += `<a href="${escapeHtml(safeHref)}" target="_blank" rel="noreferrer" class="underline">${inner}</a>`;
+    } else if (tag === "SPAN" || tag === "MARK") {
+      const style = el.getAttribute("style") ?? "";
+      const color = style.match(/(?<!background-)color:\s*([^;]+)/i)?.[1]?.trim();
+      const bg = style.match(/background(?:-color)?:\s*([^;]+)/i)?.[1]?.trim();
+      const bold = /font-weight:\s*(bold|[6-9]00)/i.test(style);
+      const italic = /font-style:\s*italic/i.test(style);
+      const underline = /text-decoration:\s*underline/i.test(style);
+      const css = [color && `color:${color}`, bg && `background-color:${bg}`, bold && "font-weight:bold", italic && "font-style:italic", underline && "text-decoration:underline"].filter(Boolean).join(";");
+      out += css ? `<span style="${css}">${inner}</span>` : inner;
+    } else {
+      out += `<${tag.toLowerCase()}>${inner}</${tag.toLowerCase()}>`;
+    }
+  });
+  return out;
+}
+
 function extractBlocks(html: string): Block[] {
   const doc = new DOMParser().parseFromString(html, "text/html");
-  doc.querySelectorAll("script,style,noscript,template,svg").forEach((node) => node.remove());
+  doc.querySelectorAll("script,style,noscript,template,svg,img").forEach((node) => node.remove());
   const blocks: Block[] = [];
   const root = doc.body;
 
@@ -29,9 +71,10 @@ function extractBlocks(html: string): Block[] {
     const text = textFromElement(node).trimEnd();
     if (!text.trim()) return;
     const tag = node.tagName.toLowerCase();
-    if (/^h[1-6]$/.test(tag)) blocks.push({ kind: "heading", text, level: Number(tag[1]) });
-    else if (tag === "pre") blocks.push({ kind: "code", text });
-    else blocks.push({ kind: "text", text });
+    const html = sanitizeInline(node).trim();
+    if (/^h[1-6]$/.test(tag)) blocks.push({ kind: "heading", text, html, level: Number(tag[1]) });
+    else if (tag === "pre") blocks.push({ kind: "code", text, html });
+    else blocks.push({ kind: "text", text, html });
   });
 
   if (blocks.length === 0) {
@@ -45,16 +88,13 @@ function blocksFromPastedText(value: string): Block[] {
   return value ? [{ kind: "text", text: value.replace(/\r\n/g, "\n") }] : [];
 }
 
-function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
-}
-
 function blocksToHtml(blocks: Block[]) {
   return blocks
     .map((block) => {
-      if (block.kind === "heading") return `<h${block.level ?? 1}>${escapeHtml(block.text)}</h${block.level ?? 1}>`;
-      if (block.kind === "code") return `<pre>${escapeHtml(block.text)}</pre>`;
-      return `<p>${escapeHtml(block.text).replace(/\n/g, "<br />")}</p>`;
+      const inner = block.html && block.html.trim() ? block.html : escapeHtml(block.text).replace(/\n/g, "<br />");
+      if (block.kind === "heading") return `<h${block.level ?? 1}>${inner}</h${block.level ?? 1}>`;
+      if (block.kind === "code") return `<pre>${inner}</pre>`;
+      return `<p>${inner}</p>`;
     })
     .join("");
 }
@@ -107,6 +147,21 @@ export function PdfGeneratorModal() {
     setStatus("Exact mode: every character, heading marker, space, indentation, code fence, and line break is preserved.");
   };
 
+  // Intercepts paste on the content box: if the clipboard has rich HTML (e.g. from
+  // Google Docs or Word), it's parsed and rendered with formatting kept intact —
+  // instead of the browser's normal behavior of flattening everything to plain text.
+  const handleContentPaste = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const html = event.clipboardData.getData("text/html");
+    if (!html) return;
+    const next = extractBlocks(html);
+    if (!next.length) return;
+    event.preventDefault();
+    setBlocks(next);
+    setContent(next.map((block) => block.text).join("\n\n"));
+    setRawMode(false);
+    setStatus("Pasted content — headings, bold, italics, colors, and links kept as they looked in the source.");
+  };
+
   const extractFromUrl = async () => {
     const target = normalizeUrl(url);
     if (!target) return;
@@ -121,7 +176,7 @@ export function PdfGeneratorModal() {
       if (!next.length) throw new Error("No readable page content was found.");
       setBlocks(next);
       setContent(next.map((block) => block.text).join("\n\n"));
-      setStatus("Extracted readable headings, text, and code blocks in source order.");
+      setStatus("Extracted readable headings, text, formatting, and code blocks in source order.");
     } catch (error) {
       setRawMode(true);
       setStatus(error instanceof Error ? `${error.message} You can paste the page content instead for exact preservation.` : "This page could not be extracted in the browser. Paste its content instead for exact preservation.");
@@ -148,7 +203,7 @@ export function PdfGeneratorModal() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-5xl overflow-hidden rounded-[28px] border-white/20 bg-black/40 p-0 text-foreground shadow-2xl backdrop-blur-2xl">
           <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-            <div className="flex items-center gap-3"><div className="flex size-9 items-center justify-center rounded-xl border border-white/15 bg-white/10"><FileText className="size-4" /></div><div><DialogTitle className="text-sm font-semibold">PDF Generator</DialogTitle><p className="text-[11px] text-muted-foreground">Paste exact content or extract readable content from a URL, preview, then export.</p></div></div>
+            <div className="flex items-center gap-3"><div className="flex size-9 items-center justify-center rounded-xl border border-white/15 bg-white/10"><FileText className="size-4" /></div><div><DialogTitle className="text-sm font-semibold">PDF Generator</DialogTitle><p className="text-[11px] text-muted-foreground">Paste content (formatting kept like Google Docs) or extract from a URL, preview, then export.</p></div></div>
             <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setOpen(false)} aria-label="Close PDF generator"><X className="size-4" /></Button>
           </div>
 
@@ -161,7 +216,7 @@ export function PdfGeneratorModal() {
 
               {source === "content" ? (
                 <div className="mt-4 space-y-3">
-                  <textarea value={content} onChange={(event) => { setContent(event.target.value); setRawMode(true); }} spellCheck={false} className="h-[440px] w-full resize-none rounded-2xl border border-white/10 bg-black/25 p-4 font-mono text-xs leading-6 text-foreground outline-none focus:border-white/30" placeholder="Paste exact words, headings, code, spaces and line breaks here…" />
+                  <textarea value={content} onChange={(event) => { setContent(event.target.value); setRawMode(true); }} onPaste={handleContentPaste} spellCheck={false} className="h-[440px] w-full resize-none rounded-2xl border border-white/10 bg-black/25 p-4 font-mono text-xs leading-6 text-foreground outline-none focus:border-white/30" placeholder="Paste from Google Docs, Word, or plain text…" />
                   <Button onClick={buildFromContent} className="w-full">Update exact preview</Button>
                 </div>
               ) : (
@@ -173,7 +228,7 @@ export function PdfGeneratorModal() {
             </div>
 
             <div className="flex min-h-0 flex-col p-5">
-              <div className="mb-3 flex items-center justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">3rd Glass Preview</p><p className="mt-1 text-xs text-muted-foreground">{rawMode ? "Exact pasted content — formatting characters are preserved." : "Extracted URL content — detected structure is preserved where available."}</p></div><Button onClick={exportPdf} size="sm" className="shrink-0"><Download className="mr-2 size-3.5" />Export PDF</Button></div>
+              <div className="mb-3 flex items-center justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">3rd Glass Preview</p><p className="mt-1 text-xs text-muted-foreground">{rawMode ? "Exact pasted content — formatting characters are preserved." : "Formatting preserved — headings, bold, italics, colors, and links."}</p></div><Button onClick={exportPdf} size="sm" className="shrink-0"><Download className="mr-2 size-3.5" />Export PDF</Button></div>
               <div className={`min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/20 bg-white/[0.08] p-5 shadow-[inset_0_1px_2px_rgba(255,255,255,.3),0_16px_40px_rgba(0,0,0,.22)] backdrop-blur-2xl ${rawMode ? "font-mono" : ""}`}>
                 {rawMode ? <pre className="m-0 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">{content.replace(/\r\n/g, "\n")}</pre> : <article className="prose prose-invert max-w-none text-sm text-foreground" dangerouslySetInnerHTML={{ __html: previewHtml }} />}
               </div>
