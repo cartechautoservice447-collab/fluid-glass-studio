@@ -12,51 +12,17 @@ function CourseStudyFeatures({ course, userId }: { course: Course; userId: strin
   const restoreNote = (note: Note) => {
     const existing = notes.notes.find((current) => current.id === note.id);
     if (existing) {
-      notes.updateNote(note.id, {
-        title: note.title,
-        body: note.body,
-        favorite: note.favorite,
-        collectionId: note.collectionId,
-      });
+      notes.updateNote(note.id, { title: note.title, body: note.body, favorite: note.favorite, collectionId: note.collectionId });
       notes.setSelectedId(note.id);
       return;
     }
-
     const createdId = notes.createNote();
     if (!createdId) return;
-    notes.updateNote(createdId, {
-      title: note.title,
-      body: note.body,
-      favorite: note.favorite,
-      collectionId: note.collectionId,
-    });
+    notes.updateNote(createdId, { title: note.title, body: note.body, favorite: note.favorite, collectionId: note.collectionId });
     notes.setSelectedId(createdId);
   };
 
-  const deleteNoteToTrash = (note: Note) => {
-    try {
-      const current = JSON.parse(localStorage.getItem("glass-notes-trash-v1") ?? "[]") as Note[];
-      const next = [note, ...current.filter((item) => item.id !== note.id)];
-      localStorage.setItem("glass-notes-trash-v1", JSON.stringify(next));
-    } catch {
-      localStorage.setItem("glass-notes-trash-v1", JSON.stringify([note]));
-    }
-    notes.deleteNote(note.id);
-  };
-
-  return (
-    <StudyFeaturesPanel
-      courseName={course.name}
-      notes={notes.notes}
-      selectedId={notes.selectedId}
-      onSelectNote={notes.setSelectedId}
-      onCreateNote={() => notes.createNote()}
-      onUpdateNote={notes.updateNote}
-      onDeleteNote={deleteNoteToTrash}
-      onToggleFavorite={notes.toggleFavorite}
-      onRestoreNote={restoreNote}
-    />
-  );
+  return <StudyFeaturesPanel courseName={course.name} notes={notes.notes} selectedId={notes.selectedId} onSelectNote={notes.setSelectedId} onCreateNote={() => notes.createNote()} onUpdateNote={notes.updateNote} onDeleteNote={(note) => notes.deleteNote(note.id)} onToggleFavorite={notes.toggleFavorite} onRestoreNote={restoreNote} />;
 }
 
 export function OverviewModal({ open, onOpenChange, courses, userId }: Props) {
