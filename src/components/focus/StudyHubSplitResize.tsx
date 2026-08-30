@@ -1,3 +1,4 @@
+import { GripHorizontal } from "lucide-react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { useRef, useState } from "react";
 
@@ -29,9 +30,9 @@ export function StudyHubSplitResize({ children }: Props) {
   };
 
   return (
-    <div className="relative min-h-0 flex-1 overflow-hidden">
+    <div className="relative min-h-0 flex-1 overflow-visible">
       <div
-        className="h-full overflow-hidden"
+        className="relative h-full overflow-hidden"
         style={{ height: `${height}%`, maxHeight: "100%" }}
         onPointerMove={(event) => {
           if (resizingRef.current) updateHeight(event.clientY);
@@ -44,8 +45,11 @@ export function StudyHubSplitResize({ children }: Props) {
         aria-label="Resize Study Hub height"
         aria-orientation="horizontal"
         tabIndex={0}
-        className="group absolute bottom-0 left-0 right-0 z-20 h-3 cursor-row-resize bg-transparent focus:outline-none"
+        className="group absolute bottom-[-6px] left-0 right-0 z-30 flex h-7 cursor-row-resize items-center justify-center rounded-xl border border-white/15 bg-black/35 backdrop-blur-xl shadow-lg transition hover:border-white/30 hover:bg-black/55 focus:border-white/40 focus:outline-none"
         onPointerDown={startResize}
+        onPointerMove={(event) => {
+          if (resizingRef.current) updateHeight(event.clientY);
+        }}
         onPointerUp={stopResize}
         onPointerCancel={stopResize}
         onKeyDown={(event) => {
@@ -58,9 +62,9 @@ export function StudyHubSplitResize({ children }: Props) {
             setHeight((value) => Math.max(55, value - 5));
           }
         }}
+        title="Drag to resize Study Hub vertically"
       >
-        <span className="absolute inset-x-0 bottom-0 mx-auto h-px max-w-40 bg-white/15 transition group-hover:bg-white/40 group-focus:bg-white/40" />
-        <span className="absolute bottom-0 left-1/2 h-1.5 w-16 -translate-x-1/2 rounded-full bg-white/10 transition group-hover:bg-white/25" />
+        <GripHorizontal className="size-4 text-foreground/60 transition group-hover:text-foreground" />
       </div>
     </div>
   );
