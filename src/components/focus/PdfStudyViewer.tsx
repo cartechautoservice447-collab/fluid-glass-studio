@@ -90,7 +90,7 @@ export function PdfStudyViewer({ active }: Props) {
               style={
                 theme === "dark"
                   ? {
-                      filter: "invert(1) hue-rotate(180deg)",
+                      filter: "grayscale(1) invert(1) contrast(1.16)",
                       backgroundColor: "#000",
                     }
                   : undefined
