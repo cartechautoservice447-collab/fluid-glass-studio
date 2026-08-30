@@ -15,7 +15,15 @@ type Props = {
 };
 
 export function NoteList({ minimized, onMinimize, notes, selectedId, onSelect, onToggleFavorite, heading }: Props) {
-  const uniqueNotes = Array.from(new Map(notes.map((note) => [note.id, note])).values());
+  const byId = Array.from(new Map(notes.map((note) => [note.id, note])).values());
+  const uniqueNotes = Array.from(
+    byId.reduce((map, note) => {
+      const fingerprint = [note.title.trim(), note.body, note.collectionId ?? "", note.favorite ? "1" : "0"].join("\u0000");
+      const existing = map.get(fingerprint);
+      if (!existing || note.id === selectedId || note.updatedAt > existing.updatedAt) map.set(fingerprint, note);
+      return map;
+    }, new Map<string, Note>()).values(),
+  );
 
   if (minimized) {
     return (
