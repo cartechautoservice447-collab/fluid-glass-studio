@@ -80,9 +80,28 @@ export function NoteEditor({
     );
   }
 
+  const allNotesSelector = showAllNotes && onSelectNote && notes.length > 0 ? (
+    <Select value={note?.id ?? undefined} onValueChange={onSelectNote}>
+      <SelectTrigger className="h-9 w-[15rem] shrink-0 border-white/20 bg-white/10 text-left text-xs font-semibold" aria-label="Select note topic" title="Select note topic">
+        <SelectValue placeholder="All Notes" />
+      </SelectTrigger>
+      <SelectContent className="max-h-[20rem]">
+        {notes.map((availableNote) => (
+          <SelectItem key={availableNote.id} value={availableNote.id}>
+            {availableNote.title || "Untitled note"}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  ) : null;
+
   if (!note) {
     return (
-      <GlassPanel className="relative flex h-full min-h-0 items-center justify-center !p-8 text-center">
+      <GlassPanel className="relative flex h-full min-h-0 flex-col overflow-hidden !p-0">
+        <div className="flex min-h-10 items-center gap-2 border-b border-white/10 p-4 pr-12">
+          {allNotesSelector}
+          {!allNotesSelector && <span className="text-xs text-muted-foreground">Select a note</span>}
+        </div>
         <button
           type="button"
           onClick={onMinimize}
@@ -92,7 +111,9 @@ export function NoteEditor({
         >
           <PanelLeft className="size-4 stroke-[1.8]" />
         </button>
-        <p className="text-sm text-muted-foreground">Select a note from the list, or create a new one to start writing.</p>
+        <div className="flex min-h-0 flex-1 items-center justify-center p-8 text-center">
+          <p className="text-sm text-muted-foreground">{showAllNotes ? "Choose any note from All Notes to start writing." : "Select a note from the list, or create a new one to start writing."}</p>
+        </div>
       </GlassPanel>
     );
   }
@@ -103,20 +124,7 @@ export function NoteEditor({
     <>
       <GlassPanel className="relative flex h-full min-h-0 flex-col overflow-hidden !p-0">
         <div className="flex min-h-10 flex-wrap items-center gap-2 border-b border-white/10 p-4 pr-12">
-          {showAllNotes && onSelectNote && (
-            <Select value={note.id} onValueChange={onSelectNote}>
-              <SelectTrigger className="h-9 w-[15rem] shrink-0 border-white/20 bg-white/10 text-left text-xs font-semibold" aria-label="Select note topic" title="Select note topic">
-                <SelectValue placeholder="Select note" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[20rem]">
-                {notes.map((availableNote) => (
-                  <SelectItem key={availableNote.id} value={availableNote.id}>
-                    {availableNote.title || "Untitled note"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          {allNotesSelector}
           <Input value={title} onChange={(event) => setTitle(event.target.value)} aria-label="Note title" placeholder="Note title" className="h-9 min-w-[10rem] flex-1 border-white/20 bg-white/10 text-sm font-semibold on-stage" />
           <Select value={note.collectionId ?? NO_COLLECTION} onValueChange={(value) => onUpdate(note.id, { collectionId: value === NO_COLLECTION ? null : value })}>
             <SelectTrigger className="h-9 w-[9.5rem] border-white/20 bg-white/10 text-xs" aria-label="Collection"><SelectValue placeholder="Collection" /></SelectTrigger>
