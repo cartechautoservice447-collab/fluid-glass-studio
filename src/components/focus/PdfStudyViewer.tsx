@@ -79,15 +79,22 @@ export function PdfStudyViewer({ active }: Props) {
         </button>
       </div>
 
-      <div className={`min-h-0 flex-1 overflow-hidden ${theme === "dark" ? "bg-neutral-950" : "bg-zinc-900"}`}>
+      <div className={`min-h-0 flex-1 overflow-hidden ${theme === "dark" ? "bg-black" : "bg-zinc-900"}`}>
         {pdfUrl ? (
-          <div className={`h-full w-full overflow-hidden ${theme === "dark" ? "bg-neutral-950" : "bg-zinc-900"}`}>
+          <div className={`h-full w-full overflow-hidden ${theme === "dark" ? "bg-black" : "bg-zinc-900"}`}>
             <iframe
               key={`${pdfUrl}-${theme}`}
               src={pdfUrl}
               title={pdfName || "PDF viewer"}
               className="h-full w-full origin-center"
-              style={theme === "dark" ? { filter: "invert(0.92) hue-rotate(180deg) contrast(0.95)" } : undefined}
+              style={
+                theme === "dark"
+                  ? {
+                      filter: "invert(1) hue-rotate(180deg) contrast(1.18) brightness(1.06) saturate(1.08)",
+                      backgroundColor: "#000",
+                    }
+                  : undefined
+              }
             />
           </div>
         ) : (
