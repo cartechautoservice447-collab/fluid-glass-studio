@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 type Block = { kind: "heading" | "code" | "text"; text: string; level?: number };
+type PreviewSource = "content" | "url";
 
-const INITIAL_CONTENT = "Paste your content here.\n\nHeadings, normal text, and code are kept in the same order.\n\n```\nconst example = true;\n```";
+const INITIAL_CONTENT = "Paste your content here.\n\n# Heading\n\nNormal text stays exactly as pasted.\n\n```js\nconst example = true;\n```";
 
 function normalizeUrl(raw: string) {
   const value = raw.trim();
@@ -41,39 +42,11 @@ function extractBlocks(html: string): Block[] {
 }
 
 function blocksFromPastedText(value: string): Block[] {
-  const lines = value.replace(/\r\n/g, "\n").split("\n");
-  const blocks: Block[] = [];
-  let inCode = false;
-  let code: string[] = [];
+  return value ? [{ kind: "text", text: value.replace(/\r\n/g, "\n") }] : [];
+}
 
-  for (const line of lines) {
-    if (/^\s*```/.test(line)) {
-      if (inCode) {
-        blocks.push({ kind: "code", text: code.join("\n") });
-        code = [];
-      }
-      inCode = !inCode;
-      continue;
-    }
-    if (inCode) {
-      code.push(line);
-      continue;
-    }
-    const heading = line.match(/^\s*(#{1,6})\s+(.+)$/);
-    if (heading) {
-      blocks.push({ kind: "heading", level: heading[1].length, text: heading[2] });
-      continue;
-    }
-    if (line.trim() === "") {
-      if (blocks.length && blocks[blocks.length - 1].kind === "text" && !blocks[blocks.length - 1].text.endsWith("\n")) {
-        blocks[blocks.length - 1].text += "\n";
-      }
-      continue;
-    }
-    blocks.push({ kind: "text", text: line });
-  }
-  if (inCode) blocks.push({ kind: "code", text: code.join("\n") });
-  return blocks.length ? blocks : [{ kind: "text", text: value }];
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
 }
 
 function blocksToHtml(blocks: Block[]) {
@@ -86,25 +59,26 @@ function blocksToHtml(blocks: Block[]) {
     .join("");
 }
 
-function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
+function rawContentToHtml(value: string) {
+  return `<pre class="exact-content">${escapeHtml(value.replace(/\r\n/g, "\n"))}</pre>`;
 }
 
-function openPrintWindow(blocks: Block[], title: string) {
-  const win = window.open("", "_blank", "noopener,noreferrer,width=1000,height=900");
+function openPrintWindow(contentHtml: string, title: string) {
+  const win = window.open("", "_blank", "width=1000,height=900");
   if (!win) throw new Error("The browser blocked the PDF export window. Allow pop-ups for this site and try again.");
 
   win.document.write(`<!doctype html><html><head><meta charset="utf-8" /><title>${escapeHtml(title)}</title><style>
   @page { size: A4; margin: 18mm 16mm; }
   * { box-sizing: border-box; }
   body { margin: 0; color: #111827; background: #fff; font-family: Arial, Helvetica, sans-serif; font-size: 11pt; line-height: 1.55; }
-  main { white-space: normal; overflow-wrap: anywhere; }
+  main { width: 100%; overflow-wrap: anywhere; }
   h1,h2,h3,h4,h5,h6 { page-break-after: avoid; margin: 0 0 10px; line-height: 1.2; }
   h1 { font-size: 22pt; } h2 { font-size: 18pt; } h3 { font-size: 15pt; } h4 { font-size: 13pt; } h5 { font-size: 12pt; } h6 { font-size: 11pt; }
   p { margin: 0 0 9px; white-space: pre-wrap; }
-  pre { font-family: "Courier New", Consolas, monospace; font-size: 9pt; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; margin: 12px 0; padding: 10px 12px; border: 1px solid #d1d5db; background: #f3f4f6; border-radius: 6px; page-break-inside: avoid; }
+  pre { font-family: "Courier New", Consolas, monospace; font-size: 9.5pt; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+  .exact-content { color: #111827; background: #fff; border: 0; padding: 0; }
   footer { margin-top: 24px; color: #6b7280; font-size: 8pt; }
-  </style></head><body><main>${blocksToHtml(blocks)}</main><footer>Generated from Glass Notes</footer></body></html>`);
+  </style></head><body><main>${contentHtml}</main><footer>Generated from Glass Notes</footer></body></html>`);
   win.document.close();
   win.focus();
   const runPrint = () => {
@@ -117,18 +91,20 @@ function openPrintWindow(blocks: Block[], title: string) {
 
 export function PdfGeneratorModal() {
   const [open, setOpen] = useState(false);
-  const [source, setSource] = useState<"content" | "url">("content");
+  const [source, setSource] = useState<PreviewSource>("content");
   const [content, setContent] = useState(INITIAL_CONTENT);
   const [url, setUrl] = useState("");
   const [blocks, setBlocks] = useState<Block[]>(() => blocksFromPastedText(INITIAL_CONTENT));
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
+  const [rawMode, setRawMode] = useState(true);
 
-  const previewHtml = useMemo(() => blocksToHtml(blocks), [blocks]);
+  const previewHtml = useMemo(() => (rawMode ? rawContentToHtml(content) : blocksToHtml(blocks)), [rawMode, content, blocks]);
 
   const buildFromContent = () => {
     setBlocks(blocksFromPastedText(content));
-    setStatus("Content preserved exactly as entered.");
+    setRawMode(true);
+    setStatus("Exact mode: every character, heading marker, space, indentation, code fence, and line break is preserved.");
   };
 
   const extractFromUrl = async () => {
@@ -136,6 +112,7 @@ export function PdfGeneratorModal() {
     if (!target) return;
     setLoading(true);
     setStatus("");
+    setRawMode(false);
     try {
       const response = await fetch(target, { credentials: "omit" });
       if (!response.ok) throw new Error(`The page returned ${response.status}.`);
@@ -143,9 +120,10 @@ export function PdfGeneratorModal() {
       const next = extractBlocks(html);
       if (!next.length) throw new Error("No readable page content was found.");
       setBlocks(next);
-      setContent(next.map((block) => block.text).join("\n"));
-      setStatus("Extracted headings, text, and code blocks in source order.");
+      setContent(next.map((block) => block.text).join("\n\n"));
+      setStatus("Extracted readable headings, text, and code blocks in source order.");
     } catch (error) {
+      setRawMode(true);
       setStatus(error instanceof Error ? `${error.message} You can paste the page content instead for exact preservation.` : "This page could not be extracted in the browser. Paste its content instead for exact preservation.");
     } finally {
       setLoading(false);
@@ -154,7 +132,7 @@ export function PdfGeneratorModal() {
 
   const exportPdf = () => {
     try {
-      openPrintWindow(blocks, "Glass Notes PDF");
+      openPrintWindow(previewHtml, "Glass Notes PDF");
       setStatus("PDF export opened. Choose “Save as PDF” in the browser print dialog.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "PDF export could not be opened.");
@@ -183,7 +161,7 @@ export function PdfGeneratorModal() {
 
               {source === "content" ? (
                 <div className="mt-4 space-y-3">
-                  <textarea value={content} onChange={(event) => setContent(event.target.value)} spellCheck={false} className="h-[440px] w-full resize-none rounded-2xl border border-white/10 bg-black/25 p-4 font-mono text-xs leading-6 text-foreground outline-none focus:border-white/30" placeholder="Paste exact words, headings, code and line breaks here…" />
+                  <textarea value={content} onChange={(event) => { setContent(event.target.value); setRawMode(true); }} spellCheck={false} className="h-[440px] w-full resize-none rounded-2xl border border-white/10 bg-black/25 p-4 font-mono text-xs leading-6 text-foreground outline-none focus:border-white/30" placeholder="Paste exact words, headings, code, spaces and line breaks here…" />
                   <Button onClick={buildFromContent} className="w-full">Update exact preview</Button>
                 </div>
               ) : (
@@ -195,9 +173,9 @@ export function PdfGeneratorModal() {
             </div>
 
             <div className="flex min-h-0 flex-col p-5">
-              <div className="mb-3 flex items-center justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">3rd Glass Preview</p><p className="mt-1 text-xs text-muted-foreground">This is the content sent to the PDF export.</p></div><Button onClick={exportPdf} size="sm" className="shrink-0"><Download className="mr-2 size-3.5" />Export PDF</Button></div>
-              <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/20 bg-white/[0.08] p-5 shadow-[inset_0_1px_2px_rgba(255,255,255,.3),0_16px_40px_rgba(0,0,0,.22)] backdrop-blur-2xl">
-                <article className="prose prose-invert max-w-none text-sm text-foreground" dangerouslySetInnerHTML={{ __html: previewHtml }} />
+              <div className="mb-3 flex items-center justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">3rd Glass Preview</p><p className="mt-1 text-xs text-muted-foreground">{rawMode ? "Exact pasted content — formatting characters are preserved." : "Extracted URL content — detected structure is preserved where available."}</p></div><Button onClick={exportPdf} size="sm" className="shrink-0"><Download className="mr-2 size-3.5" />Export PDF</Button></div>
+              <div className={`min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/20 bg-white/[0.08] p-5 shadow-[inset_0_1px_2px_rgba(255,255,255,.3),0_16px_40px_rgba(0,0,0,.22)] backdrop-blur-2xl ${rawMode ? "font-mono" : ""}`}>
+                {rawMode ? <pre className="m-0 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">{content.replace(/\r\n/g, "\n")}</pre> : <article className="prose prose-invert max-w-none text-sm text-foreground" dangerouslySetInnerHTML={{ __html: previewHtml }} />}
               </div>
               {status && <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[11px] leading-5 text-muted-foreground">{status}</p>}
             </div>
