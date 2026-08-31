@@ -7,6 +7,7 @@ type Props = {
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   value: string;
   onChange: (next: string) => void;
+  onReplaceAll?: (next: string) => void;
   disabled?: boolean;
 };
 
@@ -48,7 +49,7 @@ const SYMBOL_TOOLS = [
   { key: "important-callout", label: "> [!IMPORTANT] Important", insert: "> [!IMPORTANT]\n> " },
 ] as const;
 
-export function MarkdownToolbar({ textareaRef, value, onChange, disabled }: Props) {
+export function MarkdownToolbar({ textareaRef, value, onChange, onReplaceAll, disabled }: Props) {
   const wrap = (before: string, after: string) => {
     const el = textareaRef.current;
     const start = el?.selectionStart ?? value.length;
@@ -110,7 +111,7 @@ export function MarkdownToolbar({ textareaRef, value, onChange, disabled }: Prop
 
   const applyTemplate = (template: keyof typeof TEMPLATES) => {
     if (value.trim() && !window.confirm("Replace the current note content with this template?")) return;
-    onChange(TEMPLATES[template]);
+    (onReplaceAll ?? onChange)(TEMPLATES[template]);
     requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
@@ -121,7 +122,7 @@ export function MarkdownToolbar({ textareaRef, value, onChange, disabled }: Prop
           <Icon className="size-3.5" /><span className="text-xs">{label}</span>
         </Button>
       ))}
-      <select disabled={disabled} aria-label="Note symbols" defaultValue="" onChange={(event) => { if (event.target.value) insertSymbol(SYMBOL_TOOLS.find((tool) => tool.key === event.target.value)!); event.target.value = ""; }} className="h-8 max-w-[9rem] rounded-md border border-white/10 bg-white/5 px-2 text-xs text-[#c9d1d9] outline-none hover:bg-white/10">
+      <select disabled={disabled} aria-label="Note symbols" defaultValue="" onChange={(event) => { const tool = SYMBOL_TOOLS.find((item) => item.key === event.target.value); if (tool) insertSymbol(tool); event.target.value = ""; }} className="h-8 max-w-[9rem] rounded-md border border-white/10 bg-white/5 px-2 text-xs text-[#c9d1d9] outline-none hover:bg-white/10">
         <option value="">Symbols</option>
         {SYMBOL_TOOLS.map((tool) => (
           <option key={tool.key} value={tool.key}>{tool.label}</option>
