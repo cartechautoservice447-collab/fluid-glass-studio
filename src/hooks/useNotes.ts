@@ -2,84 +2,40 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { newId, supabase } from "@/lib/supabaseClient";
 
-export type Note = {
-  id: string;
-  title: string;
-  body: string;
-  favorite: boolean;
-  collectionId: string | null;
-  sourceId: string | null;
-  revision: number;
-  createdAt: number;
-  updatedAt: number;
-};
-export type Collection = { id: string; name: string };
-export type Filter = { kind: "all" } | { kind: "favorites" } | { kind: "collection"; id: string };
-
-type NoteRow = { id:string; title:string|null; body:string|null; favorite:boolean|null; collection_id:string|null; source_id:string|null; revision:number|null; created_at:string; updated_at:string };
-type CollectionRow = { id:string; name:string };
-type NotesScope = "editor"|"study-hub";
-type NoteWritePayload = { op:"insert"|"update"|"delete"; id:string; values?:Record<string,unknown>; expectedRevision?:number; nextRevision?:number; rollback?:()=>void };
-const EMPTY_NOTES:Note[]=[]; const EMPTY_COLLECTIONS:Collection[]=[];
-
-function toNote(r:NoteRow):Note { const c=new Date(r.created_at).getTime(), u=new Date(r.updated_at).getTime(); return { id:r.id,title:r.title??"Untitled note",body:r.body??"",favorite:Boolean(r.favorite),collectionId:r.collection_id,sourceId:r.source_id,revision:Number.isFinite(r.revision??NaN)?Number(r.revision):0,createdAt:Number.isFinite(c)?c:u,updatedAt:Number.isFinite(u)?u:c }; }
-function dedupeNotes(a:Note[]) { const m=new Map<string,Note>(); for(const n of a){const e=m.get(n.id);if(!e||n.revision>=e.revision)m.set(n.id,n);} return Array.from(m.values()); }
+export type Note={id:string;title:string;body:string;favorite:boolean;collectionId:string|null;sourceId:string|null;revision:number;createdAt:number;updatedAt:number};
+export type Collection={id:string;name:string};
+export type Filter={kind:"all"}|{kind:"favorites"}|{kind:"collection";id:string};
+type NoteRow={id:string;title:string|null;body:string|null;favorite:boolean|null;collection_id:string|null;source_id:string|null;revision:number|null;created_at:string;updated_at:string};
+type CollectionRow={id:string;name:string}; type NotesScope="editor"|"study-hub";
+type NoteWritePayload={op:"insert"|"update"|"delete";id:string;values?:Record<string,unknown>;expectedRevision?:number;nextRevision?:number;rollback?:()=>void};
+const EMPTY_NOTES:Note[]=[];const EMPTY_COLLECTIONS:Collection[]=[];
+function toNote(r:NoteRow):Note{const c=new Date(r.created_at).getTime(),u=new Date(r.updated_at).getTime();return{id:r.id,title:r.title??"Untitled note",body:r.body??"",favorite:Boolean(r.favorite),collectionId:r.collection_id,sourceId:r.source_id,revision:Number.isFinite(r.revision??NaN)?Number(r.revision):0,createdAt:Number.isFinite(c)?c:u,updatedAt:Number.isFinite(u)?u:c};}
+function dedupeNotes(a:Note[]){const m=new Map<string,Note>();for(const n of a){const e=m.get(n.id);if(!e||n.revision>=e.revision)m.set(n.id,n);}return Array.from(m.values());}
 function normalizeTitle(v:string){return v.trim()||"Untitled note";}
 export function relativeDate(ts:number){const diff=Date.now()-ts,min=Math.round(diff/60000);if(min<1)return"just now";if(min<60)return`${min}m ago`;const hrs=Math.round(min/60);if(hrs<24)return`${hrs}h ago`;const days=Math.round(hrs/24);if(days<30)return`${days}d ago`;return new Date(ts).toLocaleDateString();}
-
-// Writes for one note are serialized so a slower autosave cannot overtake a newer edit.
-const noteWriteQueues = new Map<string, Promise<void>>();
-function queueNoteWrite<T>(key:string, task:()=>Promise<T>):Promise<T>{
-  const previous=noteWriteQueues.get(key)??Promise.resolve();
-  const current=previous.catch(()=>undefined).then(task);
-  const cleanup=current.then(()=>undefined,()=>undefined);
-  noteWriteQueues.set(key,cleanup);
-  cleanup.finally(()=>{if(noteWriteQueues.get(key)===cleanup)noteWriteQueues.delete(key);});
-  return current;
-}
+const noteWriteQueues=new Map<string,Promise<void>>();
+function queueNoteWrite<T>(key:string,task:()=>Promise<T>):Promise<T>{const previous=noteWriteQueues.get(key)??Promise.resolve();const current=previous.catch(()=>undefined).then(task);const cleanup=current.then(()=>undefined,()=>undefined);noteWriteQueues.set(key,cleanup);cleanup.finally(()=>{if(noteWriteQueues.get(key)===cleanup)noteWriteQueues.delete(key);});return current;}
 
 export function useNotes(courseId?:string,userId?:string,scope:NotesScope="editor"){
-  const qc=useQueryClient(), enabled=Boolean(courseId&&userId);
-  const notesKey=useMemo(()=>["notes",userId??null,courseId??null,scope],[userId,courseId,scope]);
-  const collectionsKey=useMemo(()=>["collections",userId??null,courseId??null,scope],[userId,courseId,scope]);
-  const baseNotesKey=["notes",userId??null,courseId??null];
-  const baseCollectionsKey=["collections",userId??null,courseId??null];
+  const qc=useQueryClient(),enabled=Boolean(courseId&&userId);const notesKey=useMemo(()=>["notes",userId??null,courseId??null,scope],[userId,courseId,scope]);const collectionsKey=useMemo(()=>["collections",userId??null,courseId??null,scope],[userId,courseId,scope]);const baseNotesKey=["notes",userId??null,courseId??null];const baseCollectionsKey=["collections",userId??null,courseId??null];
   const notesQuery=useQuery({queryKey:notesKey,enabled,queryFn:async()=>{const{data,error}=await supabase.from("notes").select("id,title,body,favorite,collection_id,source_id,revision,created_at,updated_at").eq("course_id",courseId!).order("created_at",{ascending:false});if(error)throw error;return dedupeNotes(((data??[])as NoteRow[]).map(toNote));}});
   const collectionsQuery=useQuery({queryKey:collectionsKey,enabled,queryFn:async()=>{const{data,error}=await supabase.from("collections").select("id,name").eq("course_id",courseId!).order("created_at",{ascending:true});if(error)throw error;return((data??[])as CollectionRow[]).map(c=>({id:c.id,name:c.name}));}});
-  const notes=notesQuery.data??EMPTY_NOTES, collections=collectionsQuery.data??EMPTY_COLLECTIONS;
-  const[selectedId,setSelectedId]=useState<string|null>(null);const[filter,setFilter]=useState<Filter>({kind:"all"});const[query,setQuery]=useState("");
+  const notes=notesQuery.data??EMPTY_NOTES,collections=collectionsQuery.data??EMPTY_COLLECTIONS;const[selectedId,setSelectedId]=useState<string|null>(null);const[filter,setFilter]=useState<Filter>({kind:"all"});const[query,setQuery]=useState("");
   useEffect(()=>{setSelectedId(null);setFilter({kind:"all"});setQuery("")},[courseId,userId,scope]);
-  useEffect(()=>{if(!notes.length){if(selectedId!==null)setSelectedId(null);return;}if(!selectedId||!notes.some(n=>n.id===selectedId))setSelectedId(notes[0]!.id)},[notes,selectedId]);
-  const patchNotesCache=useCallback((u:(p:Note[])=>Note[])=>qc.setQueryData<Note[]>(notesKey,p=>dedupeNotes(u(dedupeNotes(p??[])))),[qc,notesKey]);
-  const patchCollectionsCache=useCallback((u:(p:Collection[])=>Collection[])=>qc.setQueryData<Collection[]>(collectionsKey,p=>u(p??[])),[qc,collectionsKey]);
-  const invalidateNotes=useCallback(()=>{void qc.invalidateQueries({queryKey:baseNotesKey});void qc.invalidateQueries({queryKey:["course-stats",userId??null]});},[qc,baseNotesKey,userId]);
-  const invalidateCollections=useCallback(()=>{void qc.invalidateQueries({queryKey:baseCollectionsKey});},[qc,baseCollectionsKey]);
-
-  const writeNote=useMutation({mutationFn:async(p:NoteWritePayload)=>queueNoteWrite(`${userId}:${courseId}:${p.id}`,async()=>{
-    if(p.op==="insert"){const{error}=await supabase.from("notes").insert({id:p.id,user_id:userId!,course_id:courseId!,...p.values,revision:0});if(error)throw error;return;}
-    if(p.op==="update"){
-      const{data,error}=await supabase.from("notes").update({...p.values,revision:p.nextRevision??((p.expectedRevision??0)+1),updated_at:new Date().toISOString()}).eq("id",p.id).eq("course_id",courseId!).eq("revision",p.expectedRevision??0).select("id").maybeSingle();
-      if(error)throw error;
-      if(!data)throw new Error("Note changed elsewhere. Your editor was refreshed with the newest saved version.");
-      return;
-    }
-    const{data,error}=await supabase.from("notes").delete().eq("id",p.id).eq("course_id",courseId!).eq("revision",p.expectedRevision??0).select("id").maybeSingle();
-    if(error)throw error;
-    if(!data)throw new Error("Note changed elsewhere. Delete was cancelled to protect the newer version.");
-  }),onError:(_e,p)=>{p.rollback?.();invalidateNotes();},onSuccess:invalidateNotes});
-  const writeCollection=useMutation({mutationFn:async(p:{op:"insert"|"update"|"delete";id:string;values?:Record<string,unknown>})=>{if(p.op==="insert"){const{error}=await supabase.from("collections").insert({id:p.id,user_id:userId!,course_id:courseId!,...p.values} as never);if(error)throw error;return;}if(p.op==="update"){const{error}=await supabase.from("collections").update({...p.values,updated_at:new Date().toISOString()}).eq("id",p.id);if(error)throw error;return;}const{error}=await supabase.from("collections").delete().eq("id",p.id);if(error)throw error;}},onSettled:()=>{invalidateCollections();invalidateNotes();}});
-
+  useEffect(()=>{if(!notes.length){if(selectedId!==null)setSelectedId(null);return}if(!selectedId||!notes.some(n=>n.id===selectedId))setSelectedId(notes[0]!.id)},[notes,selectedId]);
+  const patchNotesCache=useCallback((u:(p:Note[])=>Note[])=>qc.setQueryData<Note[]>(notesKey,p=>dedupeNotes(u(dedupeNotes(p??[])))),[qc,notesKey]);const patchCollectionsCache=useCallback((u:(p:Collection[])=>Collection[])=>qc.setQueryData<Collection[]>(collectionsKey,p=>u(p??[])),[qc,collectionsKey]);
+  const invalidateNotes=useCallback(()=>{void qc.invalidateQueries({queryKey:baseNotesKey});void qc.invalidateQueries({queryKey:["course-stats",userId??null]});},[qc,baseNotesKey,userId]);const invalidateCollections=useCallback(()=>{void qc.invalidateQueries({queryKey:baseCollectionsKey});},[qc,baseCollectionsKey]);
+  const writeNote=useMutation({mutationFn:async(p:NoteWritePayload)=>queueNoteWrite(`${userId}:${courseId}:${p.id}`,async()=>{if(p.op==="insert"){const{error}=await supabase.from("notes").insert({id:p.id,user_id:userId!,course_id:courseId!,...p.values,revision:0});if(error)throw error;return;}if(p.op==="update"){const{data,error}=await supabase.from("notes").update({...p.values,revision:p.nextRevision??((p.expectedRevision??0)+1),updated_at:new Date().toISOString()}).eq("id",p.id).eq("course_id",courseId!).eq("revision",p.expectedRevision??0).select("id").maybeSingle();if(error)throw error;if(!data)throw new Error("Note changed elsewhere. Your editor was refreshed with the newest saved version.");return;}const{data,error}=await supabase.from("notes").delete().eq("id",p.id).eq("course_id",courseId!).eq("revision",p.expectedRevision??0).select("id").maybeSingle();if(error)throw error;if(!data)throw new Error("Note changed elsewhere. Delete was cancelled to protect the newer version.");}),onError:(_e,p)=>{p.rollback?.();invalidateNotes();},onSuccess:invalidateNotes});
+  const writeCollection=useMutation({mutationFn:async(p:{op:"insert"|"update"|"delete";id:string;values?:Record<string,unknown>})=>{if(p.op==="insert"){const{error}=await supabase.from("collections").insert({id:p.id,user_id:userId!,course_id:courseId!,...p.values}as never);if(error)throw error;return;}if(p.op==="update"){const{error}=await supabase.from("collections").update({...p.values,updated_at:new Date().toISOString()}).eq("id",p.id);if(error)throw error;return;}const{error}=await supabase.from("collections").delete().eq("id",p.id);if(error)throw error;}},onSettled:()=>{invalidateCollections();invalidateNotes();}});
   const createNote=useCallback((initial?:{sourceId?:string|null;title?:string;body?:string;favorite?:boolean;collectionId?:string|null})=>{if(!enabled)return"";const collectionId=initial?.collectionId??(filter.kind==="collection"?filter.id:null),title=normalizeTitle(initial?.title??"Untitled note"),body=initial?.body??"",favorite=initial?.favorite??false,sourceId=initial?.sourceId??null,current=dedupeNotes(qc.getQueryData<Note[]>(notesKey)??notes);if(sourceId){const e=current.find(n=>n.sourceId===sourceId||n.id===sourceId);if(e){setSelectedId(e.id);return e.id;}}const now=Date.now(),note:Note={id:newId(),title,body,favorite,collectionId,sourceId,revision:0,createdAt:now,updatedAt:now},previous=current;patchNotesCache(p=>[note,...p]);setSelectedId(note.id);writeNote.mutate({op:"insert",id:note.id,values:{title:note.title,body:note.body,favorite:note.favorite,collection_id:note.collectionId,source_id:note.sourceId},rollback:()=>qc.setQueryData<Note[]>(notesKey,previous)});return note.id;},[enabled,filter,notes,notesKey,patchNotesCache,qc,writeNote]);
-
-  const updateNote=useCallback((id:string,p:Partial<Omit<Note,"id">>)=>{const current=dedupeNotes(qc.getQueryData<Note[]>(notesKey)??notes),target=current.find(n=>n.id===id);if(!target)return;const nextRevision=target.revision+1;const previous=current;patchNotesCache(a=>a.map(n=>n.id===id?{...n,...p,revision:nextRevision,updatedAt:Date.now()}:n));const v:Record<string,unknown>={};if(p.title!==undefined)v.title=p.title;if(p.body!==undefined)v.body=p.body;if(p.favorite!==undefined)v.favorite=p.favorite;if(p.collectionId!==undefined)v.collection_id=p.collectionId;if(p.sourceId!==undefined)v.source_id=p.sourceId;if(Object.keys(v).length)writeNote.mutate({op:"update",id,values:v,expectedRevision:target.revision,nextRevision,rollback:()=>qc.setQueryData<Note[]>(notesKey,previous)});},[notes,notesKey,patchNotesCache,qc,writeNote]);
+  const updateNote=useCallback((id:string,p:Partial<Omit<Note,"id">>)=>{const current=dedupeNotes(qc.getQueryData<Note[]>(notesKey)??notes),target=current.find(n=>n.id===id);if(!target)return;const nextRevision=target.revision+1,previous=current;patchNotesCache(a=>a.map(n=>n.id===id?{...n,...p,revision:nextRevision,updatedAt:Date.now()}:n));const v:Record<string,unknown>={};if(p.title!==undefined)v.title=p.title;if(p.body!==undefined)v.body=p.body;if(p.favorite!==undefined)v.favorite=p.favorite;if(p.collectionId!==undefined)v.collection_id=p.collectionId;if(p.sourceId!==undefined)v.source_id=p.sourceId;if(Object.keys(v).length)writeNote.mutate({op:"update",id,values:v,expectedRevision:target.revision,nextRevision,rollback:()=>qc.setQueryData<Note[]>(notesKey,previous)});},[notes,notesKey,patchNotesCache,qc,writeNote]);
   const deleteNote=useCallback((id:string)=>{const current=dedupeNotes(qc.getQueryData<Note[]>(notesKey)??notes),target=current.find(n=>n.id===id);if(!target)return;const previous=current;patchNotesCache(a=>a.filter(n=>n.id!==id));setSelectedId(cur=>cur===id?null:cur);writeNote.mutate({op:"delete",id,expectedRevision:target.revision,rollback:()=>qc.setQueryData<Note[]>(notesKey,previous)});},[notes,notesKey,patchNotesCache,qc,writeNote]);
   const toggleFavorite=useCallback((id:string)=>{const current=dedupeNotes(qc.getQueryData<Note[]>(notesKey)??notes),n=current.find(x=>x.id===id);if(!n)return;const previous=current,next=!n.favorite,revision=n.revision+1;patchNotesCache(a=>a.map(x=>x.id===id?{...x,favorite:next,revision,updatedAt:Date.now()}:x));writeNote.mutate({op:"update",id,values:{favorite:next},expectedRevision:n.revision,nextRevision:revision,rollback:()=>qc.setQueryData<Note[]>(notesKey,previous)});},[notes,notesKey,patchNotesCache,qc,writeNote]);
-
-  const addCollection=useCallback((name:string)=>{const trimmed=name.trim();if(!trimmed||!enabled)return;const id=newId(),previous=collections;patchCollectionsCache(p=>[...p,{id,name:trimmed}]);writeCollection.mutate({op:"insert",id,values:{name:trimmed}},{onError:()=>qc.setQueryData<Collection[]>(collectionsKey,previous)});},[collections,collectionsKey,enabled,patchCollectionsCache,qc,writeCollection]);
+  const addCollection=useCallback((name:string)=>{const trimmed=name.trim();if(!trimmed||!enabled)return null;const id=newId(),previous=collections;patchCollectionsCache(p=>[...p,{id,name:trimmed}]);writeCollection.mutate({op:"insert",id,values:{name:trimmed}},{onError:()=>qc.setQueryData<Collection[]>(collectionsKey,previous)});return id;},[collections,collectionsKey,enabled,patchCollectionsCache,qc,writeCollection]);
+  const restoreCollection=useCallback((collection:{id?:string|null;name:string})=>{if(!enabled)return null;const existing=collections.find(c=>(collection.id&&c.id===collection.id)||c.name.trim().toLowerCase()===collection.name.trim().toLowerCase());if(existing)return existing.id;const id=newId(),previous=collections;patchCollectionsCache(p=>[...p,{id,name:collection.name.trim()}]);writeCollection.mutate({op:"insert",id,values:{name:collection.name.trim()}},{onError:()=>qc.setQueryData<Collection[]>(collectionsKey,previous)});return id;},[collections,collectionsKey,enabled,patchCollectionsCache,qc,writeCollection]);
   const renameCollection=useCallback((id:string,name:string)=>{const trimmed=name.trim();if(!trimmed)return;const previous=collections;patchCollectionsCache(a=>a.map(c=>c.id===id?{...c,name:trimmed}:c));writeCollection.mutate({op:"update",id,values:{name:trimmed}},{onError:()=>qc.setQueryData<Collection[]>(collectionsKey,previous)});},[collections,collectionsKey,patchCollectionsCache,qc,writeCollection]);
   const deleteCollection=useCallback((id:string)=>{const previousC=collections,previousN=dedupeNotes(qc.getQueryData<Note[]>(notesKey)??notes);patchCollectionsCache(a=>a.filter(c=>c.id!==id));patchNotesCache(a=>a.map(n=>n.collectionId===id?{...n,collectionId:null}:n));setFilter(f=>f.kind==="collection"&&f.id===id?{kind:"all"}:f);writeCollection.mutate({op:"delete",id},{onError:()=>{qc.setQueryData<Collection[]>(collectionsKey,previousC);qc.setQueryData<Note[]>(notesKey,previousN)}});},[collections,notes,notesKey,patchCollectionsCache,patchNotesCache,qc,writeCollection]);
-  const visibleNotes=useMemo(()=>{const q=query.trim().toLowerCase();return dedupeNotes(notes).filter(n=>{if(filter.kind==="favorites"&&!n.favorite)return false;if(filter.kind==="collection"&&n.collectionId!==filter.id)return false;if(!q)return true;return n.title.toLowerCase().includes(q)||n.body.toLowerCase().includes(q);}).sort((a,b)=>b.createdAt-a.createdAt);},[notes,filter,query]);
-  const counts=useMemo(()=>({all:dedupeNotes(notes).length,favorites:dedupeNotes(notes).filter(n=>n.favorite).length,byCollection:Object.fromEntries(collections.map(c=>[c.id,dedupeNotes(notes).filter(n=>n.collectionId===c.id).length])) as Record<string,number>}),[notes,collections]);
-  const selected=dedupeNotes(notes).find(n=>n.id===selectedId)??null;
-  return{notes:dedupeNotes(notes),visibleNotes,collections,counts,selected,selectedId,setSelectedId,filter,setFilter,query,setQuery,createNote,updateNote,deleteNote,toggleFavorite,addCollection,renameCollection,deleteCollection,loading:notesQuery.isLoading||collectionsQuery.isLoading};
+  const visibleNotes=useMemo(()=>{const q=query.trim().toLowerCase();return dedupeNotes(notes).filter(n=>{if(filter.kind==="favorites"&&!n.favorite)return false;if(filter.kind==="collection"&&n.collectionId!==filter.id)return false;if(!q)return true;return n.title.toLowerCase().includes(q)||n.body.toLowerCase().includes(q)}).sort((a,b)=>b.createdAt-a.createdAt)},[notes,filter,query]);
+  const counts=useMemo(()=>({all:dedupeNotes(notes).length,favorites:dedupeNotes(notes).filter(n=>n.favorite).length,byCollection:Object.fromEntries(collections.map(c=>[c.id,dedupeNotes(notes).filter(n=>n.collectionId===c.id).length]))as Record<string,number>}),[notes,collections]);
+  const selected=dedupeNotes(notes).find(n=>n.id===selectedId)??null;return{notes:dedupeNotes(notes),visibleNotes,collections,counts,selected,selectedId,setSelectedId,filter,setFilter,query,setQuery,createNote,updateNote,deleteNote,toggleFavorite,addCollection,restoreCollection,renameCollection,deleteCollection,loading:notesQuery.isLoading||collectionsQuery.isLoading};
 }
