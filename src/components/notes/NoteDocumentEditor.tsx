@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 
-type Segment =
+export type Segment =
   | { type: "text"; content: string; start: number; end: number }
   | { type: "output"; content: string; start: number; end: number };
 
@@ -14,7 +14,7 @@ type Props = {
 
 const OUTPUT_RE = /```(?:output|terminal-output)\n([\s\S]*?)```/gi;
 
-function parseSegments(value: string): Segment[] {
+export function parseNoteSegments(value: string): Segment[] {
   const segments: Segment[] = [];
   let cursor = 0;
 
@@ -42,6 +42,19 @@ function parseSegments(value: string): Segment[] {
   return segments;
 }
 
+export function replaceNoteSegment(value: string, segment: Segment, nextContent: string): string {
+  const raw = segment.type === "output" ? `\n\`\`\`output\n${nextContent}\n\`\`\`` : nextContent;
+  const originalPrefix = segment.type === "output" ? "\n" : "";
+  const start = segment.start;
+  const end = segment.end;
+
+  if (segment.type === "output" && value.slice(start, start + 1) === "\n") {
+    return `${value.slice(0, start)}${raw}${value.slice(end)}`.replace(/^\n/, "");
+  }
+
+  return `${value.slice(0, start)}${raw.replace(originalPrefix, "")}${value.slice(end)}`;
+}
+
 export function NoteDocumentEditor({
   value,
   activeIndex,
@@ -49,42 +62,21 @@ export function NoteDocumentEditor({
   onChangeSegment,
   onActiveTextarea,
 }: Props) {
-  const segments = useMemo(() => parseSegments(value), [value]);
+  const segments = useMemo(() => parseNoteSegments(value), [value]);
   const refs = useRef<Array<HTMLTextAreaElement | null>>([]);
 
   useEffect(() => {
-    const active = refs.current[activeIndex] ?? null;
-    onActiveTextarea(active);
+    onActiveTextarea(refs.current[activeIndex] ?? null);
   }, [activeIndex, segments.length, onActiveTextarea]);
 
   return (
-    <div className="min-h-[16rem] flex-1 resize-none bg-transparent text-sm leading-relaxed text-[#c9d1d9] outline-none placeholder:text-[#8b949e]" style={{ fontFamily: "'Fira Code', 'JetBrains Mono', 'Consolas', monospace" }}>
+    <div className="min-h-[16rem] flex-1 bg-transparent text-sm leading-relaxed text-[#c9d1d9]" style={{ fontFamily: "'Fira Code', 'JetBrains Mono', 'Consolas', monospace" }}>
       {segments.map((segment, index) => {
         if (segment.type === "output") {
           return (
-            <section
-              key={`output-${segment.start}-${segment.end}`}
-              className="my-3 overflow-hidden rounded-xl border border-[#30363d] bg-[#010409] shadow-[0_8px_24px_rgba(0,0,0,0.22)]"
-              aria-label={`Terminal output${index > 0 ? ` after editor block ${index}` : ""}`}
-            >
-              <div className="border-b border-[#21262d] bg-[#0d1117] px-3 py-2 text-[0.62rem] font-medium uppercase tracking-[0.14em] text-[#8b949e]">
-                Output
-              </div>
-              <textarea
-                value={segment.content}
-                onFocus={(event) => {
-                  onActiveIndexChange(index);
-                  onActiveTextarea(event.currentTarget);
-                }}
-                onClick={(event) => {
-                  onActiveIndexChange(index);
-                  onActiveTextarea(event.currentTarget);
-                }}
-                onChange={(event) => onChangeSegment(index, event.target.value)}
-                aria-label="Code output"
-                spellCheck={false}
-                className="block min-h-[4rem] w-full resize-none overflow-auto bg-transparent px-4 py-3 font-mono text-[0.82rem] leading-6 text-[#c9d1d9] outline-none"
-              />
+            <section key={`output-${segment.start}-${segment.end}`} className="my-3 overflow-hidden rounded-xl border border-[#30363d] bg-[#010409] shadow-[0_8px_24px_rgba(0,0,0,0.22)]" aria-label="Terminal output">
+              <div className="border-b border-[#21262d] bg-[#0d1117] px-3 py-2 text-[0.62rem] font-medium uppercase tracking-[0.14em] text-[#8b949e]">Output</div>
+              <textarea value={segment.content} onFocus={(event) => { onActiveIndexChange(index); onActiveTextarea(event.currentTarget); }} onClick={(event) => { onActiveIndexChange(index); onActiveTextarea(event.currentTarget); }} onChange={(event) => onChangeSegment(index, event.target.value)} aria-label="Code output" spellCheck={false} className="block min-h-[4rem] w-full resize-none overflow-auto bg-transparent px-4 py-3 font-mono text-[0.82rem] leading-6 text-[#c9d1d9] outline-none" />
             </section>
           );
         }
@@ -92,18 +84,10 @@ export function NoteDocumentEditor({
         return (
           <textarea
             key={`text-${segment.start}-${segment.end}-${index}`}
-            ref={(element) => {
-              refs.current[index] = element;
-            }}
+            ref={(element) => { refs.current[index] = element; }}
             value={segment.content}
-            onFocus={(event) => {
-              onActiveIndexChange(index);
-              onActiveTextarea(event.currentTarget);
-            }}
-            onClick={(event) => {
-              onActiveIndexChange(index);
-              onActiveTextarea(event.currentTarget);
-            }}
+            onFocus={(event) => { onActiveIndexChange(index); onActiveTextarea(event.currentTarget); }}
+            onClick={(event) => { onActiveIndexChange(index); onActiveTextarea(event.currentTarget); }}
             onChange={(event) => onChangeSegment(index, event.target.value)}
             aria-label="Note body"
             placeholder={index === 0 ? "Write markdown here…" : undefined}
