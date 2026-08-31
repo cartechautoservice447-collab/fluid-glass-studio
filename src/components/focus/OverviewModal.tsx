@@ -6,19 +6,6 @@ import type { Course } from "@/hooks/useCourses";
 
 type Props = { open: boolean; onOpenChange: (open: boolean) => void; courses: Course[]; userId: string };
 
-function normalize(value: string) {
-  return value.replace(/\r\n/g, "\n").trim();
-}
-
-function sameLogicalNote(a: Note, b: Note) {
-  return (
-    normalize(a.title || "Untitled note") === normalize(b.title || "Untitled note") &&
-    a.body === b.body &&
-    a.collectionId === b.collectionId &&
-    a.favorite === b.favorite
-  );
-}
-
 function CourseStudyFeatures({ course, userId }: { course: Course; userId: string }) {
   const notes = useNotes(course.id, userId);
 
@@ -35,23 +22,22 @@ function CourseStudyFeatures({ course, userId }: { course: Course; userId: strin
       return;
     }
 
-    // Imported/backed-up/trash/history notes may carry an old ID. Never create
-    // another database row when an identical logical note already exists.
-    const existingLogical = notes.notes.find((current) => sameLogicalNote(current, note));
-    if (existingLogical) {
-      notes.setSelectedId(existingLogical.id);
+    // The original note id becomes a stable source id. This makes restore
+    // idempotent without treating identical note content as a duplicate.
+    const existingBySource = notes.notes.find((current) => current.sourceId === note.id);
+    if (existingBySource) {
+      notes.setSelectedId(existingBySource.id);
       return;
     }
 
-    const createdId = notes.createNote();
-    if (!createdId) return;
-    notes.updateNote(createdId, {
+    const createdId = notes.createNote({
+      sourceId: note.id,
       title: note.title,
       body: note.body,
       favorite: note.favorite,
       collectionId: note.collectionId,
     });
-    notes.setSelectedId(createdId);
+    if (createdId) notes.setSelectedId(createdId);
   };
 
   return <StudyFeaturesPanel courseName={course.name} notes={notes.notes} selectedId={notes.selectedId} onSelectNote={notes.setSelectedId} onCreateNote={() => notes.createNote()} onUpdateNote={notes.updateNote} onDeleteNote={(note) => notes.deleteNote(note.id)} onToggleFavorite={notes.toggleFavorite} onRestoreNote={restoreNote} />;
