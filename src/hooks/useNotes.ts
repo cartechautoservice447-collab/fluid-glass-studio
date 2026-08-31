@@ -26,7 +26,7 @@ function queueNoteWrite<T>(key:string,op:NoteWritePayload["op"],requestedRevisio
     const run=state.tail.then(()=>task(expectedRevision));
     state.tail=run.then(()=>undefined);
     noteWriteQueues.set(key,state);
-    run.finally(()=>{if(noteWriteQueues.get(key)?.tail===state.tail){noteWriteQueues.delete(key);}});
+    void run.then(()=>undefined,()=>undefined).finally(()=>{if(noteWriteQueues.get(key)?.tail===state.tail)noteWriteQueues.delete(key);});
     return run;
   }
   if(op==="delete"){
@@ -34,14 +34,14 @@ function queueNoteWrite<T>(key:string,op:NoteWritePayload["op"],requestedRevisio
     const run=state.tail.then(()=>task(expectedRevision));
     state.tail=run.then(()=>undefined);
     noteWriteQueues.set(key,state);
-    run.finally(()=>{if(noteWriteQueues.get(key)?.tail===state.tail){noteWriteQueues.delete(key);}});
+    void run.then(()=>undefined,()=>undefined).finally(()=>{if(noteWriteQueues.get(key)?.tail===state.tail)noteWriteQueues.delete(key);});
     return run;
   }
   const run=state.tail.then(()=>task(0));
   state.tail=run.then(()=>undefined);
   state.nextRevision=0;
   noteWriteQueues.set(key,state);
-  run.finally(()=>{if(noteWriteQueues.get(key)?.tail===state.tail){noteWriteQueues.delete(key);}});
+  void run.then(()=>undefined,()=>undefined).finally(()=>{if(noteWriteQueues.get(key)?.tail===state.tail)noteWriteQueues.delete(key);});
   return run;
 }
 
