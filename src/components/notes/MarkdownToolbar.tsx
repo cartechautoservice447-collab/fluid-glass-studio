@@ -63,15 +63,23 @@ export function MarkdownToolbar({ textareaRef, value, onChange, disabled }: Prop
   };
 
   const insertSymbol = (tool: (typeof SYMBOL_TOOLS)[number]) => {
-    if ("before" in tool && "after" in tool) {
-      wrap(tool.before, tool.after);
-      return;
-    }
-
     const el = textareaRef.current;
     const start = el?.selectionStart ?? value.length;
     const end = el?.selectionEnd ?? value.length;
     const selected = value.slice(start, end);
+
+    if ("before" in tool && "after" in tool) {
+      const next = `${value.slice(0, start)}${tool.before}${selected}${tool.after}${value.slice(end)}`;
+      onChange(next);
+      requestAnimationFrame(() => {
+        if (!el) return;
+        el.focus();
+        const selectionStart = start + tool.before.length;
+        el.setSelectionRange(selectionStart, selectionStart + selected.length);
+      });
+      return;
+    }
+
     const insert = tool.insert;
     const next = `${value.slice(0, start)}${insert}${selected}${value.slice(end)}`;
     onChange(next);
