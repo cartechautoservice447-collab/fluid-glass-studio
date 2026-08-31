@@ -3,7 +3,6 @@ import { PanelLeft } from "lucide-react";
 import { GlassPanel } from "@/components/liquid/GlassPanel";
 import { NoteCard } from "@/components/notes/NoteCard";
 import type { Note } from "@/hooks/useNotes";
-import { cn } from "@/lib/utils";
 
 type Props = {
   minimized: boolean;
@@ -15,16 +14,14 @@ type Props = {
   heading: string;
 };
 
+function uniqueById(notes: Note[]) {
+  return Array.from(new Map(notes.map((note) => [note.id, note])).values()).sort(
+    (a, b) => b.createdAt - a.createdAt,
+  );
+}
+
 export function NoteList({ minimized, onMinimize, notes, selectedId, onSelect, onToggleFavorite, heading }: Props) {
-  const byId = Array.from(new Map(notes.map((note) => [note.id, note])).values());
-  const uniqueNotes = Array.from(
-    byId.reduce((map, note) => {
-      const fingerprint = [note.title.trim(), note.body, note.collectionId ?? "", note.favorite ? "1" : "0"].join("\u0000");
-      const existing = map.get(fingerprint);
-      if (!existing || note.id === selectedId || note.updatedAt > existing.updatedAt) map.set(fingerprint, note);
-      return map;
-    }, new Map<string, Note>()).values(),
-  ).sort((a, b) => b.createdAt - a.createdAt);
+  const uniqueNotes = uniqueById(notes);
 
   if (minimized) {
     return (
@@ -41,6 +38,7 @@ export function NoteList({ minimized, onMinimize, notes, selectedId, onSelect, o
       </GlassPanel>
     );
   }
+
   return (
     <GlassPanel className="relative flex h-full min-h-0 flex-col gap-3 !p-4">
       <div className="flex min-h-10 items-center justify-between gap-2 pr-10">
