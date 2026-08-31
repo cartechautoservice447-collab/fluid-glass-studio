@@ -11,7 +11,7 @@ type Props = { course: Course; onBack: () => void; onLogout: () => void; userId:
 const DISTRACTION_KEY = "liquid-glass-distraction-mode";
 
 export function CourseNotesView({ course, onBack, onLogout, userId, email, studyHubMode = false }: Props) {
-  const notes = useNotes(course.id, userId);
+  const notes = useNotes(course.id, userId, studyHubMode ? "study-hub" : "editor");
   const { filter } = notes;
   const [minimized, setMinimized] = useState({ sidebar: false, notes: false, editor: false });
   const [distractionOpen, setDistractionOpen] = useState(false);
