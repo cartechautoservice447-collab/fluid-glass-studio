@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { LayoutDashboard, X } from "lucide-react";
 import { StudyFeaturesPanel } from "@/components/study/StudyFeaturesPanel";
-import { useNotes, type Note } from "@/hooks/useNotes";
+import { useNotes } from "@/hooks/useNotes";
 import type { Course } from "@/hooks/useCourses";
 
 type Props={open:boolean;onOpenChange:(open:boolean)=>void;courses:Course[];userId:string};
 function CourseStudyFeatures({course,userId}:{course:Course;userId:string}){
   const notes=useNotes(course.id,userId);
-  const restoreNote=(note:Note)=>{const existingById=notes.notes.find(current=>current.id===note.id);if(existingById){notes.updateNote(note.id,{title:note.title,body:note.body,favorite:note.favorite,collectionId:note.collectionId});notes.setSelectedId(note.id);return true;}const existingBySource=notes.notes.find(current=>current.sourceId===note.id);if(existingBySource){notes.setSelectedId(existingBySource.id);return true;}const createdId=notes.createNote({sourceId:note.id,title:note.title,body:note.body,favorite:note.favorite,collectionId:note.collectionId});if(createdId)notes.setSelectedId(createdId);return Boolean(createdId);};
-  return <StudyFeaturesPanel courseName={course.name} courseId={course.id} userId={userId} notes={notes.notes} collections={notes.collections} selectedId={notes.selectedId} onSelectNote={notes.setSelectedId} onCreateNote={()=>notes.createNote()} onUpdateNote={notes.updateNote} onDeleteNote={note=>notes.deleteNote(note.id)} onToggleFavorite={notes.toggleFavorite} onRestoreNote={restoreNote} onRestoreCollection={collection=>notes.restoreCollection(collection)}/>;
+  return <StudyFeaturesPanel courseName={course.name} courseId={course.id} userId={userId} notes={notes.notes} collections={notes.collections} selectedId={notes.selectedId} onSelectNote={notes.setSelectedId} onCreateNote={()=>notes.createNote()} onUpdateNote={notes.updateNote} onDeleteNote={note=>notes.deleteNote(note.id)} onToggleFavorite={notes.toggleFavorite} onRestoreNote={note=>notes.restoreNote(note)} onRestoreCollection={collection=>notes.restoreCollection(collection)}/>;
 }
 export function OverviewModal({open,onOpenChange,courses,userId}:Props){
   const[selectedCourseId,setSelectedCourseId]=useState<string|null>(courses[0]?.id??null);if(!open)return null;const selectedCourse=courses.find(course=>course.id===selectedCourseId)??courses[0]??null;
