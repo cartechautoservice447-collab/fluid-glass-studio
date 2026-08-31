@@ -5,7 +5,6 @@ import { AuthPage } from "@/components/auth/AuthPage";
 import { BackgroundImageLayer } from "@/components/liquid/BackgroundImageLayer";
 import { CourseGrid } from "@/components/courses/CourseGrid";
 import { CourseNotesView } from "@/components/courses/CourseNotesView";
-import { LiquidFilters } from "@/components/liquid/LiquidFilters";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { CustomizationProvider } from "@/context/CustomizationContext";
@@ -14,7 +13,7 @@ export const Route=createFileRoute("/")({head:()=>({meta:[{title:"Glass Notes â€
 const DISTRACTION_KEY=(userId:string)=>`liquid-glass-distraction-mode:${userId}`;
 type DistractionSession={active:boolean;courseId?:string|null;courseName:string;date:string;durationHours:number;endsAt:number|null};
 function readDistractionSession(userId:string):DistractionSession|null{try{const saved=JSON.parse(localStorage.getItem(DISTRACTION_KEY(userId))??"null");if(!saved?.active||!saved?.endsAt||saved.endsAt<=Date.now()||!saved.courseId){localStorage.removeItem(DISTRACTION_KEY(userId));return null}return saved as DistractionSession}catch{localStorage.removeItem(DISTRACTION_KEY(userId));return null}}
-function Page(){return <AuthProvider><CustomizationProvider><LiquidFilters/><BackgroundImageLayer/><AuthenticatedWorkspace/><PwaInstallButton/></CustomizationProvider></AuthProvider>}
+function Page(){return <AuthProvider><CustomizationProvider><BackgroundImageLayer/><AuthenticatedWorkspace/><PwaInstallButton/></CustomizationProvider></AuthProvider>}
 function AuthenticatedWorkspace(){const{user,loading,logout}=useAuth();if(loading)return <div className="flex min-h-screen items-center justify-center bg-[#07070c] text-sm text-slate-300">Loading your workspaceâ€¦</div>;if(!user)return <AuthPage/>;return <Workspace userId={user.id} email={user.email} onLogout={()=>void logout()}/>}
 function Workspace({userId,email,onLogout}:{userId:string;email:string|null;onLogout:()=>void}){const{courses,addCourse,deleteCourse}=useCourses(userId);const{data:stats}=useCourseStats(userId);const[selectedCourseId,setSelectedCourseId]=useState<string|null>(null);const[distraction,setDistraction]=useState<DistractionSession|null>(()=>readDistractionSession(userId));
 useEffect(()=>{const sync=(event?:StorageEvent)=>{if(!event||event.key===DISTRACTION_KEY(userId)||event.key===null)setDistraction(readDistractionSession(userId))};window.addEventListener("storage",sync);const timer=window.setInterval(()=>setDistraction(readDistractionSession(userId)),500);return()=>{window.removeEventListener("storage",sync);window.clearInterval(timer)}},[userId]);
