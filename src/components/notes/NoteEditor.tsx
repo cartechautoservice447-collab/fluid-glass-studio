@@ -1,9 +1,9 @@
 import { PanelLeft, Star, Trash2, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { GlassPanel } from "@/components/liquid/GlassPanel";
-import { TerminalOutput } from "@/components/notes/TerminalOutput";
 import { MarkdownToolbar } from "@/components/notes/MarkdownToolbar";
+import { NoteDocumentEditor, parseNoteSegments, type Segment } from "@/components/notes/NoteDocumentEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -21,9 +21,6 @@ type Props = {
   minimized: boolean;
   onMinimize: () => void;
   note: Note | null;
-  notes?: Note[];
-  onSelectNote?: (id: string) => void;
-  showAllNotes?: boolean;
   collections: Collection[];
   onUpdate: (id: string, patch: Partial<Omit<Note, "id">>) => void;
   onDelete: (id: string) => void;
@@ -44,13 +41,22 @@ export function NoteEditor({
   const [title, setTitle] = useState(note?.title ?? "");
   const [body, setBody] = useState(note?.body ?? "");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [activeSegmentIndex, setActiveSegmentIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const segments = useMemo(() => parseNoteSegments(body), [body]);
 
   useEffect(() => {
     setTitle(note?.title ?? "");
     setBody(note?.body ?? "");
     setConfirmDelete(false);
+    setActiveSegmentIndex(0);
   }, [note?.id]);
+
+  useEffect(() => {
+    if (activeSegmentIndex >= segments.length) {
+      setActiveSegmentIndex(Math.max(segments.length - 1, 0));
+    }
+  }, [activeSegmentIndex, segments.length]);
 
   useEffect(() => {
     if (!note) return;
@@ -58,6 +64,30 @@ export function NoteEditor({
     const timer = setTimeout(() => onUpdate(note.id, { title, body }), 450);
     return () => clearTimeout(timer);
   }, [title, body, note, onUpdate]);
+
+  const activeSegment: Segment | undefined = segments[activeSegmentIndex];
+  const activeValue = activeSegment?.content ?? body;
+
+  const updateSegment = useCallback((index: number, nextContent: string) => {
+    setBody((current) => {
+      const currentSegments = parseNoteSegments(current);
+      const segment = currentSegments[index];
+      if (!segment) return current;
+      const replacement = segment.type === "output"
+        ? `\`\`\`output\n${nextContent}\n\`\`\``
+        : nextContent;
+      return `${current.slice(0, segment.start)}${replacement}${current.slice(segment.end)}`;
+    });
+  }, []);
+
+  const replaceAll = useCallback((next: string) => {
+    setBody(next);
+    setActiveSegmentIndex(0);
+  }, []);
+
+  const setActiveTextarea = useCallback((element: HTMLTextAreaElement | null) => {
+    textareaRef.current = element;
+  }, []);
 
   if (minimized) {
     return (
@@ -81,15 +111,7 @@ export function NoteEditor({
         <div className="flex min-h-10 items-center gap-2 border-b border-white/10 p-4 pr-12">
           <span className="text-xs text-muted-foreground">Select a note</span>
         </div>
-        <button
-          type="button"
-          onClick={onMinimize}
-          className="absolute right-4 top-4 z-10 flex size-8 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20"
-          aria-label="Minimize editor panel"
-          title="Minimize editor panel"
-        >
-          <PanelLeft className="size-4 stroke-[1.8]" />
-        </button>
+        <button type="button" onClick={onMinimize} className="absolute right-4 top-4 z-10 flex size-8 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20" aria-label="Minimize editor panel" title="Minimize editor panel"><PanelLeft className="size-4 stroke-[1.8]" /></button>
         <div className="flex min-h-0 flex-1 items-center justify-center p-8 text-center">
           <p className="text-sm text-muted-foreground">Select a note from the list, or create a new one to start writing.</p>
         </div>
@@ -112,11 +134,17 @@ export function NoteEditor({
         <button type="button" onClick={onMinimize} className="absolute right-4 top-4 z-10 flex size-8 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20" aria-label="Minimize editor panel" title="Minimize editor panel"><PanelLeft className="size-4 stroke-[1.8]" /></button>
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-[#0d1117] px-3 py-2">
-          <MarkdownToolbar textareaRef={textareaRef} value={body} onChange={setBody} />
+          <MarkdownToolbar textareaRef={textareaRef} value={activeValue} onChange={(next) => updateSegment(activeSegmentIndex, next)} onReplaceAll={replaceAll} />
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto bg-[#0d1117] p-4">
-          <div className="flex min-h-full flex-col"><textarea ref={textareaRef} value={body} onChange={(event) => setBody(event.target.value)} aria-label="Note body" placeholder="Write markdown here…" spellCheck={false} className="min-h-[16rem] flex-1 resize-none bg-transparent text-sm leading-relaxed text-[#c9d1d9] outline-none placeholder:text-[#8b949e]" style={{ fontFamily: "'Fira Code', 'JetBrains Mono', 'Consolas', monospace" }} /><TerminalOutput value={body} /></div>
+          <NoteDocumentEditor
+            value={body}
+            activeIndex={activeSegmentIndex}
+            onActiveIndexChange={setActiveSegmentIndex}
+            onChangeSegment={updateSegment}
+            onActiveTextarea={setActiveTextarea}
+          />
         </div>
 
         <p className="border-t border-white/10 bg-[#0d1117] px-4 py-2 text-[0.65rem] uppercase tracking-[0.2em] text-[#8b949e]">Autosaved · edited {relativeDate(note.updatedAt)}</p>
