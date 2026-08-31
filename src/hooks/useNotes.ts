@@ -9,6 +9,7 @@ export type Note = {
   body: string;
   favorite: boolean;
   collectionId: string | null;
+  sourceId: string | null;
   createdAt: number;
   updatedAt: number;
 };
@@ -23,11 +24,21 @@ type NoteRow = {
   body: string | null;
   favorite: boolean | null;
   collection_id: string | null;
+  source_id: string | null;
   created_at: string;
   updated_at: string;
 };
 
 type CollectionRow = { id: string; name: string };
+type NotesScope = "editor" | "study-hub";
+
+type NoteWritePayload = {
+  op: "insert" | "update" | "delete";
+  id: string;
+  ids?: string[];
+  values?: Record<string, unknown>;
+  rollback?: () => void;
+};
 
 const EMPTY_NOTES: Note[] = [];
 const EMPTY_COLLECTIONS: Collection[] = [];
@@ -41,6 +52,7 @@ function toNote(row: NoteRow): Note {
     body: row.body ?? "",
     favorite: Boolean(row.favorite),
     collectionId: row.collection_id,
+    sourceId: row.source_id,
     createdAt: Number.isFinite(createdAt) ? createdAt : updatedAt,
     updatedAt: Number.isFinite(updatedAt) ? updatedAt : createdAt,
   };
@@ -59,15 +71,6 @@ function normalizeTitle(value: string) {
   return value.trim() || "Untitled note";
 }
 
-function sameLogicalNote(a: Note, b: Pick<Note, "title" | "body" | "favorite" | "collectionId">) {
-  return (
-    normalizeTitle(a.title) === normalizeTitle(b.title) &&
-    a.body === b.body &&
-    a.collectionId === b.collectionId &&
-    a.favorite === b.favorite
-  );
-}
-
 export function relativeDate(ts: number) {
   const diff = Date.now() - ts;
   const min = Math.round(diff / 60000);
@@ -81,14 +84,16 @@ export function relativeDate(ts: number) {
 }
 
 /** Notes + collections for one course, stored in Supabase (RLS-scoped to the user). */
-export function useNotes(courseId?: string, userId?: string) {
+export function useNotes(courseId?: string, userId?: string, scope: NotesScope = "editor") {
   const queryClient = useQueryClient();
   const enabled = Boolean(courseId && userId);
 
-  const notesKey = useMemo(() => ["notes", userId ?? null, courseId ?? null], [userId, courseId]);
+  // Keep the Study Hub and original editor caches separate. They still read/write
+  // the same Supabase records, but UI-specific state can never leak between modes.
+  const notesKey = useMemo(() => ["notes", userId ?? null, courseId ?? null, scope], [userId, courseId, scope]);
   const collectionsKey = useMemo(
-    () => ["collections", userId ?? null, courseId ?? null],
-    [userId, courseId],
+    () => ["collections", userId ?? null, courseId ?? null, scope],
+    [userId, courseId, scope],
   );
 
   const notesQuery = useQuery({
@@ -97,7 +102,7 @@ export function useNotes(courseId?: string, userId?: string) {
     queryFn: async (): Promise<Note[]> => {
       const { data, error } = await supabase
         .from("notes")
-        .select("id, title, body, favorite, collection_id, created_at, updated_at")
+        .select("id, title, body, favorite, collection_id, source_id, created_at, updated_at")
         .eq("course_id", courseId!)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -130,7 +135,7 @@ export function useNotes(courseId?: string, userId?: string) {
     setSelectedId(null);
     setFilter({ kind: "all" });
     setQuery("");
-  }, [courseId, userId]);
+  }, [courseId, userId, scope]);
 
   useEffect(() => {
     if (notes.length === 0) {
@@ -166,12 +171,7 @@ export function useNotes(courseId?: string, userId?: string) {
   }, [queryClient, collectionsKey]);
 
   const writeNote = useMutation({
-    mutationFn: async (payload: {
-      op: "insert" | "update" | "delete";
-      id: string;
-      ids?: string[];
-      values?: Record<string, unknown>;
-    }) => {
+    mutationFn: async (payload: NoteWritePayload) => {
       if (payload.op === "insert") {
         const { error } = await supabase.from("notes").insert({
           id: payload.id,
@@ -199,7 +199,12 @@ export function useNotes(courseId?: string, userId?: string) {
         .eq("course_id", courseId!);
       if (error) throw error;
     },
-    onSettled: invalidateNotes,
+    onError: (_error, payload) => {
+      // Never leave a failed optimistic write visible as if it were saved.
+      payload.rollback?.();
+      invalidateNotes();
+    },
+    onSuccess: invalidateNotes,
   });
 
   const writeCollection = useMutation({
@@ -235,54 +240,82 @@ export function useNotes(courseId?: string, userId?: string) {
     },
   });
 
-  const createNote = useCallback(() => {
-    if (!enabled) return "";
+  const createNote = useCallback(
+    (initial?: {
+      sourceId?: string | null;
+      title?: string;
+      body?: string;
+      favorite?: boolean;
+      collectionId?: string | null;
+    }) => {
+      if (!enabled) return "";
 
-    const collectionId = filter.kind === "collection" ? filter.id : null;
-    const logicalNote = {
-      title: "Untitled note",
-      body: "",
-      favorite: false,
-      collectionId,
-    };
+      const collectionId = initial?.collectionId ?? (filter.kind === "collection" ? filter.id : null);
+      const title = normalizeTitle(initial?.title ?? "Untitled note");
+      const body = initial?.body ?? "";
+      const favorite = initial?.favorite ?? false;
+      const sourceId = initial?.sourceId ?? null;
+      const currentNotes = dedupeNotes(queryClient.getQueryData<Note[]>(notesKey) ?? notes);
 
-    // Never create a second blank note in the same course/collection. This also
-    // closes the rapid double-click race at the UI/cache layer.
-    const existing = dedupeNotes(queryClient.getQueryData<Note[]>(notesKey) ?? notes).find((note) =>
-      sameLogicalNote(note, logicalNote),
-    );
-    if (existing) {
-      setSelectedId(existing.id);
-      return existing.id;
-    }
+      // Restore/import replay protection uses the original note id, not content.
+      if (sourceId) {
+        const existingBySource = currentNotes.find((note) => note.sourceId === sourceId || note.id === sourceId);
+        if (existingBySource) {
+          setSelectedId(existingBySource.id);
+          return existingBySource.id;
+        }
+      }
 
-    const now = Date.now();
-    const note: Note = {
-      id: newId(),
-      title: logicalNote.title,
-      body: logicalNote.body,
-      favorite: logicalNote.favorite,
-      collectionId: logicalNote.collectionId,
-      createdAt: now,
-      updatedAt: now,
-    };
-    patchNotesCache((prev) => [note, ...prev]);
-    setSelectedId(note.id);
-    writeNote.mutate({
-      op: "insert",
-      id: note.id,
-      values: {
-        title: note.title,
-        body: note.body,
-        favorite: note.favorite,
-        collection_id: note.collectionId,
-      },
-    });
-    return note.id;
-  }, [enabled, filter, notes, notesKey, patchNotesCache, queryClient, writeNote]);
+      // Only blank placeholder creation is deduplicated by content. Identical
+      // non-empty notes are legitimate and must remain independently creatable.
+      if (!sourceId && title === "Untitled note" && body === "" && !favorite) {
+        const existingBlank = currentNotes.find(
+          (note) =>
+            normalizeTitle(note.title) === "Untitled note" &&
+            note.body === "" &&
+            note.favorite === false &&
+            note.collectionId === collectionId,
+        );
+        if (existingBlank) {
+          setSelectedId(existingBlank.id);
+          return existingBlank.id;
+        }
+      }
+
+      const now = Date.now();
+      const note: Note = {
+        id: newId(),
+        title,
+        body,
+        favorite,
+        collectionId,
+        sourceId,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const previous = currentNotes;
+      patchNotesCache((prev) => [note, ...prev]);
+      setSelectedId(note.id);
+      writeNote.mutate({
+        op: "insert",
+        id: note.id,
+        values: {
+          title: note.title,
+          body: note.body,
+          favorite: note.favorite,
+          collection_id: note.collectionId,
+          source_id: note.sourceId,
+        },
+        rollback: () => queryClient.setQueryData<Note[]>(notesKey, previous),
+      });
+      return note.id;
+    },
+    [enabled, filter, notes, notesKey, patchNotesCache, queryClient, writeNote],
+  );
 
   const updateNote = useCallback(
     (id: string, patch: Partial<Omit<Note, "id">>) => {
+      const previous = dedupeNotes(queryClient.getQueryData<Note[]>(notesKey) ?? notes);
       patchNotesCache((prev) =>
         prev.map((n) => (n.id === id ? { ...n, ...patch, updatedAt: Date.now() } : n)),
       );
@@ -291,10 +324,16 @@ export function useNotes(courseId?: string, userId?: string) {
       if (patch.body !== undefined) values["body"] = patch.body;
       if (patch.favorite !== undefined) values["favorite"] = patch.favorite;
       if (patch.collectionId !== undefined) values["collection_id"] = patch.collectionId;
+      if (patch.sourceId !== undefined) values["source_id"] = patch.sourceId;
       if (Object.keys(values).length === 0) return;
-      writeNote.mutate({ op: "update", id, values });
+      writeNote.mutate({
+        op: "update",
+        id,
+        values,
+        rollback: () => queryClient.setQueryData<Note[]>(notesKey, previous),
+      });
     },
-    [patchNotesCache, writeNote],
+    [notes, notesKey, patchNotesCache, queryClient, writeNote],
   );
 
   const deleteNote = useCallback(
@@ -303,34 +342,36 @@ export function useNotes(courseId?: string, userId?: string) {
       const target = currentNotes.find((note) => note.id === id);
       if (!target) return;
 
-      const duplicateIds =
-        target.body.trim().length > 0
-          ? currentNotes
-              .filter(
-                (note) =>
-                  note.id !== id &&
-                  note.body === target.body &&
-                  note.collectionId === target.collectionId,
-              )
-              .map((note) => note.id)
-          : [];
-      const idsToDelete = [id, ...duplicateIds];
-
-      patchNotesCache((prev) => prev.filter((note) => !idsToDelete.includes(note.id)));
-      setSelectedId((cur) => (cur === id || idsToDelete.includes(cur ?? "") ? null : cur));
-      writeNote.mutate({ op: "delete", id, ids: idsToDelete });
+      // Delete means delete exactly the selected record. Never delete other notes
+      // merely because their text happens to match.
+      const previous = currentNotes;
+      patchNotesCache((prev) => prev.filter((note) => note.id !== id));
+      setSelectedId((cur) => (cur === id ? null : cur));
+      writeNote.mutate({
+        op: "delete",
+        id,
+        rollback: () => queryClient.setQueryData<Note[]>(notesKey, previous),
+      });
     },
     [notes, notesKey, patchNotesCache, queryClient, writeNote],
   );
 
   const toggleFavorite = useCallback(
     (id: string) => {
-      const current = (queryClient.getQueryData<Note[]>(notesKey) ?? []).find((n) => n.id === id);
-      const next = !current?.favorite;
-      patchNotesCache((prev) => prev.map((n) => (n.id === id ? { ...n, favorite: next } : n)));
-      writeNote.mutate({ op: "update", id, values: { favorite: next } });
+      const currentNotes = dedupeNotes(queryClient.getQueryData<Note[]>(notesKey) ?? notes);
+      const current = currentNotes.find((n) => n.id === id);
+      if (!current) return;
+      const previous = currentNotes;
+      const next = !current.favorite;
+      patchNotesCache((prev) => prev.map((n) => (n.id === id ? { ...n, favorite: next, updatedAt: Date.now() } : n)));
+      writeNote.mutate({
+        op: "update",
+        id,
+        values: { favorite: next },
+        rollback: () => queryClient.setQueryData<Note[]>(notesKey, previous),
+      });
     },
-    [queryClient, notesKey, patchNotesCache, writeNote],
+    [notes, notesKey, patchNotesCache, queryClient, writeNote],
   );
 
   const addCollection = useCallback(
