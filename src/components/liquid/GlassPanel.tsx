@@ -29,8 +29,6 @@ export function GlassPanel({
   };
 
   const gel = liquid.gel / 100;
-  const sheenFactor = liquid.sheen / 50;
-  const refraction = liquid.refraction / 100;
 
   return (
     <motion.div
@@ -44,7 +42,7 @@ export function GlassPanel({
       transition={spring}
       style={{
         backgroundColor: "var(--water-gel-bg)",
-        backdropFilter: "blur(var(--liquid-density, 12px)) saturate(var(--liquid-saturation, 200%)) contrast(105%)",
+        backdropFilter: "blur(var(--liquid-density, 12px)) saturate(200%) contrast(105%)",
         borderRadius: `${18 + gel * 26}px`,
         border: "1px solid rgba(255, 255, 255, 0.22)",
         borderTopColor: "rgba(255, 255, 255, 0.4)",
@@ -56,21 +54,6 @@ export function GlassPanel({
         className,
       )}
     >
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
-        style={{
-          background: `linear-gradient(135deg, rgba(255, 255, 255, ${(0.14 * sheenFactor).toFixed(3)}) 0%, rgba(255, 255, 255, ${(0.02 * sheenFactor).toFixed(3)}) 55%, rgba(255, 255, 255, ${(0.09 * sheenFactor).toFixed(3)}) 100%)`,
-        }}
-      />
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] border border-white/35 mix-blend-screen"
-        style={{
-          opacity: 0.7 * refraction,
-          filter: refraction > 0 ? "url(#liquid-refraction)" : "none",
-        }}
-      />
       <span aria-hidden className="liquid-veil pointer-events-none absolute inset-0 -z-10 rounded-[inherit]" />
       {children}
     </motion.div>
