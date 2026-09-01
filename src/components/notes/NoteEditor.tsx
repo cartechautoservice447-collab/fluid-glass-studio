@@ -25,6 +25,9 @@ type Props = {
   onUpdate: (id: string, patch: Partial<Omit<Note, "id">>) => void;
   onDelete: (id: string) => void;
   onToggleFavorite: (id: string) => void;
+  notes?: Note[];
+  onSelectNote?: (id: string | null) => void;
+  showAllNotes?: boolean;
 };
 
 const NO_COLLECTION = "__none__";
