@@ -1,5 +1,4 @@
 import type { RefObject } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Props = {
   textareaRef: RefObject<HTMLTextAreaElement | null>;
@@ -81,29 +80,22 @@ export function MarkdownToolbar({ textareaRef, value, onChange, disabled }: Prop
 
   return (
     <div className="flex flex-wrap items-center gap-1">
-      <Select
+      <select
         disabled={disabled}
+        aria-label="Note symbols"
         defaultValue=""
-        onValueChange={(selectedKey) => {
-          const tool = SYMBOL_TOOLS.find((item) => item.key === selectedKey);
+        onChange={(event) => {
+          const tool = SYMBOL_TOOLS.find((item) => item.key === event.target.value);
           if (tool) insertSymbol(tool);
+          event.target.value = "";
         }}
+        className="h-8 max-w-[10rem] rounded-md border border-slate-300 bg-white px-2 text-xs font-medium text-slate-900 shadow-sm outline-none hover:bg-slate-50 focus:ring-1 focus:ring-slate-400"
       >
-        <SelectTrigger
-          className="h-8 w-[7.2rem] border-white/25 bg-white/10 text-xs font-medium text-[#c9d1d9] shadow-sm backdrop-blur-md"
-          aria-label="Note symbols"
-          title="Note symbols"
-        >
-          <SelectValue placeholder="Symbols" />
-        </SelectTrigger>
-        <SelectContent className="min-w-[14rem]">
-          {SYMBOL_TOOLS.map((tool) => (
-            <SelectItem key={tool.key} value={tool.key}>
-              {tool.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        <option value="">Symbols</option>
+        {SYMBOL_TOOLS.map((tool) => (
+          <option key={tool.key} value={tool.key}>{tool.label}</option>
+        ))}
+      </select>
     </div>
   );
 }
