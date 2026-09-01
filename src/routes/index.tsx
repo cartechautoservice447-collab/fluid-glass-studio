@@ -9,7 +9,7 @@ import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { CustomizationProvider } from "@/context/CustomizationContext";
 import { useCourses, useCourseStats } from "@/hooks/useCourses";
-export const Route=createFileRoute("/")({head:()=>({meta:[{title:"Glass Notes — Liquid Glass course workspaces"},{name:"description",content:"Course folders open into an isolated Liquid Glass notes workspace."}]}),component:Page});
+export const Route=createFileRoute("/")({head:()=>({meta:[{title:"Glass Notes — Liquid Glass course workspaces"},{name:"description",content:"Course folders open into an isolated Liquid Glass notes workspace."}]}),component:Page,ssr:false});
 const DISTRACTION_KEY=(userId:string)=>`liquid-glass-distraction-mode:${userId}`;
 type DistractionSession={active:boolean;courseId?:string|null;courseName:string;date:string;durationHours:number;endsAt:number|null};
 function readDistractionSession(userId:string):DistractionSession|null{try{const saved=JSON.parse(localStorage.getItem(DISTRACTION_KEY(userId))??"null");if(!saved?.active||!saved?.endsAt||saved.endsAt<=Date.now()||!saved.courseId){localStorage.removeItem(DISTRACTION_KEY(userId));return null}return saved as DistractionSession}catch{localStorage.removeItem(DISTRACTION_KEY(userId));return null}}
