@@ -21,15 +21,11 @@ type Props = {
   minimized: boolean;
   onMinimize: () => void;
   note: Note | null;
-  notes?: Note[];
-  onSelectNote?: (id: string | null) => void;
-  showAllNotes?: boolean;
   collections: Collection[];
   onUpdate: (id: string, patch: Partial<Omit<Note, "id">>) => void;
   onDelete: (id: string) => void;
   onToggleFavorite: (id: string) => void;
 };
-
 
 const NO_COLLECTION = "__none__";
 
