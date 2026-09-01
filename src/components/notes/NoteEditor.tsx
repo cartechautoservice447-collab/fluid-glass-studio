@@ -40,6 +40,9 @@ export function NoteEditor({
   onUpdate,
   onDelete,
   onToggleFavorite,
+  notes = [],
+  onSelectNote,
+  showAllNotes = false,
 }: Props) {
   const [title, setTitle] = useState(note?.title ?? "");
   const [body, setBody] = useState(note?.body ?? "");
@@ -92,6 +95,25 @@ export function NoteEditor({
     textareaRef.current = element;
   }, []);
 
+  const allNotesSelector = showAllNotes && onSelectNote && notes.length > 0 ? (
+    <Select value={note?.id ?? undefined} onValueChange={onSelectNote}>
+      <SelectTrigger
+        className="h-9 w-[15rem] shrink-0 border-white/20 bg-white/10 text-left text-xs font-semibold"
+        aria-label="Select note"
+        title="Select note"
+      >
+        <SelectValue placeholder="All Notes" />
+      </SelectTrigger>
+      <SelectContent className="max-h-[20rem]">
+        {notes.map((availableNote) => (
+          <SelectItem key={availableNote.id} value={availableNote.id}>
+            {availableNote.title || "Untitled note"}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  ) : null;
+
   if (minimized) {
     return (
       <GlassPanel className="flex h-full items-start justify-center !p-3">
@@ -112,11 +134,12 @@ export function NoteEditor({
     return (
       <GlassPanel className="relative flex h-full min-h-0 flex-col overflow-hidden !p-0">
         <div className="flex min-h-10 items-center gap-2 border-b border-white/10 p-4 pr-12">
-          <span className="text-xs text-muted-foreground">Select a note</span>
+          {allNotesSelector}
+          {!allNotesSelector && <span className="text-xs text-muted-foreground">Select a note</span>}
         </div>
         <button type="button" onClick={onMinimize} className="absolute right-4 top-4 z-10 flex size-8 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20" aria-label="Minimize editor panel" title="Minimize editor panel"><PanelLeft className="size-4 stroke-[1.8]" /></button>
         <div className="flex min-h-0 flex-1 items-center justify-center p-8 text-center">
-          <p className="text-sm text-muted-foreground">Select a note from the list, or create a new one to start writing.</p>
+          <p className="text-sm text-muted-foreground">{allNotesSelector ? "Choose a note from All Notes to start writing." : "Select a note from the list, or create a new one to start writing."}</p>
         </div>
       </GlassPanel>
     );
@@ -126,6 +149,7 @@ export function NoteEditor({
     <>
       <GlassPanel className="relative flex h-full min-h-0 flex-col overflow-hidden !p-0">
         <div className="flex min-h-10 flex-wrap items-center gap-2 border-b border-white/10 p-4 pr-12">
+          {allNotesSelector}
           <Input value={title} onChange={(event) => setTitle(event.target.value)} aria-label="Note title" placeholder="Note title" className="h-9 min-w-[10rem] flex-1 border-white/20 bg-white/10 text-sm font-semibold on-stage" />
           <Select value={note.collectionId ?? NO_COLLECTION} onValueChange={(value) => onUpdate(note.id, { collectionId: value === NO_COLLECTION ? null : value })}>
             <SelectTrigger className="h-9 w-[9.5rem] border-white/20 bg-white/10 text-xs" aria-label="Collection"><SelectValue placeholder="Collection" /></SelectTrigger>
