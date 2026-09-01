@@ -25,18 +25,28 @@ type Props = {
   showAllNotes?: boolean;
 };
 
+type Readability = "default" | "good" | "best" | "great";
+
 const NO_COLLECTION = "__none__";
 const PREVIEW_MODE_KEY = "notes-preview-mode-v1";
+const READABILITY_KEY = "notes-readability-v1";
 
 function readPreviewMode(): "edit" | "preview" {
   if (typeof window === "undefined") return "edit";
   return window.localStorage.getItem(PREVIEW_MODE_KEY) === "preview" ? "preview" : "edit";
 }
 
+function readReadability(): Readability {
+  if (typeof window === "undefined") return "default";
+  const saved = window.localStorage.getItem(READABILITY_KEY);
+  return saved === "good" || saved === "best" || saved === "great" ? saved : "default";
+}
+
 export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate, onDelete, onToggleFavorite, notes = [], onSelectNote, showAllNotes = false }: Props) {
   const [title, setTitle] = useState(note?.title ?? "");
   const [body, setBody] = useState(note?.body ?? "");
   const [mode, setMode] = useState<"edit" | "preview">(readPreviewMode);
+  const [readability, setReadability] = useState<Readability>(readReadability);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -86,6 +96,11 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
     try { window.localStorage.setItem(PREVIEW_MODE_KEY, next); } catch { /* ignore storage errors */ }
   }, []);
 
+  const setReadabilityLevel = useCallback((next: Readability) => {
+    setReadability(next);
+    try { window.localStorage.setItem(READABILITY_KEY, next); } catch { /* ignore storage errors */ }
+  }, []);
+
   const allNotesSelector = showAllNotes && onSelectNote && notes.length > 0 ? (
     <Select value={note?.id ?? undefined} onValueChange={onSelectNote}>
       <SelectTrigger className="h-9 w-[15rem] shrink-0 border-white/20 bg-white/10 text-left text-xs font-semibold" aria-label="Select note" title="Select note">
@@ -118,12 +133,25 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
     <button type="button" onClick={onMinimize} className="absolute right-4 top-4 z-10 flex size-8 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20" aria-label="Minimize editor panel" title="Minimize editor panel"><PanelLeft className="size-4 stroke-[1.8]" /></button>
     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-[#0d1117] px-3 py-2">
       <MarkdownToolbar textareaRef={textareaRef} value={activeValue} onChange={(next) => updateSegment(activeSegmentIndex, next)} onReplaceAll={replaceAll} disabled={mode === "preview"} />
-      <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-[#c9d1d9] hover:bg-white/10 hover:text-white" onClick={() => setPreviewMode(mode === "edit" ? "preview" : "edit")}>
-        {mode === "edit" ? <Eye className="size-3.5" /> : <Pencil className="size-3.5" />}<span className="text-xs">{mode === "edit" ? "Preview" : "Edit"}</span>
-      </Button>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Select value={readability} onValueChange={(value) => setReadabilityLevel(value as Readability)}>
+          <SelectTrigger className="h-8 w-[7.2rem] border-[#30363d] bg-[#161b22] text-xs font-medium text-[#c9d1d9]" aria-label="Preview readability" title="Reading readability">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">Default</SelectItem>
+            <SelectItem value="good">Good</SelectItem>
+            <SelectItem value="best">Best</SelectItem>
+            <SelectItem value="great">Great</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-[#c9d1d9] hover:bg-white/10 hover:text-white" onClick={() => setPreviewMode(mode === "edit" ? "preview" : "edit")}>
+          {mode === "edit" ? <Eye className="size-3.5" /> : <Pencil className="size-3.5" />}<span className="text-xs">{mode === "edit" ? "Preview" : "Edit"}</span>
+        </Button>
+      </div>
     </div>
     <div className={`min-h-0 flex-1 overflow-y-auto bg-[#0d1117] ${mode === "edit" ? "p-4" : "p-0"}`}>
-      {mode === "edit" ? <NoteDocumentEditor value={body} activeIndex={activeSegmentIndex} onActiveIndexChange={setActiveSegmentIndex} onChangeSegment={updateSegment} onActiveTextarea={setActiveTextarea} /> : <div className="min-h-full"><div>{previewBody && <NotebookPreviewAdditive body={previewBody} />}</div><div className="mx-auto w-full max-w-4xl px-6 pb-8 sm:px-10">{segments.filter((segment) => segment.type === "output").map((segment, index) => <section key={`preview-output-${segment.start}-${segment.end}-${index}`} className="mb-3 overflow-hidden rounded-xl border border-[#30363d] bg-[#010409] shadow-[0_8px_24px_rgba(0,0,0,0.22)]" aria-label={`Terminal output${index + 1}`}><div className="border-b border-[#21262d] bg-[#0d1117] px-3 py-2 text-[0.62rem] font-medium uppercase tracking-[0.14em] text-[#8b949e]">Output · Code {index + 1}</div><pre className="max-h-56 overflow-auto px-4 py-3 font-mono text-[0.82rem] leading-6 text-[#c9d1d9]">{segment.content}</pre></section>)}</div></div>}
+      {mode === "edit" ? <NoteDocumentEditor value={body} activeIndex={activeSegmentIndex} onActiveIndexChange={setActiveSegmentIndex} onChangeSegment={updateSegment} onActiveTextarea={setActiveTextarea} readability={readability} /> : <div className="min-h-full"><NotebookPreviewAdditive body={previewBody} readability={readability} /><div className="mx-auto w-full max-w-4xl px-6 pb-8 sm:px-10">{segments.filter((segment) => segment.type === "output").map((segment, index) => <section key={`preview-output-${segment.start}-${segment.end}-${index}`} className="mb-3 overflow-hidden rounded-xl border border-[#30363d] bg-[#010409] shadow-[0_8px_24px_rgba(0,0,0,0.22)]" aria-label={`Terminal output${index + 1}`}><div className="border-b border-[#21262d] bg-[#0d1117] px-3 py-2 text-[0.62rem] font-medium uppercase tracking-[0.14em] text-[#a8b3c0]">Output · Code {index + 1}</div><pre className={`max-h-56 overflow-auto px-4 py-3 font-mono text-[#d3d9e0] ${readability === "great" ? "text-[0.9rem] leading-7" : readability === "best" ? "text-[0.86rem] leading-7" : "text-[0.82rem] leading-6"}`}>{segment.content}</pre></section>)}</div></div>}
     </div>
     <p className="border-t border-white/10 bg-[#0d1117] px-4 py-2 text-[0.65rem] uppercase tracking-[0.2em] text-[#8b949e]">Autosaved · edited {relativeDate(note.updatedAt)}</p>
   </GlassPanel>
