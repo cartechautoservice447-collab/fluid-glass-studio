@@ -64,7 +64,8 @@ export function GlassPanel({
       />
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] border border-white/35 opacity-70 mix-blend-screen"
+        className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] border border-white/35 mix-blend-screen opacity-25"
+        style={{ filter: "url(#liquid-refraction)" }}
       />
       <span aria-hidden className="liquid-veil pointer-events-none absolute inset-0 -z-10 rounded-[inherit]" />
       {children}
