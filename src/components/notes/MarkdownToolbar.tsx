@@ -1,7 +1,4 @@
-import { Bold, Code, Italic, Link as LinkIcon } from "lucide-react";
 import type { RefObject } from "react";
-
-import { Button } from "@/components/ui/button";
 
 type Props = {
   textareaRef: RefObject<HTMLTextAreaElement | null>;
@@ -10,13 +7,6 @@ type Props = {
   onReplaceAll?: (next: string) => void;
   disabled?: boolean;
 };
-
-const ACTIONS = [
-  { key: "bold", label: "Bold", icon: Bold, before: "**", after: "**" },
-  { key: "italic", label: "Italic", icon: Italic, before: "_", after: "_" },
-  { key: "code", label: "Code", icon: Code, before: "`", after: "`" },
-  { key: "link", label: "Link", icon: LinkIcon, before: "[", after: "](https://)" },
-] as const;
 
 const TEMPLATES = {
   lecture: "# Lecture Notes\n\n## Key Concepts\n- \n\n## Important Details\n- \n\n## Questions\n- \n\n## Summary\n",
@@ -32,17 +22,17 @@ const SYMBOL_TOOLS = [
   { key: "h3", label: "### Heading 3", insert: "### " },
   { key: "bullet", label: "* Bullet list", insert: "* " },
   { key: "bold", label: "** Bold **", before: "**", after: "**" },
+  { key: "italic", label: "_ Italic _", before: "_", after: "_" },
+  { key: "code", label: "` Code `", before: "`", after: "`" },
+  { key: "link", label: "[text](url) Link", insert: "[text](https://)" },
   { key: "quote", label: "> Quote box", insert: "> " },
-  { key: "code-block", label: "```python Code", insert: "```python\n\n```" },
+  { key: "code-block", label: "```python Code block", insert: "```python\n\n```" },
   { key: "numbered", label: "1. Numbered list", insert: "1. " },
-  { key: "inline-code", label: "` Inline code `", before: "`", after: "`" },
   { key: "divider", label: "--- Divider", insert: "---\n" },
   { key: "strike", label: "~~ Strikethrough ~~", before: "~~", after: "~~" },
   { key: "checklist", label: "[ ] Checklist", insert: "- [ ] " },
-  { key: "link", label: "[ ]( ) Link", insert: "[text](https://)" },
-  { key: "image", label: "![ ]( ) Image", insert: "![alt text](https://)" },
+  { key: "image", label: "![alt](url) Image", insert: "![alt text](https://)" },
   { key: "table", label: "| | Table", insert: "| Column 1 | Column 2 |\n| --- | --- |\n|  |  |" },
-  { key: "italic", label: "_ Italic _", before: "_", after: "_" },
   { key: "note-callout", label: "> [!NOTE] Note", insert: "> [!NOTE]\n> " },
   { key: "tip-callout", label: "> [!TIP] Tip", insert: "> [!TIP]\n> " },
   { key: "warning-callout", label: "> [!WARNING] Warning", insert: "> [!WARNING]\n> " },
@@ -50,19 +40,6 @@ const SYMBOL_TOOLS = [
 ] as const;
 
 export function MarkdownToolbar({ textareaRef, value, onChange, onReplaceAll, disabled }: Props) {
-  const wrap = (before: string, after: string) => {
-    const el = textareaRef.current;
-    const start = el?.selectionStart ?? value.length;
-    const end = el?.selectionEnd ?? value.length;
-    const selected = value.slice(start, end);
-    onChange(`${value.slice(0, start)}${before}${selected}${after}${value.slice(end)}`);
-    requestAnimationFrame(() => {
-      if (!el) return;
-      el.focus();
-      el.setSelectionRange(start + before.length, start + before.length + selected.length);
-    });
-  };
-
   const insertSymbol = (tool: (typeof SYMBOL_TOOLS)[number]) => {
     const el = textareaRef.current;
     const start = el?.selectionStart ?? value.length;
@@ -117,12 +94,7 @@ export function MarkdownToolbar({ textareaRef, value, onChange, onReplaceAll, di
 
   return (
     <div className="flex flex-wrap items-center gap-1">
-      {ACTIONS.map(({ key, label, icon: Icon, before, after }) => (
-        <Button key={key} type="button" size="sm" variant="ghost" disabled={disabled} aria-label={label} title={label} onClick={() => wrap(before, after)} className="h-8 gap-1.5 px-2 text-[#c9d1d9] hover:bg-white/10 hover:text-white">
-          <Icon className="size-3.5" /><span className="text-xs">{label}</span>
-        </Button>
-      ))}
-      <select disabled={disabled} aria-label="Note symbols" defaultValue="" onChange={(event) => { const tool = SYMBOL_TOOLS.find((item) => item.key === event.target.value); if (tool) insertSymbol(tool); event.target.value = ""; }} className="h-8 max-w-[9rem] rounded-md border border-white/10 bg-white/5 px-2 text-xs text-[#c9d1d9] outline-none hover:bg-white/10">
+      <select disabled={disabled} aria-label="Note symbols" defaultValue="" onChange={(event) => { const tool = SYMBOL_TOOLS.find((item) => item.key === event.target.value); if (tool) insertSymbol(tool); event.target.value = ""; }} className="h-8 max-w-[10rem] rounded-md border border-slate-300 bg-white px-2 text-xs font-medium text-slate-900 shadow-sm outline-none hover:bg-slate-50 focus:ring-1 focus:ring-slate-400">
         <option value="">Symbols</option>
         {SYMBOL_TOOLS.map((tool) => (
           <option key={tool.key} value={tool.key}>{tool.label}</option>
