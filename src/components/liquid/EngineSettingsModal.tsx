@@ -1,4 +1,4 @@
-import { Settings2, RotateCcw } from "lucide-react";
+import { Settings2, RotateCcw, Sparkles } from "lucide-react";
 import { useState } from "react";
 
 import { BackgroundImageControl } from "@/components/liquid/BackgroundImageControl";
@@ -21,7 +21,7 @@ import { useCustomization } from "@/context/CustomizationContext";
 type Props = { trigger?: "button" | "icon" };
 
 export function EngineSettingsModal({ trigger = "button" }: Props) {
-  const { liquid, setLiquid, reset, theme, displayName, setDisplayName, pureBlack, setPureBlack } = useCustomization();
+  const { liquid, setLiquid, reset, theme, displayName, setDisplayName, pureBlack, setPureBlack, glassEnhancement, setGlassEnhancement } = useCustomization();
   const [open, setOpen] = useState(false);
 
   return <Dialog open={open} onOpenChange={setOpen}>
@@ -34,7 +34,14 @@ export function EngineSettingsModal({ trigger = "button" }: Props) {
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/20 bg-white/5 p-4"><div><p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-foreground">Pure Black</p><p className="mt-1 text-xs text-muted-foreground">Flat black background instead of the gradient glow. Glass panels stay as they are.</p></div><Switch checked={pureBlack} onCheckedChange={setPureBlack} aria-label="Toggle pure black background" /></div>
         <BackgroundImageControl />
         <BackgroundOpacityControl />
-        <div className="flex items-center gap-3"><h3 className="text-[0.68rem] font-bold uppercase tracking-[0.28em] text-foreground">Liquid Glass Physics</h3><span className="h-px flex-1 bg-gradient-to-r from-white/40 to-transparent" /></div>
+        <div className="flex items-center gap-3"><h3 className="text-[0.68rem] font-bold uppercase tracking-[0.28em] text-foreground">Liquid Glass</h3><span className="h-px flex-1 bg-gradient-to-r from-white/40 to-transparent" /></div>
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/20 bg-white/5 p-4">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 rounded-xl bg-white/10 p-2"><Sparkles className="size-4" /></div>
+            <div><p className="text-sm font-semibold text-foreground">Glass Enhancement</p><p className="mt-1 text-xs text-muted-foreground">Adds a fixed premium highlight, depth, and clarity treatment without extra tuning controls.</p></div>
+          </div>
+          <Switch checked={glassEnhancement} onCheckedChange={setGlassEnhancement} aria-label="Toggle glass enhancement" />
+        </div>
         <LiquidSlider label="Liquid Density" hint="Viscosity & refraction — backdrop blur radius of every glass surface." value={liquid.density} min={0} max={40} display={`${liquid.density}px`} onChange={(density) => setLiquid({ density })} />
         <LiquidSlider label="Liquid Transparency" hint="Alpha blending — how much of the world behind shows through the panel." value={liquid.transparency} min={5} max={95} display={`${liquid.transparency}%`} onChange={(transparency) => setLiquid({ transparency })} />
         <LiquidSlider label="Liquid Clearness" hint="Distortion & glare clarity — SVG turbulence index on refracted edges." value={liquid.clearness} min={0} max={100} display={`${liquid.clearness} idx`} onChange={(clearness) => setLiquid({ clearness })} />
