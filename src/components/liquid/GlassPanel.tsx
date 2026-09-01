@@ -47,8 +47,6 @@ export function GlassPanel({
         border: "1px solid rgba(255, 255, 255, 0.22)",
         borderTopColor: "rgba(255, 255, 255, 0.4)",
         boxShadow: `inset 0 ${1 + gel * 1.5}px ${2 + gel * 3}px 0 rgba(255, 255, 255, ${0.35 + gel * 0.3}), inset 0 -${2 + gel * 3}px ${4 + gel * 6}px 0 rgba(0, 0, 0, ${0.16 + gel * 0.2}), 0 ${8 + gel * 10}px ${32 + gel * 24}px 0 rgba(0, 0, 0, ${0.2 + gel * 0.22})`,
-        transform: "translateZ(0)",
-        isolation: "isolate",
       }}
       className={cn(
         "liquid-panel relative overflow-hidden p-6 will-change-transform",
@@ -56,7 +54,6 @@ export function GlassPanel({
         className,
       )}
     >
-      <span aria-hidden className="liquid-veil pointer-events-none absolute inset-0 -z-10 rounded-[inherit]" />
       <span
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
@@ -68,7 +65,9 @@ export function GlassPanel({
       <span
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] border border-white/35 opacity-70 mix-blend-screen"
+        style={{ filter: "url(#liquid-refraction)" }}
       />
+      <span aria-hidden className="liquid-veil pointer-events-none absolute inset-0 -z-10 rounded-[inherit]" />
       {children}
     </motion.div>
   );
