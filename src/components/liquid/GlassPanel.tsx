@@ -19,7 +19,7 @@ export function GlassPanel({
   onClick,
   interactive = Boolean(onClick),
 }: GlassPanelProps) {
-  const { liquid, glassEnhancement } = useCustomization();
+  const { liquid } = useCustomization();
 
   const spring = {
     type: "spring" as const,
@@ -69,37 +69,6 @@ export function GlassPanel({
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] border border-white/35 opacity-70 mix-blend-screen"
       />
-      {glassEnhancement && (
-        <>
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
-            style={{
-              background:
-                "radial-gradient(125% 80% at 10% -8%, rgba(255,255,255,0.17) 0%, rgba(255,255,255,0.07) 24%, transparent 58%), radial-gradient(100% 85% at 104% 108%, rgba(255,255,255,0.075) 0%, transparent 58%), linear-gradient(115deg, rgba(255,255,255,0.045) 0%, transparent 36%, rgba(255,255,255,0.035) 68%, rgba(255,255,255,0.055) 100%)",
-            }}
-          />
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-[1px] -z-10 rounded-[inherit]"
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(255,255,255,0.105) 0%, rgba(255,255,255,0.028) 17%, transparent 45%, rgba(0,0,0,0.018) 74%, rgba(255,255,255,0.028) 100%)",
-              boxShadow:
-                "inset 0 1px 0 rgba(255,255,255,0.30), inset 1px 0 0 rgba(255,255,255,0.11), inset -1px 0 0 rgba(255,255,255,0.075), inset 0 -1px 0 rgba(0,0,0,0.05)",
-            }}
-          />
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
-            style={{
-              background:
-                "radial-gradient(70% 18% at 50% -4%, rgba(255,255,255,0.13) 0%, transparent 100%)",
-              opacity: 0.8,
-            }}
-          />
-        </>
-      )}
       {children}
     </motion.div>
   );
