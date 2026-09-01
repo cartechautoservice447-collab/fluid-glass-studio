@@ -19,7 +19,7 @@ export function GlassPanel({
   onClick,
   interactive = Boolean(onClick),
 }: GlassPanelProps) {
-  const { liquid } = useCustomization();
+  const { liquid, glassEnhancement } = useCustomization();
 
   const spring = {
     type: "spring" as const,
@@ -67,10 +67,17 @@ export function GlassPanel({
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] border border-white/35 opacity-70 mix-blend-screen"
       />
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-white/[0.08] opacity-0 dark:opacity-100"
-      />
+      {glassEnhancement && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
+          style={{
+            background:
+              "linear-gradient(120deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.035) 38%, rgba(255,255,255,0.00) 62%, rgba(255,255,255,0.06) 100%)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(255,255,255,0.05)",
+          }}
+        />
+      )}
       {children}
     </motion.div>
   );
