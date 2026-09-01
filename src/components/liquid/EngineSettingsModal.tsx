@@ -1,8 +1,6 @@
 import { Settings2, RotateCcw } from "lucide-react";
 import { useState } from "react";
 
-import { BackgroundImageControl } from "@/components/liquid/BackgroundImageControl";
-import { BackgroundOpacityControl } from "@/components/liquid/BackgroundOpacityControl";
 import { LiquidSlider } from "@/components/liquid/LiquidSlider";
 import { ThemeToggle } from "@/components/liquid/ThemeToggle";
 import { Button } from "@/components/ui/button";
@@ -32,8 +30,6 @@ export function EngineSettingsModal({ trigger = "button" }: Props) {
         <div className="space-y-2 rounded-2xl border border-white/20 bg-white/5 p-4"><p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-foreground">Profile</p><Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Your name" maxLength={40} className="border-white/20 bg-white/10" /><p className="text-xs text-muted-foreground">Shown in the welcome greeting on your course grid.</p></div>
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/20 bg-white/5 p-4"><div><p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-foreground">Appearance</p><p className="mt-1 text-xs text-muted-foreground">{theme === "dark" ? "Night mode — obsidian liquid" : "Day mode — bright liquid"}</p></div><ThemeToggle /></div>
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/20 bg-white/5 p-4"><div><p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-foreground">Pure Black</p><p className="mt-1 text-xs text-muted-foreground">Flat black background instead of the gradient glow. Glass panels stay as they are.</p></div><Switch checked={pureBlack} onCheckedChange={setPureBlack} aria-label="Toggle pure black background" /></div>
-        <BackgroundImageControl />
-        <BackgroundOpacityControl />
         <div className="flex items-center gap-3"><h3 className="text-[0.68rem] font-bold uppercase tracking-[0.28em] text-foreground">Liquid Glass Physics</h3><span className="h-px flex-1 bg-gradient-to-r from-white/40 to-transparent" /></div>
         <LiquidSlider label="Liquid Density" hint="Viscosity & refraction — backdrop blur radius of every glass surface." value={liquid.density} min={0} max={40} display={`${liquid.density}px`} onChange={(density) => setLiquid({ density })} />
         <LiquidSlider label="Liquid Transparency" hint="Alpha blending — how much of the world behind shows through the panel." value={liquid.transparency} min={5} max={95} display={`${liquid.transparency}%`} onChange={(transparency) => setLiquid({ transparency })} />
