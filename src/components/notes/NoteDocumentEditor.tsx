@@ -66,24 +66,25 @@ export function NoteDocumentEditor({ value, activeIndex, onActiveIndexChange, on
   const rootRef = useRef<HTMLDivElement | null>(null);
   const rhythm = READABILITY[readability];
 
-  const resizeTextarea = useCallback((element: HTMLTextAreaElement | null) => {
+  const fullResizeTextarea = useCallback((element: HTMLTextAreaElement | null) => {
     if (!element) return;
     element.style.height = "auto";
     element.style.height = `${Math.max(element.scrollHeight, 128)}px`;
   }, []);
 
-  const preserveScroll = useCallback((callback: () => void) => {
-    const scrollContainer = rootRef.current?.parentElement;
-    const top = scrollContainer?.scrollTop ?? 0;
-    const left = scrollContainer?.scrollLeft ?? 0;
-    callback();
-    if (scrollContainer) {
-      requestAnimationFrame(() => {
-        scrollContainer.scrollTop = top;
-        scrollContainer.scrollLeft = left;
-      });
+  // While a textarea is focused, auto-height may GROW but must never SHRINK:
+  // shrinking on each delete changes the scroll container's height and yanks
+  // the editor viewport upward. A single full resize happens on blur instead.
+  const resizeTextarea = useCallback((element: HTMLTextAreaElement | null) => {
+    if (!element) return;
+    if (typeof document !== "undefined" && document.activeElement === element) {
+      if (element.scrollHeight > element.clientHeight) {
+        element.style.height = `${Math.max(element.scrollHeight, 128)}px`;
+      }
+      return;
     }
-  }, []);
+    fullResizeTextarea(element);
+  }, [fullResizeTextarea]);
 
   useEffect(() => {
     const scrollContainer = rootRef.current?.parentElement;
