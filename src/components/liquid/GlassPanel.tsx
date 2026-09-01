@@ -67,6 +67,10 @@ export function GlassPanel({
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] border border-white/35 opacity-70 mix-blend-screen"
       />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-white/[0.08] opacity-0 dark:opacity-100"
+      />
       {children}
     </motion.div>
   );
