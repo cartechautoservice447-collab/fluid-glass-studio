@@ -47,6 +47,8 @@ export function GlassPanel({
         border: "1px solid rgba(255, 255, 255, 0.22)",
         borderTopColor: "rgba(255, 255, 255, 0.4)",
         boxShadow: `inset 0 ${1 + gel * 1.5}px ${2 + gel * 3}px 0 rgba(255, 255, 255, ${0.35 + gel * 0.3}), inset 0 -${2 + gel * 3}px ${4 + gel * 6}px 0 rgba(0, 0, 0, ${0.16 + gel * 0.2}), 0 ${8 + gel * 10}px ${32 + gel * 24}px 0 rgba(0, 0, 0, ${0.2 + gel * 0.22})`,
+        transform: "translateZ(0)",
+        isolation: "isolate",
       }}
       className={cn(
         "liquid-panel relative overflow-hidden p-6 will-change-transform",
@@ -74,7 +76,7 @@ export function GlassPanel({
             className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
             style={{
               background:
-                "radial-gradient(120% 62% at 18% 0%, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.07) 28%, rgba(255,255,255,0) 62%), radial-gradient(90% 70% at 100% 100%, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0) 60%)",
+                "radial-gradient(125% 80% at 10% -8%, rgba(255,255,255,0.17) 0%, rgba(255,255,255,0.07) 24%, transparent 58%), radial-gradient(100% 85% at 104% 108%, rgba(255,255,255,0.075) 0%, transparent 58%), linear-gradient(115deg, rgba(255,255,255,0.045) 0%, transparent 36%, rgba(255,255,255,0.035) 68%, rgba(255,255,255,0.055) 100%)",
             }}
           />
           <span
@@ -82,9 +84,18 @@ export function GlassPanel({
             className="pointer-events-none absolute inset-[1px] -z-10 rounded-[inherit]"
             style={{
               background:
-                "linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.025) 20%, rgba(255,255,255,0) 48%, rgba(255,255,255,0.035) 100%)",
+                "linear-gradient(180deg, rgba(255,255,255,0.105) 0%, rgba(255,255,255,0.028) 17%, transparent 45%, rgba(0,0,0,0.018) 74%, rgba(255,255,255,0.028) 100%)",
               boxShadow:
-                "inset 0 1px 0 rgba(255,255,255,0.26), inset 1px 0 0 rgba(255,255,255,0.10), inset -1px 0 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.04)",
+                "inset 0 1px 0 rgba(255,255,255,0.30), inset 1px 0 0 rgba(255,255,255,0.11), inset -1px 0 0 rgba(255,255,255,0.075), inset 0 -1px 0 rgba(0,0,0,0.05)",
+            }}
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
+            style={{
+              background:
+                "radial-gradient(70% 18% at 50% -4%, rgba(255,255,255,0.13) 0%, transparent 100%)",
+              opacity: 0.8,
             }}
           />
         </>
