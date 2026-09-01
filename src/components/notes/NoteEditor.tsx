@@ -117,7 +117,7 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
   }
 
   if (!note) {
-    return <GlassPanel className="relative flex h-full min-h-0 flex-col overflow-hidden !p-0"><div className="flex min-h-10 items-center gap-2 border-b border-white/10 p-4 pr-12">{allNotesSelector}{!allNotesSelector && <span className="text-xs text-muted-foreground">Select a note</span>}</div><button type="button" onClick={onMinimize} className="absolute right-4 top-4 z-10 flex size-8 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20" aria-label="Minimize editor panel" title="Minimize editor panel"><PanelLeft className="size-4 stroke-[1.8]" /></button><div className="flex min-h-0 flex-1 items-center justify-center p-8 text-center"><p className="text-sm text-muted-foreground">{allNotesSelector ? "Choose a note from All Notes to start writing." : "Select a note from the list, or create a new one to start writing."}</p></div></GlassPanel>;
+    return <GlassPanel className="relative flex h-full min-h-0 flex-col overflow-hidden !p-0"><div className="flex min-h-10 items-center gap-2 border-b border-white/10 p-4 pr-12">{allNotesSelector}{!allNotesSelector && <span className="text-xs text-muted-foreground">Select a note</span>}</div><button type="button" onClick={onMinimize} className="absolute right-4 top-4 z-10 flex size-8 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20" aria-label="Minimize editor panel" title="Minimize editor panel"><PanelLeft className="size-4" /></button><div className="flex min-h-0 flex-1 items-center justify-center p-8 text-center"><p className="text-sm text-muted-foreground">{allNotesSelector ? "Choose a note from All Notes to start writing." : "Select a note from the list, or create a new one to start writing."}</p></div></GlassPanel>;
   }
 
   const previewBody = body.replace(/```(?:output|terminal-output)\s*\n[\s\S]*?```/gi, "").replace(/\n{3,}/g, "\n\n").trim();
@@ -130,12 +130,12 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
       <Button size="icon" variant="ghost" aria-label={note.favorite ? "Remove from favorites" : "Add to favorites"} onClick={() => onToggleFavorite(note.id)}><Star className={cn("size-4", note.favorite && "fill-amber-300 text-amber-300")} /></Button>
       <Button size="icon" variant="ghost" aria-label="Delete note" className="text-destructive" onClick={() => setConfirmDelete(true)}><Trash2 className="size-4" /></Button>
     </div>
-    <button type="button" onClick={onMinimize} className="absolute right-4 top-4 z-10 flex size-8 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20" aria-label="Minimize editor panel" title="Minimize editor panel"><PanelLeft className="size-4 stroke-[1.8]" /></button>
+    <button type="button" onClick={onMinimize} className="absolute right-4 top-4 z-10 flex size-8 items-center justify-center rounded-full border border-white/25 bg-white/10 text-foreground backdrop-blur-xl transition-colors hover:bg-white/20" aria-label="Minimize editor panel" title="Minimize editor panel"><PanelLeft className="size-4" /></button>
     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-[#0d1117] px-3 py-2">
       <MarkdownToolbar textareaRef={textareaRef} value={activeValue} onChange={(next) => updateSegment(activeSegmentIndex, next)} onReplaceAll={replaceAll} disabled={mode === "preview"} />
       <div className="flex flex-wrap items-center gap-1.5">
         <Select value={readability} onValueChange={(value) => setReadabilityLevel(value as Readability)}>
-          <SelectTrigger className="h-8 w-[7.2rem] border-[#30363d] bg-[#161b22] text-xs font-medium text-[#c9d1d9]" aria-label="Preview readability" title="Reading readability">
+          <SelectTrigger className="h-8 w-[7.2rem] border-white/25 bg-white/10 text-xs font-medium text-[#c9d1d9] shadow-sm backdrop-blur-md" aria-label="Preview readability" title="Reading readability">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
