@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as DownloadAppRouteImport } from './routes/download-app'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +29,44 @@ const DownloadAppRoute = DownloadAppRouteImport.update({
   path: '/download-app',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/demo': typeof DemoRoute
   '/download-app': typeof DownloadAppRoute
+  '/reset-password': typeof ResetPasswordRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/demo': typeof DemoRoute
   '/download-app': typeof DownloadAppRoute
+  '/reset-password': typeof ResetPasswordRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/demo': typeof DemoRoute
   '/download-app': typeof DownloadAppRoute
+  '/reset-password': typeof ResetPasswordRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/demo' | '/download-app'
+  fullPaths: '/' | '/demo' | '/download-app' | '/reset-password'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/demo' | '/download-app'
-  id: '__root__' | '/' | '/demo' | '/download-app'
+  to: '/' | '/demo' | '/download-app' | '/reset-password'
+  id: '__root__' | '/' | '/demo' | '/download-app' | '/reset-password'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DemoRoute: typeof DemoRoute
   DownloadAppRoute: typeof DownloadAppRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +92,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DownloadAppRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +106,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DemoRoute: DemoRoute,
   DownloadAppRoute: DownloadAppRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
