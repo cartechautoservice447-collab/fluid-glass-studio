@@ -82,7 +82,7 @@ export function MarkdownToolbar({ textareaRef, value, onChange, disabled }: Prop
   return (
     <div className="flex flex-wrap items-center gap-1">
       <Select
-        disabled={disabled}
+        disabled={disabled ?? false}
         defaultValue=""
         onValueChange={(selectedKey) => {
           const tool = SYMBOL_TOOLS.find((item) => item.key === selectedKey);

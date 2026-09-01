@@ -27,4 +27,5 @@ export function CustomizationProvider({children}:{children:ReactNode}){
   const value=useMemo<Ctx>(()=>({liquid,setLiquid:patch=>setLiquidState(prev=>sanitize({...prev,...patch})),reset:()=>setLiquidState(LIQUID_DEFAULTS),theme,setTheme:setThemeState,toggleTheme:()=>setThemeState(p=>p==="dark"?"light":"dark"),displayName,setDisplayName:name=>setDisplayNameState(name.trim().slice(0,40)),pureBlack,setPureBlack:v=>{if(v)setThemeState("dark");setPureBlackState(v);}}),[liquid,theme,displayName,pureBlack]);
   return <CustomizationContext.Provider value={value}>{children}</CustomizationContext.Provider>;
 }
-export function useCustomization(){const ctx=useContext(CustomizationContext);if(!ctx)throw new Error("useCustomization must be used inside CustomizationProvider");return ctx;}
+const FALLBACK_CTX:Ctx={liquid:LIQUID_DEFAULTS,setLiquid:()=>{},reset:()=>{},theme:"light",setTheme:()=>{},toggleTheme:()=>{},displayName:"",setDisplayName:()=>{},pureBlack:false,setPureBlack:()=>{}};
+export function useCustomization(){const ctx=useContext(CustomizationContext);if(!ctx){if(import.meta.env.DEV)console.warn("useCustomization used outside CustomizationProvider (stale module?), using defaults");return FALLBACK_CTX;}return ctx;}
