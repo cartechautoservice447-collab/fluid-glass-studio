@@ -102,7 +102,7 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
   }, []);
 
   const allNotesSelector = showAllNotes && onSelectNote && notes.length > 0 ? (
-    <Select value={note?.id ?? undefined} onValueChange={onSelectNote}>
+    <Select value={note?.id ?? ""} onValueChange={onSelectNote}>
       <SelectTrigger className="h-9 w-[15rem] shrink-0 border-white/20 bg-white/10 text-left text-xs font-semibold" aria-label="Select note" title="Select note">
         <SelectValue placeholder="All Notes" />
       </SelectTrigger>
