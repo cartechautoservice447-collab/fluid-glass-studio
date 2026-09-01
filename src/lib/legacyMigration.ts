@@ -161,17 +161,17 @@ export async function runLegacyMigrationOnce(userId: string): Promise<boolean> {
     // Never allow stale browser values to overwrite an already-customized cloud profile.
     if (engine && cloudLiquidPristine) {
       const settings = {
-        liquid_density: engine.density,
-        liquid_transparency: engine.transparency,
-        liquid_clearness: engine.clearness,
-        liquid_gel: engine.gel,
-        liquid_bounce_stiffness: engine.bounceStiffness,
-        liquid_bounce_damping: engine.bounceDamping,
+        liquid_density: engine["density"],
+        liquid_transparency: engine["transparency"],
+        liquid_clearness: engine["clearness"],
+        liquid_gel: engine["gel"],
+        liquid_bounce_stiffness: engine["bounceStiffness"],
+        liquid_bounce_damping: engine["bounceDamping"],
       };
       for (const [key, value] of Object.entries(settings)) if (typeof value === "number" && Number.isFinite(value)) patch[key] = value;
     }
-    if ((theme === "light" || theme === "dark") && !profile?.theme) patch.theme = theme;
-    if (displayName && !profile?.display_name) patch.display_name = displayName;
+    if ((theme === "light" || theme === "dark") && !profile?.theme) patch["theme"] = theme;
+    if (displayName && !profile?.display_name) patch["display_name"] = displayName;
 
     if (Object.keys(patch).length > 0) {
       const { error: profileError } = await supabase.from("profiles").upsert({ id: userId, ...patch });
