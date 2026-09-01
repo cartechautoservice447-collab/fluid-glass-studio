@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 export type Segment =
   | { type: "text"; content: string; start: number; end: number }
@@ -77,9 +77,16 @@ export function NoteDocumentEditor({
   const refs = useRef<Array<HTMLTextAreaElement | null>>([]);
   const rhythm = READABILITY[readability];
 
+  const resizeTextarea = useCallback((element: HTMLTextAreaElement | null) => {
+    if (!element) return;
+    element.style.height = "auto";
+    element.style.height = `${Math.max(element.scrollHeight, 128)}px`;
+  }, []);
+
   useEffect(() => {
+    refs.current.forEach(resizeTextarea);
     onActiveTextarea(refs.current[activeIndex] ?? null);
-  }, [activeIndex, segments.length, onActiveTextarea]);
+  }, [activeIndex, segments, readability, resizeTextarea, onActiveTextarea]);
 
   return (
     <div className={`min-h-[16rem] flex-1 bg-transparent text-[#c9d1d9] ${rhythm.textSize} ${rhythm.lineHeight} ${rhythm.paragraphGap}`} style={{ fontFamily: "'Fira Code', 'JetBrains Mono', 'Consolas', monospace" }}>
@@ -88,7 +95,7 @@ export function NoteDocumentEditor({
           return (
             <section key={`output-${index}`} className="my-3 overflow-hidden rounded-xl border border-[#30363d] bg-[#010409] shadow-[0_8px_24px_rgba(0,0,0,0.22)]" aria-label="Terminal output">
               <div className="border-b border-[#21262d] bg-[#0d1117] px-3 py-2 text-[0.62rem] font-medium uppercase tracking-[0.14em] text-[#8b949e]">Output</div>
-              <textarea value={segment.content} onFocus={(event) => { onActiveIndexChange(index); onActiveTextarea(event.currentTarget); }} onClick={(event) => { onActiveIndexChange(index); onActiveTextarea(event.currentTarget); }} onChange={(event) => onChangeSegment(index, event.target.value)} aria-label="Code output" spellCheck={false} className={`block min-h-[4rem] w-full resize-none overflow-auto bg-transparent px-4 py-3 font-mono text-[#c9d1d9] outline-none ${readability === "great" ? "text-[0.9rem] leading-7" : readability === "best" ? "text-[0.86rem] leading-7" : "text-[0.82rem] leading-6"}`} />
+              <textarea value={segment.content} onFocus={(event) => { onActiveIndexChange(index); onActiveTextarea(event.currentTarget); }} onClick={(event) => { onActiveIndexChange(index); onActiveTextarea(event.currentTarget); }} onChange={(event) => { resizeTextarea(event.currentTarget); onChangeSegment(index, event.target.value); }} ref={(element) => { refs.current[index] = element; resizeTextarea(element); }} aria-label="Code output" spellCheck={false} className={`block min-h-[4rem] w-full resize-none overflow-hidden bg-transparent px-4 py-3 font-mono text-[#c9d1d9] outline-none ${readability === "great" ? "text-[0.9rem] leading-7" : readability === "best" ? "text-[0.86rem] leading-7" : "text-[0.82rem] leading-6"}`} />
             </section>
           );
         }
@@ -96,11 +103,11 @@ export function NoteDocumentEditor({
         return (
           <textarea
             key={`text-${index}`}
-            ref={(element) => { refs.current[index] = element; }}
+            ref={(element) => { refs.current[index] = element; resizeTextarea(element); }}
             value={segment.content}
             onFocus={(event) => { onActiveIndexChange(index); onActiveTextarea(event.currentTarget); }}
             onClick={(event) => { onActiveIndexChange(index); onActiveTextarea(event.currentTarget); }}
-            onChange={(event) => onChangeSegment(index, event.target.value)}
+            onChange={(event) => { resizeTextarea(event.currentTarget); onChangeSegment(index, event.target.value); }}
             aria-label="Note body"
             placeholder={index === 0 ? "Write markdown here…" : undefined}
             spellCheck={false}
