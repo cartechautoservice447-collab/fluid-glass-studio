@@ -36,12 +36,7 @@ export function parseNoteSegments(value: string): Segment[] {
       segments.push({ type: "text", content: value.slice(cursor, start), start: cursor, end: start });
     }
 
-    segments.push({
-      type: "output",
-      content: (match[1] ?? "").replace(/\n$/, ""),
-      start,
-      end,
-    });
+    segments.push({ type: "output", content: (match[1] ?? "").replace(/\n$/, ""), start, end });
     cursor = end;
   }
 
@@ -65,16 +60,10 @@ export function replaceNoteSegment(value: string, segment: Segment, nextContent:
   return `${value.slice(0, start)}${raw.replace(originalPrefix, "")}${value.slice(end)}`;
 }
 
-export function NoteDocumentEditor({
-  value,
-  activeIndex,
-  onActiveIndexChange,
-  onChangeSegment,
-  onActiveTextarea,
-  readability = "default",
-}: Props) {
+export function NoteDocumentEditor({ value, activeIndex, onActiveIndexChange, onChangeSegment, onActiveTextarea, readability = "default" }: Props) {
   const segments = useMemo(() => parseNoteSegments(value), [value]);
   const refs = useRef<Array<HTMLTextAreaElement | null>>([]);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const rhythm = READABILITY[readability];
 
   const resizeTextarea = useCallback((element: HTMLTextAreaElement | null) => {
@@ -83,37 +72,49 @@ export function NoteDocumentEditor({
     element.style.height = `${Math.max(element.scrollHeight, 128)}px`;
   }, []);
 
+  const preserveScroll = useCallback((callback: () => void) => {
+    const scrollContainer = rootRef.current?.parentElement;
+    const top = scrollContainer?.scrollTop ?? 0;
+    const left = scrollContainer?.scrollLeft ?? 0;
+    callback();
+    if (scrollContainer) {
+      requestAnimationFrame(() => {
+        scrollContainer.scrollTop = top;
+        scrollContainer.scrollLeft = left;
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const scrollContainer = rootRef.current?.parentElement;
+    if (!scrollContainer) return;
+    const previous = scrollContainer.style.overflowAnchor;
+    scrollContainer.style.overflowAnchor = "none";
+    return () => { scrollContainer.style.overflowAnchor = previous; };
+  }, []);
+
+  useEffect(() => {
+    onActiveTextarea(refs.current[activeIndex] ?? null);
+  }, [activeIndex, onActiveTextarea]);
+
   useEffect(() => {
     refs.current.forEach(resizeTextarea);
-    onActiveTextarea(refs.current[activeIndex] ?? null);
-  }, [activeIndex, segments, readability, resizeTextarea, onActiveTextarea]);
+  }, [readability, segments.length, resizeTextarea]);
 
   return (
-    <div className={`min-h-[16rem] flex-1 bg-transparent text-[#c9d1d9] ${rhythm.textSize} ${rhythm.lineHeight} ${rhythm.paragraphGap}`} style={{ fontFamily: "'Fira Code', 'JetBrains Mono', 'Consolas', monospace" }}>
+    <div ref={rootRef} className={`min-h-[16rem] flex-1 bg-transparent text-[#c9d1d9] ${rhythm.textSize} ${rhythm.lineHeight} ${rhythm.paragraphGap}`} style={{ fontFamily: "'Fira Code', 'JetBrains Mono', 'Consolas', monospace" }}>
       {segments.map((segment, index) => {
         if (segment.type === "output") {
           return (
             <section key={`output-${index}`} className="my-3 overflow-hidden rounded-xl border border-[#30363d] bg-[#010409] shadow-[0_8px_24px_rgba(0,0,0,0.22)]" aria-label="Terminal output">
               <div className="border-b border-[#21262d] bg-[#0d1117] px-3 py-2 text-[0.62rem] font-medium uppercase tracking-[0.14em] text-[#8b949e]">Output</div>
-              <textarea value={segment.content} onFocus={(event) => { onActiveIndexChange(index); onActiveTextarea(event.currentTarget); }} onClick={(event) => { onActiveIndexChange(index); onActiveTextarea(event.currentTarget); }} onChange={(event) => { resizeTextarea(event.currentTarget); onChangeSegment(index, event.target.value); }} ref={(element) => { refs.current[index] = element; resizeTextarea(element); }} aria-label="Code output" spellCheck={false} className={`block min-h-[4rem] w-full resize-none overflow-hidden bg-transparent px-4 py-3 font-mono text-[#c9d1d9] outline-none ${readability === "great" ? "text-[0.9rem] leading-7" : readability === "best" ? "text-[0.86rem] leading-7" : "text-[0.82rem] leading-6"}`} />
+              <textarea value={segment.content} onFocus={(event) => { onActiveIndexChange(index); onActiveTextarea(event.currentTarget); }} onClick={(event) => { onActiveIndexChange(index); onActiveTextarea(event.currentTarget); }} onChange={(event) => preserveScroll(() => { resizeTextarea(event.currentTarget); onChangeSegment(index, event.target.value); })} ref={(element) => { refs.current[index] = element; resizeTextarea(element); }} aria-label="Code output" spellCheck={false} className={`block min-h-[4rem] w-full resize-none overflow-hidden bg-transparent px-4 py-3 font-mono text-[#c9d1d9] outline-none ${readability === "great" ? "text-[0.9rem] leading-7" : readability === "best" ? "text-[0.86rem] leading-7" : "text-[0.82rem] leading-6"}`} />
             </section>
           );
         }
 
         return (
-          <textarea
-            key={`text-${index}`}
-            ref={(element) => { refs.current[index] = element; resizeTextarea(element); }}
-            value={segment.content}
-            onFocus={(event) => { onActiveIndexChange(index); onActiveTextarea(event.currentTarget); }}
-            onClick={(event) => { onActiveIndexChange(index); onActiveTextarea(event.currentTarget); }}
-            onChange={(event) => { resizeTextarea(event.currentTarget); onChangeSegment(index, event.target.value); }}
-            aria-label="Note body"
-            placeholder={index === 0 ? "Write markdown here…" : undefined}
-            spellCheck={false}
-            className={`block min-h-[8rem] w-full resize-none overflow-hidden bg-transparent p-0 text-[#c9d1d9] outline-none placeholder:text-[#8b949e] ${rhythm.textSize} ${rhythm.lineHeight}`}
-            style={{ fontFamily: "'Fira Code', 'JetBrains Mono', 'Consolas', monospace" }}
-          />
+          <textarea key={`text-${index}`} ref={(element) => { refs.current[index] = element; resizeTextarea(element); }} value={segment.content} onFocus={(event) => { onActiveIndexChange(index); onActiveTextarea(event.currentTarget); }} onClick={(event) => { onActiveIndexChange(index); onActiveTextarea(event.currentTarget); }} onChange={(event) => preserveScroll(() => { resizeTextarea(event.currentTarget); onChangeSegment(index, event.target.value); })} aria-label="Note body" placeholder={index === 0 ? "Write markdown here…" : undefined} spellCheck={false} className={`block min-h-[8rem] w-full resize-none overflow-hidden bg-transparent p-0 text-[#c9d1d9] outline-none placeholder:text-[#8b949e] ${rhythm.textSize} ${rhythm.lineHeight}`} style={{ fontFamily: "'Fira Code', 'JetBrains Mono', 'Consolas', monospace" }} />
         );
       })}
     </div>
