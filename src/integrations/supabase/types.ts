@@ -87,6 +87,7 @@ export type Database = {
           created_at: string
           favorite: boolean
           id: string
+          revision: number
           source_id: string | null
           title: string
           updated_at: string
@@ -99,6 +100,7 @@ export type Database = {
           created_at?: string
           favorite?: boolean
           id?: string
+          revision?: number
           source_id?: string | null
           title?: string
           updated_at?: string
@@ -111,6 +113,7 @@ export type Database = {
           created_at?: string
           favorite?: boolean
           id?: string
+          revision?: number
           source_id?: string | null
           title?: string
           updated_at?: string
@@ -147,6 +150,7 @@ export type Database = {
           liquid_realism: number
           liquid_sharpness: number
           liquid_transparency: number
+          pure_black: boolean
           theme: string
           updated_at: string
         }
@@ -163,6 +167,7 @@ export type Database = {
           liquid_realism?: number
           liquid_sharpness?: number
           liquid_transparency?: number
+          pure_black?: boolean
           theme?: string
           updated_at?: string
         }
@@ -179,6 +184,7 @@ export type Database = {
           liquid_realism?: number
           liquid_sharpness?: number
           liquid_transparency?: number
+          pure_black?: boolean
           theme?: string
           updated_at?: string
         }
@@ -189,7 +195,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      restore_course_batch: {
+        Args: { p_collections: Json; p_course_id: string; p_notes: Json }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
