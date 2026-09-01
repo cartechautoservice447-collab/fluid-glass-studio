@@ -8,14 +8,6 @@ type Props = {
   disabled?: boolean;
 };
 
-const TEMPLATES = {
-  lecture: "# Lecture Notes\n\n## Key Concepts\n- \n\n## Important Details\n- \n\n## Questions\n- \n\n## Summary\n",
-  meeting: "# Meeting Notes\n\n**Date:** \n**Attendees:** \n\n## Agenda\n- \n\n## Discussion\n- \n\n## Decisions\n- \n\n## Action Items\n- [ ] \n",
-  study: "# Study Plan\n\n## Goal\n\n## Topics\n- [ ] \n- [ ] \n- [ ] \n\n## Resources\n- \n\n## Review\n- \n",
-  project: "# Project Notes\n\n## Objective\n\n## Tasks\n- [ ] \n- [ ] \n- [ ] \n\n## Ideas\n- \n\n## Issues / Blockers\n- \n\n## Next Steps\n- \n",
-  daily: "# Daily Notes\n\n**Date:** \n\n## Today\n- \n\n## Highlights\n- \n\n## To Do\n- [ ] \n\n## Reflection\n",
-} as const;
-
 const SYMBOL_TOOLS = [
   { key: "h1", label: "# Heading 1", insert: "# " },
   { key: "h2", label: "## Heading 2", insert: "## " },
@@ -39,7 +31,7 @@ const SYMBOL_TOOLS = [
   { key: "important-callout", label: "> [!IMPORTANT] Important", insert: "> [!IMPORTANT]\n> " },
 ] as const;
 
-export function MarkdownToolbar({ textareaRef, value, onChange, onReplaceAll, disabled }: Props) {
+export function MarkdownToolbar({ textareaRef, value, onChange, disabled }: Props) {
   const insertSymbol = (tool: (typeof SYMBOL_TOOLS)[number]) => {
     const el = textareaRef.current;
     const start = el?.selectionStart ?? value.length;
@@ -86,27 +78,23 @@ export function MarkdownToolbar({ textareaRef, value, onChange, onReplaceAll, di
     });
   };
 
-  const applyTemplate = (template: keyof typeof TEMPLATES) => {
-    if (value.trim() && !window.confirm("Replace the current note content with this template?")) return;
-    (onReplaceAll ?? onChange)(TEMPLATES[template]);
-    requestAnimationFrame(() => textareaRef.current?.focus());
-  };
-
   return (
     <div className="flex flex-wrap items-center gap-1">
-      <select disabled={disabled} aria-label="Note symbols" defaultValue="" onChange={(event) => { const tool = SYMBOL_TOOLS.find((item) => item.key === event.target.value); if (tool) insertSymbol(tool); event.target.value = ""; }} className="h-8 max-w-[10rem] rounded-md border border-slate-300 bg-white px-2 text-xs font-medium text-slate-900 shadow-sm outline-none hover:bg-slate-50 focus:ring-1 focus:ring-slate-400">
+      <select
+        disabled={disabled}
+        aria-label="Note symbols"
+        defaultValue=""
+        onChange={(event) => {
+          const tool = SYMBOL_TOOLS.find((item) => item.key === event.target.value);
+          if (tool) insertSymbol(tool);
+          event.target.value = "";
+        }}
+        className="h-8 max-w-[10rem] rounded-md border border-slate-300 bg-white px-2 text-xs font-medium text-slate-900 shadow-sm outline-none hover:bg-slate-50 focus:ring-1 focus:ring-slate-400"
+      >
         <option value="">Symbols</option>
         {SYMBOL_TOOLS.map((tool) => (
           <option key={tool.key} value={tool.key}>{tool.label}</option>
         ))}
-      </select>
-      <select disabled={disabled} aria-label="Note templates" defaultValue="" onChange={(event) => { if (event.target.value) applyTemplate(event.target.value as keyof typeof TEMPLATES); event.target.value = ""; }} className="h-8 max-w-[9rem] rounded-md border border-white/10 bg-white/5 px-2 text-xs text-[#c9d1d9] outline-none hover:bg-white/10">
-        <option value="">Templates</option>
-        <option value="lecture">Lecture Notes</option>
-        <option value="meeting">Meeting Notes</option>
-        <option value="study">Study Plan</option>
-        <option value="project">Project Notes</option>
-        <option value="daily">Daily Notes</option>
       </select>
     </div>
   );
