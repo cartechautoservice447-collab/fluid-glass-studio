@@ -7,55 +7,30 @@ const MAX_BYTES = 5 * 1024 * 1024;
 
 export function BackgroundImageControl() {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [image, setImage] = useState("");
+  const [image, setImage] = useState(() => localStorage.getItem(STORAGE_KEY) ?? "");
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    try {
-      setImage(localStorage.getItem(STORAGE_KEY) ?? "");
-    } catch {
-      setImage("");
-    }
-  }, []);
 
   useEffect(() => {
     const apply = (value: string) => {
       document.documentElement.style.setProperty("--custom-background-image", value ? `url(${value})` : "none");
     };
     apply(image);
-    const onChange = (event: Event) => {
-      const value = (event as CustomEvent<string>).detail ?? "";
-      setImage(value);
-      apply(value);
-    };
+    const onChange = (event: Event) => apply((event as CustomEvent<string>).detail ?? "");
     window.addEventListener(EVENT_NAME, onChange);
     return () => window.removeEventListener(EVENT_NAME, onChange);
   }, [image]);
 
   const update = (value: string) => {
-    setError("");
-    try {
-      if (value) localStorage.setItem(STORAGE_KEY, value);
-      else localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      setError("The image is too large for browser storage.");
-      return;
-    }
     setImage(value);
+    try { if (value) localStorage.setItem(STORAGE_KEY, value); else localStorage.removeItem(STORAGE_KEY); } catch { setError("The image is too large for browser storage."); return; }
     window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: value }));
   };
 
   const handleFile = (file: File | undefined) => {
     setError("");
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setError("Please choose an image file.");
-      return;
-    }
-    if (file.size > MAX_BYTES) {
-      setError("Image must be 5 MB or smaller.");
-      return;
-    }
+    if (!file.type.startsWith("image/")) { setError("Please choose an image file."); return; }
+    if (file.size > MAX_BYTES) { setError("Image must be 5 MB or smaller."); return; }
     const reader = new FileReader();
     reader.onload = () => update(String(reader.result));
     reader.onerror = () => setError("Could not read that image.");
