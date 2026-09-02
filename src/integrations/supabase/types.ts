@@ -8,7 +8,7 @@ export type Json =
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -138,8 +138,11 @@ export type Database = {
       }
       profiles: {
         Row: {
+          background_opacity: number
+          background_theme_enabled: boolean
           created_at: string
           display_name: string | null
+          full_dark_background: boolean
           id: string
           liquid_bounce_damping: number
           liquid_bounce_stiffness: number
@@ -152,15 +155,15 @@ export type Database = {
           liquid_transparency: number
           pure_black: boolean
           theme: string
-          updated_at: string
-          background_theme_enabled: boolean
-          background_opacity: number
-          full_dark_background: boolean
           ui_text_clarity: string
+          updated_at: string
         }
         Insert: {
+          background_opacity?: number
+          background_theme_enabled?: boolean
           created_at?: string
           display_name?: string | null
+          full_dark_background?: boolean
           id: string
           liquid_bounce_damping?: number
           liquid_bounce_stiffness?: number
@@ -173,15 +176,15 @@ export type Database = {
           liquid_transparency?: number
           pure_black?: boolean
           theme?: string
-          updated_at?: string
-          background_theme_enabled?: boolean
-          background_opacity?: number
-          full_dark_background?: boolean
           ui_text_clarity?: string
+          updated_at?: string
         }
         Update: {
+          background_opacity?: number
+          background_theme_enabled?: boolean
           created_at?: string
           display_name?: string | null
+          full_dark_background?: boolean
           id?: string
           liquid_bounce_damping?: number
           liquid_bounce_stiffness?: number
@@ -194,11 +197,8 @@ export type Database = {
           liquid_transparency?: number
           pure_black?: boolean
           theme?: string
-          updated_at?: string
-          background_theme_enabled?: boolean
-          background_opacity?: number
-          full_dark_background?: boolean
           ui_text_clarity?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -246,7 +246,8 @@ export type Tables<
     : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
         DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
