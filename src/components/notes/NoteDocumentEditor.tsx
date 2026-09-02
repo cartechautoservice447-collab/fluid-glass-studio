@@ -1,3 +1,4 @@
+import { Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 
 export type Segment =
@@ -11,6 +12,7 @@ type Props = {
   activeIndex: number;
   onActiveIndexChange: (index: number) => void;
   onChangeSegment: (index: number, value: string) => void;
+  onRemoveSegment: (index: number) => void;
   onActiveTextarea: (element: HTMLTextAreaElement | null) => void;
   readability?: Readability;
 };
@@ -45,17 +47,13 @@ export function replaceNoteSegment(value: string, segment: Segment, nextContent:
   return `${value.slice(0, segment.start)}${raw.replace(originalPrefix, "")}${value.slice(segment.end)}`;
 }
 
-export function NoteDocumentEditor({ value, activeIndex, onActiveIndexChange, onChangeSegment, onActiveTextarea, readability = "default" }: Props) {
+export function NoteDocumentEditor({ value, activeIndex, onActiveIndexChange, onChangeSegment, onRemoveSegment, onActiveTextarea, readability = "default" }: Props) {
   const segments = useMemo(() => parseNoteSegments(value), [value]);
   const refs = useRef<Array<HTMLTextAreaElement | null>>([]);
   const rhythm = READABILITY[readability];
 
-  // Do not manually change textarea height during typing. Setting a textarea's
-  // height to "auto" and then reading scrollHeight causes a transient collapse
-  // on every keystroke. Near the bottom of an overflow container that layout
-  // change can move the browser's scroll anchor before the final height lands.
-  // Native field-sizing keeps the control sized to its content without that
-  // JS-driven collapse/re-expand cycle.
+  // Keep output blocks in their original document position while editing.
+  // Native field-sizing avoids the scroll jump caused by JS textarea resizing.
 
   useEffect(() => {
     onActiveTextarea(refs.current[activeIndex] ?? null);
@@ -65,7 +63,13 @@ export function NoteDocumentEditor({ value, activeIndex, onActiveIndexChange, on
     <div className={`min-h-[16rem] flex-1 bg-transparent text-[#c9d1d9] ${rhythm.textSize} ${rhythm.lineHeight} ${rhythm.paragraphGap}`} style={{ fontFamily: "'Fira Code', 'JetBrains Mono', 'Consolas', monospace" }}>
       {segments.map((segment, index) => segment.type === "output" ? (
         <section key={`output-${index}`} className="my-3 overflow-hidden rounded-xl border border-[#30363d] bg-[#010409] shadow-[0_8px_24px_rgba(0,0,0,0.22)]" aria-label="Terminal output">
-          <div className="border-b border-[#21262d] bg-[#0d1117] px-3 py-2 text-[0.62rem] font-medium uppercase tracking-[0.14em] text-[#8b949e]">Output</div>
+          <div className="flex items-center justify-between border-b border-[#21262d] bg-[#0d1117] px-3 py-2 text-[0.62rem] font-medium uppercase tracking-[0.14em] text-[#8b949e]">
+            <span>Output</span>
+            <button type="button" onClick={() => onRemoveSegment(index)} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[0.62rem] font-medium normal-case tracking-normal text-[#8b949e] transition-colors hover:bg-white/10 hover:text-red-300" aria-label="Remove output" title="Remove output">
+              <Trash2 className="size-3.5" />
+              <span>Remove</span>
+            </button>
+          </div>
           <textarea value={segment.content} onFocus={(e) => { onActiveIndexChange(index); onActiveTextarea(e.currentTarget); }} onClick={(e) => { onActiveIndexChange(index); onActiveTextarea(e.currentTarget); }} onChange={(e) => onChangeSegment(index, e.target.value)} ref={(e) => { refs.current[index] = e; }} aria-label="Code output" spellCheck={false} className={`block min-h-[4rem] w-full [field-sizing:content] resize-none overflow-hidden bg-transparent px-4 py-3 font-mono text-[#c9d1d9] outline-none ${readability === "great" ? "text-[0.9rem] leading-7" : readability === "best" ? "text-[0.86rem] leading-7" : "text-[0.82rem] leading-6"}`} />
         </section>
       ) : (
