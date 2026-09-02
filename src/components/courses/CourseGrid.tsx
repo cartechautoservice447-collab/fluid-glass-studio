@@ -17,12 +17,12 @@ export function CourseGrid({courses,noteCounts,lastEdited,hiddenCourseId,onOpenC
   const[pomodoroOpen,setPomodoroOpen]=useState(false),[overviewOpen,setOverviewOpen]=useState(false),[reminderOpen,setReminderOpen]=useState(false);
   const glassActionClass="liquid-panel group flex min-h-24 items-center gap-4 rounded-3xl p-5 text-left transition duration-200 hover:-translate-y-0.5 hover:brightness-110";
   const glassActionStyle={backgroundColor:"var(--water-gel-bg)",backdropFilter:"blur(var(--liquid-density, 12px)) saturate(180%)",borderTop:"1px solid rgba(255,255,255,.32)"};
+  const welcomeName=displayName?.trim()||"there";
   return <div className="flex h-full min-h-0 w-full flex-col gap-6 overflow-y-auto px-2 py-2">
     <div className="relative flex flex-wrap items-center justify-between gap-5 overflow-hidden rounded-[28px] border border-white/20 bg-white/[0.10] px-6 py-6 shadow-[inset_0_1px_2px_rgba(255,255,255,.35),0_10px_36px_rgba(0,0,0,.22)] backdrop-blur-xl sm:px-7">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.16] via-transparent to-transparent" aria-hidden/>
       <div className="relative min-w-0 flex-1 py-0.5">
-        <p className="text-[0.62rem] font-semibold uppercase tracking-[0.32em] text-muted-foreground">Your workspace</p>
-        <h1 className="mt-2 text-[1.45rem] font-semibold leading-tight tracking-[-0.02em] text-foreground sm:text-[1.6rem]">Welcome back{displayName?`, ${displayName}`:""}</h1>
+        <h1 className="text-[0.62rem] font-semibold uppercase tracking-[0.32em] text-muted-foreground">WELCOME BACK, {welcomeName.toUpperCase()}</h1>
         <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Select a course folder to open your notes and study workspace.</p>
       </div>
       <div className="relative flex shrink-0 items-center gap-2">
