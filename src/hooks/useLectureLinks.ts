@@ -104,6 +104,7 @@ export function useLectureLinks(userId: string, courseId: string | null) {
     if (!courseId || !userId) {
       setLinks([]);
       setLoading(false);
+      setCloudAvailable(true);
       return;
     }
     setLoading(true);
@@ -131,8 +132,21 @@ export function useLectureLinks(userId: string, courseId: string | null) {
   }, [courseId, userId]);
 
   useEffect(() => {
+    setCloudAvailable(true);
     void refresh();
   }, [refresh]);
+
+  const saveLocal = useCallback((title: string, url: string) => {
+    const current = readLocal(userId, courseId!);
+    const existing = current.find((link) => link.url === url);
+    const now = Date.now();
+    const next = existing
+      ? current.map((link) => link.id === existing.id ? { ...link, title, updatedAt: now } : link)
+      : [{ id: newId(), courseId: courseId!, title, url, createdAt: now, updatedAt: now }, ...current];
+    setLinks(next);
+    writeLocal(userId, courseId!, next);
+    return next.find((link) => link.url === url) ?? null;
+  }, [courseId, userId]);
 
   const saveLink = useCallback(async (title: string, rawUrl: string) => {
     if (!courseId || !userId) return null;
@@ -140,17 +154,7 @@ export function useLectureLinks(userId: string, courseId: string | null) {
     if (!url) return null;
     const cleanTitle = title.trim() || "Untitled lecture";
 
-    if (!cloudAvailable) {
-      const current = readLocal(userId, courseId);
-      const existing = current.find((link) => link.url === url);
-      const now = Date.now();
-      const next = existing
-        ? current.map((link) => link.id === existing.id ? { ...link, title: cleanTitle, updatedAt: now } : link)
-        : [{ id: newId(), courseId, title: cleanTitle, url, createdAt: now, updatedAt: now }, ...current];
-      setLinks(next);
-      writeLocal(userId, courseId, next);
-      return next.find((link) => link.url === url) ?? null;
-    }
+    if (!cloudAvailable) return saveLocal(cleanTitle, url);
 
     const result = await (supabase.from("lecture_links" as never) as unknown as {
       upsert: (values: Record<string, unknown>, options: { onConflict: string }) => {
@@ -163,8 +167,9 @@ export function useLectureLinks(userId: string, courseId: string | null) {
 
     if (result.error) {
       setCloudAvailable(false);
-      return saveLink(cleanTitle, url);
+      return saveLocal(cleanTitle, url);
     }
+
     const saved = result.data?.[0] ? toLectureLink(result.data[0]) : null;
     if (saved) {
       setLinks((current) => {
@@ -175,7 +180,7 @@ export function useLectureLinks(userId: string, courseId: string | null) {
       });
     }
     return saved;
-  }, [cloudAvailable, courseId, userId]);
+  }, [cloudAvailable, courseId, saveLocal, userId]);
 
   const deleteLink = useCallback(async (id: string) => {
     if (!courseId || !userId) return;
