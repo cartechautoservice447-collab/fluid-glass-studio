@@ -8,7 +8,7 @@ export type Json =
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -153,10 +153,6 @@ export type Database = {
           pure_black: boolean
           theme: string
           updated_at: string
-          background_theme_enabled: boolean
-          background_opacity: number
-          full_dark_background: boolean
-          ui_text_clarity: string
         }
         Insert: {
           created_at?: string
@@ -174,10 +170,6 @@ export type Database = {
           pure_black?: boolean
           theme?: string
           updated_at?: string
-          background_theme_enabled?: boolean
-          background_opacity?: number
-          full_dark_background?: boolean
-          ui_text_clarity?: string
         }
         Update: {
           created_at?: string
@@ -195,10 +187,6 @@ export type Database = {
           pure_black?: boolean
           theme?: string
           updated_at?: string
-          background_theme_enabled?: boolean
-          background_opacity?: number
-          full_dark_background?: boolean
-          ui_text_clarity?: string
         }
         Relationships: []
       }
@@ -246,7 +234,8 @@ export type Tables<
     : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
         DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
