@@ -19,11 +19,11 @@ export function CourseGrid({courses,noteCounts,lastEdited,hiddenCourseId,onOpenC
   const glassActionStyle={backgroundColor:"var(--water-gel-bg)",backdropFilter:"blur(var(--liquid-density, 12px)) saturate(180%)",borderTop:"1px solid rgba(255,255,255,.32)"};
   const welcomeName=displayName?.trim()||"there";
   return <div className="flex h-full min-h-0 w-full flex-col gap-6 overflow-y-auto px-2 py-2">
-    <div className="relative flex flex-wrap items-center justify-between gap-5 overflow-hidden rounded-[28px] border border-white/20 bg-white/[0.10] px-6 py-6 shadow-[inset_0_1px_2px_rgba(255,255,255,.35),0_10px_36px_rgba(0,0,0,.22)] backdrop-blur-xl sm:px-7">
+    <div className="relative flex flex-wrap items-center justify-between gap-4 overflow-hidden rounded-[28px] border border-white/20 bg-white/[0.10] px-5 py-5 shadow-[inset_0_1px_2px_rgba(255,255,255,.35),0_10px_36px_rgba(0,0,0,.22)] backdrop-blur-xl sm:px-6 sm:py-5">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.16] via-transparent to-transparent" aria-hidden/>
       <div className="relative min-w-0 flex-1 py-0.5">
-        <h1 className="text-[0.62rem] font-semibold uppercase tracking-[0.32em] text-muted-foreground">WELCOME BACK, {welcomeName.toUpperCase()}</h1>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Select a course folder to open your notes and study workspace.</p>
+        <h1 className="max-w-full whitespace-nowrap overflow-hidden text-ellipsis text-[clamp(.52rem,1.1vw,.62rem)] font-semibold uppercase tracking-[clamp(.16em,1.5vw,.32em)] text-muted-foreground">WELCOME BACK, {welcomeName.toUpperCase()}</h1>
+        <p className="mt-2 max-w-xl text-xs leading-5 text-muted-foreground sm:text-sm sm:leading-6">Select a course folder to open your notes and study workspace.</p>
       </div>
       <div className="relative flex shrink-0 items-center gap-2">
         <ThemeToggle/>
