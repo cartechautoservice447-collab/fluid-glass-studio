@@ -21,8 +21,9 @@ export function CourseGrid({courses,noteCounts,lastEdited,hiddenCourseId,onOpenC
   return <div className="flex h-full min-h-0 w-full flex-col gap-6 overflow-y-auto px-2 py-2">
     <div className="relative flex min-h-[112px] flex-wrap items-center justify-between gap-4 overflow-hidden rounded-[28px] border border-white/20 bg-white/[0.10] px-5 py-5 shadow-[inset_0_1px_2px_rgba(255,255,255,.35),0_10px_36px_rgba(0,0,0,.22)] backdrop-blur-xl sm:px-6 sm:py-5">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.16] via-transparent to-transparent" aria-hidden/>
+      <div className="pointer-events-none absolute inset-x-6 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-white/[0.12] via-white/[0.04] to-transparent opacity-80" aria-hidden/>
       <div className="relative flex min-w-0 flex-1 flex-col justify-center py-0.5">
-        <h1 className="max-w-full break-words text-[clamp(1.15rem,2.5vw,1.6rem)] font-bold uppercase leading-[1.05] tracking-[clamp(.10em,1.1vw,.20em)] text-foreground/80">WELCOME BACK, {welcomeName.toUpperCase()}</h1>
+        <h1 className="max-w-full break-words text-[clamp(1.05rem,2.25vw,1.45rem)] font-bold uppercase leading-[1.05] tracking-[clamp(.08em,.95vw,.18em)] text-foreground/80">WELCOME BACK, {welcomeName.toUpperCase()}</h1>
         <p className="mt-1.5 max-w-xl text-xs leading-5 text-muted-foreground">Select a course folder to open your notes and study workspace.</p>
       </div>
       <div className="relative flex shrink-0 items-center gap-2">
