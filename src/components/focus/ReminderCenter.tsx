@@ -1,8 +1,10 @@
-import { BookOpen, FileText, NotebookPen, X } from "lucide-react";
+import { BookOpen, Bookmark, FileText, NotebookPen, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { CourseNotesView } from "@/components/courses/CourseNotesView";
+import { LectureLinksPanel } from "@/components/focus/LectureLinksPanel";
 import { PdfStudyViewer } from "@/components/focus/PdfStudyViewer";
+import { useLectureLinks } from "@/hooks/useLectureLinks";
 import type { Course } from "@/hooks/useCourses";
 
 type Props = {
@@ -73,6 +75,8 @@ export function ReminderCenter({ open, onOpenChange, courses, userId, email, onL
   const [activeCourseId, setActiveCourseId] = useState<string | null>(courses[0]?.id ?? null);
   const [splitRatio, setSplitRatio] = useState(50);
   const [pdfMode, setPdfMode] = useState(false);
+  const [savedLinksOpen, setSavedLinksOpen] = useState(false);
+  const lectureLinks = useLectureLinks(userId, activeCourseId);
 
   useEffect(() => {
     if (!activeCourseId || !courses.some((course) => course.id === activeCourseId)) {
@@ -80,6 +84,7 @@ export function ReminderCenter({ open, onOpenChange, courses, userId, email, onL
     }
     if (courses.length === 0) setNotesOpen(false);
     else setNotesOpen(true);
+    setSavedLinksOpen(false);
   }, [courses, activeCourseId]);
 
   useEffect(() => {
@@ -95,7 +100,18 @@ export function ReminderCenter({ open, onOpenChange, courses, userId, email, onL
     if (!embeddableUrl) return;
     setBrowserUrl(embeddableUrl);
     setUrlInput(embeddableUrl);
+    setPdfMode(false);
     setIframeKey((k) => k + 1);
+  };
+
+  const openSavedLecture = (rawUrl: string) => {
+    const embeddableUrl = toEmbeddableUrl(rawUrl);
+    if (!embeddableUrl) return;
+    setBrowserUrl(embeddableUrl);
+    setUrlInput(embeddableUrl);
+    setPdfMode(false);
+    setIframeKey((k) => k + 1);
+    setSavedLinksOpen(false);
   };
 
   const adjustSplit = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -111,6 +127,7 @@ export function ReminderCenter({ open, onOpenChange, courses, userId, email, onL
         <div className="flex shrink-0 items-center gap-1.5"><BookOpen className="size-3.5" /><h2 className="text-xs font-semibold text-foreground">Study Hub</h2></div>
         {courses.length > 0 && <select value={activeCourseId ?? ""} onChange={(event) => setActiveCourseId(event.target.value || null)} aria-label="Select course" title="Select course" className="max-w-40 shrink-0 rounded-md border border-white/10 bg-white/[.05] px-2 py-1 text-[11px] text-foreground outline-none"><option value="" disabled>Select course</option>{courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}</select>}
         <div className="flex min-w-0 flex-1 items-center gap-1.5"><input value={urlInput} onChange={(e) => setUrlInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") loadCustomUrl(); }} placeholder="Paste URL" aria-label="Lecture URL" className="min-w-0 flex-1 rounded-md border border-white/10 bg-black/20 px-2 py-1 text-[11px] outline-none" /><button type="button" onClick={loadCustomUrl} disabled={pdfMode} className="shrink-0 rounded-md border border-white/15 bg-white/10 px-2 py-1 text-[11px] font-medium disabled:cursor-not-allowed disabled:opacity-40">Go</button></div>
+        {courses.length > 0 && <div className="relative shrink-0"><button type="button" onClick={() => setSavedLinksOpen((value) => !value)} className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium ${savedLinksOpen ? "border-white/40 bg-white/15 text-foreground" : "border-white/10 bg-white/[.03] text-muted-foreground hover:bg-white/10"}`} aria-pressed={savedLinksOpen} title="Saved lectures"><Bookmark className="size-3" />Saved{lectureLinks.links.length > 0 && <span className="font-mono">{lectureLinks.links.length}</span>}</button><LectureLinksPanel open={savedLinksOpen} links={lectureLinks.links} loading={lectureLinks.loading} cloudAvailable={lectureLinks.cloudAvailable} currentUrl={urlInput || browserUrl} onOpen={openSavedLecture} onSave={lectureLinks.saveLink} onDelete={lectureLinks.deleteLink} onClose={() => setSavedLinksOpen(false)} /></div>}
         {courses.length > 0 && <button type="button" onClick={() => setPdfMode((value) => !value)} className={`inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium ${pdfMode ? "border-white/40 bg-white/15 text-foreground" : "border-white/10 bg-white/[.03] text-muted-foreground hover:bg-white/10"}`} aria-pressed={pdfMode} title="Toggle PDF viewer split mode"><FileText className="size-3" />PDF Viewer</button>}
         {courses.length > 0 && <button type="button" onClick={() => setNotesOpen((value) => !value)} className={`inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium ${notesOpen ? "border-white/40 bg-white/15 text-foreground" : "border-white/10 bg-white/[.03] text-muted-foreground hover:bg-white/10"}`}><NotebookPen className="size-3" />{notesOpen ? "Hide Notes" : "Note Editor"}</button>}
         <button type="button" onClick={() => onOpenChange(false)} aria-label="Close Study Hub" className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-white/10"><X className="size-3.5" /></button>
