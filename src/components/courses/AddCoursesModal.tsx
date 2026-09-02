@@ -60,9 +60,9 @@ export function AddCourseModal({ onCreate }: Props) {
       <DialogTrigger asChild>
         <button
           type="button"
-          className="notes-pulse-glow flex items-center justify-center gap-2 rounded-xl bg-emerald-400 px-5 py-2.5 text-sm font-bold text-white shadow-[0_0_24px_rgba(52,211,153,0.55),0_10px_28px_rgba(16,185,129,0.45)] ring-1 ring-emerald-200/70 transition-all hover:scale-[1.02] hover:bg-emerald-300 hover:shadow-[0_0_30px_rgba(52,211,153,0.7),0_12px_32px_rgba(16,185,129,0.55)] active:scale-[0.98]"
+          className="notes-pulse-glow flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-extrabold text-white shadow-[0_0_30px_rgba(16,185,129,0.7),0_10px_30px_rgba(5,150,105,0.55)] ring-2 ring-emerald-300/60 transition-all hover:scale-[1.025] hover:bg-emerald-400 hover:shadow-[0_0_38px_rgba(52,211,153,0.85),0_12px_36px_rgba(5,150,105,0.65)] active:scale-[0.98]"
         >
-          <Plus className="size-4 stroke-[2.5]" />
+          <Plus className="size-4 stroke-[2.75]" />
           Add New Course
         </button>
       </DialogTrigger>
@@ -74,60 +74,12 @@ export function AddCourseModal({ onCreate }: Props) {
               Give it a name — you can start adding notes as soon as it's created.
             </DialogDescription>
           </DialogHeader>
-
           <div className="mt-4 space-y-4">
-            <div className="space-y-1.5">
-              <label htmlFor="course-name" className="text-xs font-medium text-muted-foreground">
-                Course name
-              </label>
-              <Input
-                id="course-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="e.g. Organic Chemistry II"
-                autoFocus
-                required
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="course-desc" className="text-xs font-medium text-muted-foreground">
-                Description (optional)
-              </label>
-              <Textarea
-                id="course-desc"
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                placeholder="What's this course about?"
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-muted-foreground">Accent color</p>
-              <div className="flex gap-2">
-                {COURSE_ACCENTS.map((accent) => (
-                  <button
-                    key={accent}
-                    type="button"
-                    aria-label={accent}
-                    onClick={() => setColor(accent)}
-                    className={cn(
-                      "size-7 rounded-full ring-offset-2 ring-offset-background transition-transform hover:scale-110",
-                      color === accent && "ring-2 ring-white",
-                    )}
-                    style={{ backgroundColor: ACCENT_SWATCH[accent] }}
-                  />
-                ))}
-              </div>
-            </div>
+            <div className="space-y-1.5"><label htmlFor="course-name" className="text-xs font-medium text-muted-foreground">Course name</label><Input id="course-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Organic Chemistry II" autoFocus required /></div>
+            <div className="space-y-1.5"><label htmlFor="course-desc" className="text-xs font-medium text-muted-foreground">Description (optional)</label><Textarea id="course-desc" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What's this course about?" rows={3} /></div>
+            <div className="space-y-1.5"><p className="text-xs font-medium text-muted-foreground">Accent color</p><div className="flex gap-2">{COURSE_ACCENTS.map((accent) => <button key={accent} type="button" aria-label={accent} onClick={() => setColor(accent)} className={cn("size-7 rounded-full ring-offset-2 ring-offset-background transition-transform hover:scale-110", color === accent && "ring-2 ring-white")} style={{ backgroundColor: ACCENT_SWATCH[accent] }} />)}</div></div>
           </div>
-
-          <DialogFooter className="mt-6">
-            <Button type="submit" disabled={!name.trim()}>
-              Create course
-            </Button>
-          </DialogFooter>
+          <DialogFooter className="mt-6"><Button type="submit" disabled={!name.trim()}>Create course</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
