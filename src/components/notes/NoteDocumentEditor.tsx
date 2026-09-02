@@ -45,22 +45,11 @@ export function replaceNoteSegment(value: string, segment: Segment, nextContent:
   return `${value.slice(0, segment.start)}${raw.replace(originalPrefix, "")}${value.slice(segment.end)}`;
 }
 
-type ScrollSnapshot = {
-  top: number;
-  left: number;
-  stickToBottom: boolean;
-  bottomGap: number;
-};
-
 export function NoteDocumentEditor({ value, activeIndex, onActiveIndexChange, onChangeSegment, onActiveTextarea, readability = "default" }: Props) {
   const segments = useMemo(() => parseNoteSegments(value), [value]);
   const refs = useRef<Array<HTMLTextAreaElement | null>>([]);
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const pendingScroll = useRef<ScrollSnapshot | null>(null);
-  const restoreFrame = useRef<number | null>(null);
   const rhythm = READABILITY[readability];
-
-  const scrollContainer = useCallback(() => rootRef.current?.parentElement ?? null, []);
 
   const resizeTextarea = useCallback((element: HTMLTextAreaElement | null) => {
     if (!element) return;
@@ -70,57 +59,26 @@ export function NoteDocumentEditor({ value, activeIndex, onActiveIndexChange, on
     if (previousHeight !== nextHeight) element.style.height = nextHeight;
   }, []);
 
-  const rememberScroll = useCallback(() => {
-    const container = scrollContainer();
-    if (!container) return;
-
-    const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
-    const bottomGap = Math.max(0, maxScrollTop - container.scrollTop);
-    pendingScroll.current = {
-      top: container.scrollTop,
-      left: container.scrollLeft,
-      // When the user is editing at the bottom, preserve the bottom edge,
-      // not the old absolute scrollTop. Textarea resizing changes scrollHeight.
-      stickToBottom: bottomGap <= 24,
-      bottomGap,
-    };
-  }, [scrollContainer]);
-
+  // Size every textarea only when the editor is first mounted. During normal
+  // typing we must not collapse/re-expand unrelated textareas: doing that
+  // changes scrollHeight repeatedly and can make the browser reposition the
+  // scroll container, especially when editing near the bottom of the page.
   useLayoutEffect(() => {
     refs.current.forEach(resizeTextarea);
+  }, [resizeTextarea]);
 
-    const saved = pendingScroll.current;
-    if (!saved) return;
-    pendingScroll.current = null;
+  // A value change normally comes from the textarea that currently owns focus.
+  // Resize only that textarea instead of every segment. This leaves the parent
+  // scroll container and the browser's native scroll anchoring untouched.
+  useLayoutEffect(() => {
+    resizeTextarea(refs.current[activeIndex] ?? null);
+  }, [value, activeIndex, resizeTextarea]);
 
-    const container = scrollContainer();
-    if (!container) return;
-
-    if (restoreFrame.current !== null) cancelAnimationFrame(restoreFrame.current);
-
-    restoreFrame.current = requestAnimationFrame(() => {
-      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
-      const nextTop = saved.stickToBottom
-        ? Math.max(0, maxScrollTop - saved.bottomGap)
-        : Math.min(saved.top, maxScrollTop);
-
-      container.scrollTop = nextTop;
-      container.scrollLeft = saved.left;
-      restoreFrame.current = null;
-    });
-  }, [value, segments.length, readability, resizeTextarea, scrollContainer]);
-
-  useEffect(() => () => {
-    if (restoreFrame.current !== null) cancelAnimationFrame(restoreFrame.current);
-  }, []);
-
-  useEffect(() => {
-    const container = scrollContainer();
-    if (!container) return;
-    const previous = container.style.overflowAnchor;
-    container.style.overflowAnchor = "none";
-    return () => { container.style.overflowAnchor = previous; };
-  }, [scrollContainer]);
+  // Readability changes alter typography for every textarea, so all fields need
+  // a fresh measurement in that less-frequent case.
+  useLayoutEffect(() => {
+    refs.current.forEach(resizeTextarea);
+  }, [readability, resizeTextarea]);
 
   useEffect(() => {
     onActiveTextarea(refs.current[activeIndex] ?? null);
@@ -131,10 +89,10 @@ export function NoteDocumentEditor({ value, activeIndex, onActiveIndexChange, on
       {segments.map((segment, index) => segment.type === "output" ? (
         <section key={`output-${index}`} className="my-3 overflow-hidden rounded-xl border border-[#30363d] bg-[#010409] shadow-[0_8px_24px_rgba(0,0,0,0.22)]" aria-label="Terminal output">
           <div className="border-b border-[#21262d] bg-[#0d1117] px-3 py-2 text-[0.62rem] font-medium uppercase tracking-[0.14em] text-[#8b949e]">Output</div>
-          <textarea value={segment.content} onFocus={(e) => { onActiveIndexChange(index); onActiveTextarea(e.currentTarget); }} onClick={(e) => { onActiveIndexChange(index); onActiveTextarea(e.currentTarget); }} onChange={(e) => { rememberScroll(); onChangeSegment(index, e.target.value); }} ref={(e) => { refs.current[index] = e; resizeTextarea(e); }} aria-label="Code output" spellCheck={false} className={`block min-h-[4rem] w-full resize-none overflow-hidden bg-transparent px-4 py-3 font-mono text-[#c9d1d9] outline-none ${readability === "great" ? "text-[0.9rem] leading-7" : readability === "best" ? "text-[0.86rem] leading-7" : "text-[0.82rem] leading-6"}`} />
+          <textarea value={segment.content} onFocus={(e) => { onActiveIndexChange(index); onActiveTextarea(e.currentTarget); }} onClick={(e) => { onActiveIndexChange(index); onActiveTextarea(e.currentTarget); }} onChange={(e) => onChangeSegment(index, e.target.value)} ref={(e) => { refs.current[index] = e; }} aria-label="Code output" spellCheck={false} className={`block min-h-[4rem] w-full resize-none overflow-hidden bg-transparent px-4 py-3 font-mono text-[#c9d1d9] outline-none ${readability === "great" ? "text-[0.9rem] leading-7" : readability === "best" ? "text-[0.86rem] leading-7" : "text-[0.82rem] leading-6"}`} />
         </section>
       ) : (
-        <textarea key={`text-${index}`} ref={(e) => { refs.current[index] = e; resizeTextarea(e); }} value={segment.content} onFocus={(e) => { onActiveIndexChange(index); onActiveTextarea(e.currentTarget); }} onClick={(e) => { onActiveIndexChange(index); onActiveTextarea(e.currentTarget); }} onChange={(e) => { rememberScroll(); onChangeSegment(index, e.target.value); }} aria-label="Note body" placeholder={index === 0 ? "Write markdown here…" : undefined} spellCheck={false} className={`block min-h-[8rem] w-full resize-none overflow-hidden bg-transparent p-0 text-[#c9d1d9] outline-none placeholder:text-[#8b949e] ${rhythm.textSize} ${rhythm.lineHeight}`} style={{ fontFamily: "'Fira Code', 'JetBrains Mono', 'Consolas', monospace" }} />
+        <textarea key={`text-${index}`} ref={(e) => { refs.current[index] = e; }} value={segment.content} onFocus={(e) => { onActiveIndexChange(index); onActiveTextarea(e.currentTarget); }} onClick={(e) => { onActiveIndexChange(index); onActiveTextarea(e.currentTarget); }} onChange={(e) => onChangeSegment(index, e.target.value)} aria-label="Note body" placeholder={index === 0 ? "Write markdown here…" : undefined} spellCheck={false} className={`block min-h-[8rem] w-full resize-none overflow-hidden bg-transparent p-0 text-[#c9d1d9] outline-none placeholder:text-[#8b949e] ${rhythm.textSize} ${rhythm.lineHeight}`} style={{ fontFamily: "'Fira Code', 'JetBrains Mono', 'Consolas', monospace" }} />
       ))}
     </div>
   );
