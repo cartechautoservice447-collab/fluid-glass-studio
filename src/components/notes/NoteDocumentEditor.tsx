@@ -45,36 +45,66 @@ export function replaceNoteSegment(value: string, segment: Segment, nextContent:
   return `${value.slice(0, segment.start)}${raw.replace(originalPrefix, "")}${value.slice(segment.end)}`;
 }
 
+type ScrollSnapshot = {
+  top: number;
+  left: number;
+  stickToBottom: boolean;
+  bottomGap: number;
+};
+
 export function NoteDocumentEditor({ value, activeIndex, onActiveIndexChange, onChangeSegment, onActiveTextarea, readability = "default" }: Props) {
   const segments = useMemo(() => parseNoteSegments(value), [value]);
   const refs = useRef<Array<HTMLTextAreaElement | null>>([]);
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const pendingScroll = useRef<{ top: number; left: number } | null>(null);
+  const pendingScroll = useRef<ScrollSnapshot | null>(null);
   const restoreFrame = useRef<number | null>(null);
   const rhythm = READABILITY[readability];
 
   const scrollContainer = useCallback(() => rootRef.current?.parentElement ?? null, []);
+
   const resizeTextarea = useCallback((element: HTMLTextAreaElement | null) => {
     if (!element) return;
+    const previousHeight = element.style.height;
     element.style.height = "auto";
-    element.style.height = `${Math.max(element.scrollHeight, 128)}px`;
+    const nextHeight = `${Math.max(element.scrollHeight, 128)}px`;
+    if (previousHeight !== nextHeight) element.style.height = nextHeight;
   }, []);
 
   const rememberScroll = useCallback(() => {
     const container = scrollContainer();
-    if (container) pendingScroll.current = { top: container.scrollTop, left: container.scrollLeft };
+    if (!container) return;
+
+    const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+    const bottomGap = Math.max(0, maxScrollTop - container.scrollTop);
+    pendingScroll.current = {
+      top: container.scrollTop,
+      left: container.scrollLeft,
+      // When the user is editing at the bottom, preserve the bottom edge,
+      // not the old absolute scrollTop. Textarea resizing changes scrollHeight.
+      stickToBottom: bottomGap <= 24,
+      bottomGap,
+    };
   }, [scrollContainer]);
 
   useLayoutEffect(() => {
     refs.current.forEach(resizeTextarea);
+
     const saved = pendingScroll.current;
     if (!saved) return;
     pendingScroll.current = null;
+
     const container = scrollContainer();
     if (!container) return;
+
     if (restoreFrame.current !== null) cancelAnimationFrame(restoreFrame.current);
+
     restoreFrame.current = requestAnimationFrame(() => {
-      container.scrollTop = saved.top;
+      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+      const nextTop = saved.stickToBottom
+        ? Math.max(0, maxScrollTop - saved.bottomGap)
+        : Math.min(saved.top, maxScrollTop);
+
+      container.scrollTop = nextTop;
       container.scrollLeft = saved.left;
       restoreFrame.current = null;
     });
