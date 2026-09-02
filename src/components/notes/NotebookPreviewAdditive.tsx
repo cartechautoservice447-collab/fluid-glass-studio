@@ -33,7 +33,7 @@ export function NotebookPreviewAdditive({ body, className = "", readability = "d
   if (!body.trim()) return <div className={`flex min-h-full items-center justify-center rounded-2xl border border-white/10 bg-white/[0.025] px-6 py-16 text-center ${className}`}><div><p className="text-base font-medium text-white/80">Nothing to preview yet</p><p className="mt-1 text-sm text-white/55">Start writing and your finished note will appear here.</p></div></div>;
 
   return (
-    <article className={`mx-auto w-full max-w-4xl px-6 py-8 sm:px-10 sm:py-10 ${className}`}>
+    <article className={`mx-auto w-full max-w-4xl whitespace-pre-wrap px-6 py-8 sm:px-10 sm:py-10 ${className}`}>
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
         h1: (props) => <h1 className="mb-6 text-2xl font-semibold leading-tight tracking-tight text-white sm:text-3xl" {...props} />,
         h2: (props) => <h2 className="mb-4 mt-9 border-b border-white/10 pb-2 text-xl font-semibold leading-tight tracking-tight text-white sm:text-2xl" {...props} />,
