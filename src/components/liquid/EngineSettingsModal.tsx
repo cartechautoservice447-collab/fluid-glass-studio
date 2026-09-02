@@ -1,5 +1,5 @@
-import { Settings2, RotateCcw } from "lucide-react";
-import { useState } from "react";
+import { Settings2, RotateCcw, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { LiquidSlider } from "@/components/liquid/LiquidSlider";
 import { ThemeToggle } from "@/components/liquid/ThemeToggle";
@@ -9,7 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useCustomization } from "@/context/CustomizationContext";
 
-type Props = { trigger?: "button" | "icon" };
+type Props = { trigger?: "button" | "icon"; userId?: string };
+
+const PERFORMANCE_EVENT = "glass-performance-changed";
+const performanceKey = (userId?: string) => userId ? `liquid-glass-performance-mode:${userId}` : "liquid-glass-performance-mode";
 
 const UI_TEXT_CLARITY_CSS = `
 html[data-ui-text-clarity="smooth"] body { text-rendering: optimizeLegibility; }
@@ -28,9 +31,33 @@ html[data-ui-text-clarity="punchy"] .on-stage-muted { color: oklch(0.96 0.01 250
 html[data-ui-text-clarity="punchy"] .notes-pulse-glow { text-shadow: 0 0 0.3px currentColor; }
 `;
 
-export function EngineSettingsModal({ trigger = "button" }: Props) {
+export function EngineSettingsModal({ trigger = "button", userId }: Props) {
   const { liquid, setLiquid, reset, theme, displayName, setDisplayName, pureBlack, setPureBlack, backgroundThemeEnabled, setBackgroundThemeEnabled, backgroundOpacity, setBackgroundOpacity, fullDarkBackground, setFullDarkBackground, uiTextClarity, setUITextClarity } = useCustomization();
   const [open, setOpen] = useState(false);
+  const [performance, setPerformance] = useState<"high" | "ultra">(() => localStorage.getItem(performanceKey(userId)) === "ultra" ? "ultra" : "high");
+
+  useEffect(() => {
+    const key = performanceKey(userId);
+    const mode = localStorage.getItem(key) === "ultra" ? "ultra" : "high";
+    setPerformance(mode);
+    document.documentElement.dataset["glassPerformance"] = mode;
+    const onExternalChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string; mode?: "high" | "ultra" }>).detail;
+      if ((detail?.userId === userId || (!detail?.userId && !userId)) && detail?.mode) {
+        setPerformance(detail.mode);
+        document.documentElement.dataset["glassPerformance"] = detail.mode;
+      }
+    };
+    window.addEventListener(PERFORMANCE_EVENT, onExternalChange);
+    return () => window.removeEventListener(PERFORMANCE_EVENT, onExternalChange);
+  }, [userId]);
+
+  const setPerformanceMode = (mode: "high" | "ultra") => {
+    setPerformance(mode);
+    localStorage.setItem(performanceKey(userId), mode);
+    document.documentElement.dataset["glassPerformance"] = mode;
+    window.dispatchEvent(new CustomEvent(PERFORMANCE_EVENT, { detail: { userId, mode } }));
+  };
 
   return <>
     <style>{UI_TEXT_CLARITY_CSS}</style>
@@ -41,6 +68,7 @@ export function EngineSettingsModal({ trigger = "button" }: Props) {
         <section className="space-y-6 pt-2">
           <div className="space-y-2 rounded-2xl border border-white/20 bg-white/5 p-4"><p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-foreground">Profile</p><Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Your name" maxLength={40} className="border-white/20 bg-white/10" /><p className="text-xs text-muted-foreground">Shown in the welcome greeting on your course grid.</p></div>
           <div className="space-y-3 rounded-2xl border border-white/20 bg-white/5 p-4"><div><p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-foreground">UI Text Clarity</p><p className="mt-1 text-xs text-muted-foreground">Controls clarity and color strength of normal interface text only. Glass physics and appearance are unchanged.</p></div><div className="grid grid-cols-4 gap-1.5 rounded-xl border border-white/10 bg-black/10 p-1"><button type="button" onClick={() => setUITextClarity("default")} aria-pressed={uiTextClarity === "default"} className={`rounded-lg px-2 py-2 text-xs font-medium transition ${uiTextClarity === "default" ? "bg-white/20 text-white shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>Default</button><button type="button" onClick={() => setUITextClarity("smooth")} aria-pressed={uiTextClarity === "smooth"} className={`rounded-lg px-2 py-2 text-xs font-medium transition ${uiTextClarity === "smooth" ? "bg-white/20 text-white shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>Smooth</button><button type="button" onClick={() => setUITextClarity("medium")} aria-pressed={uiTextClarity === "medium"} className={`rounded-lg px-2 py-2 text-xs font-medium transition ${uiTextClarity === "medium" ? "bg-white/20 text-white shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>Medium</button><button type="button" onClick={() => setUITextClarity("punchy")} aria-pressed={uiTextClarity === "punchy"} className={`rounded-lg px-2 py-2 text-xs font-medium transition ${uiTextClarity === "punchy" ? "bg-white/20 text-white shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>Punchy</button></div></div>
+          <div className="space-y-3 rounded-2xl border border-white/20 bg-white/5 p-4"><div className="flex items-center gap-2"><Zap className="size-4"/><p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-foreground">Performance Mode</p></div><p className="text-xs text-muted-foreground">Choose the visual-performance profile used across the Glass interface.</p><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => setPerformanceMode("high")} aria-pressed={performance === "high"} className={`rounded-xl border p-3 text-left transition ${performance === "high" ? "border-white/40 bg-white/15 text-foreground" : "border-white/10 bg-white/[.03] text-muted-foreground hover:bg-white/10"}`}><span className="block text-sm font-medium">High</span><span className="mt-1 block text-[11px] text-muted-foreground">Balanced visual effects</span></button><button type="button" onClick={() => setPerformanceMode("ultra")} aria-pressed={performance === "ultra"} className={`rounded-xl border p-3 text-left transition ${performance === "ultra" ? "border-white/40 bg-white/15 text-foreground" : "border-white/10 bg-white/[.03] text-muted-foreground hover:bg-white/10"}`}><span className="block text-sm font-medium">Ultra</span><span className="mt-1 block text-[11px] text-muted-foreground">Maximum visual effects</span></button></div></div>
           <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/20 bg-white/5 p-4"><div><p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-foreground">Appearance</p><p className="mt-1 text-xs text-muted-foreground">{theme === "dark" ? "Night mode — obsidian liquid" : "Day mode — bright liquid"}</p></div><ThemeToggle /></div>
           <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/20 bg-white/5 p-4"><div><p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-foreground">Pure Black</p><p className="mt-1 text-xs text-muted-foreground">Flat black background instead of the gradient glow. Glass panels stay as they are.</p></div><Switch checked={pureBlack} onCheckedChange={setPureBlack} aria-label="Toggle pure black background" /></div>
           <div className="space-y-4 rounded-2xl border border-white/20 bg-white/5 p-4"><div className="flex items-center justify-between gap-4"><div><p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-foreground">Background Theme</p><p className="mt-1 text-xs text-muted-foreground">Independent background controls. Glass panels and Glass physics are unchanged.</p></div><Switch checked={backgroundThemeEnabled} onCheckedChange={setBackgroundThemeEnabled} aria-label="Enable background theme controls" /></div>{backgroundThemeEnabled&&<div className="space-y-5 border-t border-white/10 pt-4"><LiquidSlider label="Background Opacity" hint="Controls only the background layer behind the Glass UI." value={backgroundOpacity} min={0} max={100} display={`${backgroundOpacity}%`} onChange={setBackgroundOpacity} /><div className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.04] p-3"><div><p className="text-sm font-medium text-foreground">Fully Dark Theme</p><p className="mt-1 text-xs text-muted-foreground">Use a uniform deep-dark background so the existing Glass sits cleanly on top.</p></div><Switch checked={fullDarkBackground} onCheckedChange={setFullDarkBackground} aria-label="Toggle fully dark background" /></div></div>}</div>
