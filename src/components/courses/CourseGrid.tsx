@@ -22,8 +22,8 @@ export function CourseGrid({courses,noteCounts,lastEdited,hiddenCourseId,onOpenC
     <div className="relative flex flex-wrap items-center justify-between gap-4 overflow-hidden rounded-[28px] border border-white/20 bg-white/[0.10] px-5 py-5 shadow-[inset_0_1px_2px_rgba(255,255,255,.35),0_10px_36px_rgba(0,0,0,.22)] backdrop-blur-xl sm:px-6 sm:py-5">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.16] via-transparent to-transparent" aria-hidden/>
       <div className="relative min-w-0 flex-1 py-0.5">
-        <h1 className="max-w-full whitespace-nowrap overflow-hidden text-ellipsis text-[clamp(.52rem,1.1vw,.62rem)] font-semibold uppercase tracking-[clamp(.16em,1.5vw,.32em)] text-muted-foreground">WELCOME BACK, {welcomeName.toUpperCase()}</h1>
-        <p className="mt-2 max-w-xl text-xs leading-5 text-muted-foreground sm:text-sm sm:leading-6">Select a course folder to open your notes and study workspace.</p>
+        <h1 className="max-w-full whitespace-nowrap overflow-hidden text-ellipsis text-xl font-semibold uppercase leading-tight tracking-[0.16em] text-foreground sm:text-2xl sm:tracking-[0.18em]">WELCOME BACK, {welcomeName.toUpperCase()}</h1>
+        <p className="mt-1.5 max-w-xl text-xs leading-5 text-muted-foreground">Select a course folder to open your notes and study workspace.</p>
       </div>
       <div className="relative flex shrink-0 items-center gap-2">
         <ThemeToggle/>
