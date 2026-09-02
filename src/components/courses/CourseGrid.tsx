@@ -23,7 +23,7 @@ export function CourseGrid({courses,noteCounts,lastEdited,hiddenCourseId,onOpenC
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.16] via-transparent to-transparent" aria-hidden/>
       <div className="pointer-events-none absolute inset-x-6 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-white/[0.12] via-white/[0.04] to-transparent opacity-80" aria-hidden/>
       <div className="relative flex min-w-0 flex-1 flex-col justify-center py-0.5">
-        <h1 className="max-w-full break-words text-[clamp(1.05rem,2.25vw,1.45rem)] font-bold uppercase leading-[1.05] tracking-[clamp(.12em,1.4vw,.22em)] text-foreground/80">WELCOME BACK, {welcomeName.toUpperCase()}</h1>
+        <h1 className="max-w-full break-words text-[clamp(0.95rem,2vw,1.28rem)] font-bold uppercase leading-[1.05] tracking-[clamp(.14em,1.7vw,.27em)] text-foreground">WELCOME BACK, {welcomeName.toUpperCase()}</h1>
         <p className="mt-1.5 max-w-xl text-xs leading-5 text-muted-foreground">Select a course folder to open your notes and study workspace.</p>
       </div>
       <div className="relative flex shrink-0 items-center gap-2">
