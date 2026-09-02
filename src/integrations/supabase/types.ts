@@ -138,8 +138,11 @@ export type Database = {
       }
       profiles: {
         Row: {
+          background_opacity: number
+          background_theme_enabled: boolean
           created_at: string
           display_name: string | null
+          full_dark_background: boolean
           id: string
           liquid_bounce_damping: number
           liquid_bounce_stiffness: number
@@ -152,11 +155,15 @@ export type Database = {
           liquid_transparency: number
           pure_black: boolean
           theme: string
+          ui_text_clarity: string
           updated_at: string
         }
         Insert: {
+          background_opacity?: number
+          background_theme_enabled?: boolean
           created_at?: string
           display_name?: string | null
+          full_dark_background?: boolean
           id: string
           liquid_bounce_damping?: number
           liquid_bounce_stiffness?: number
@@ -169,11 +176,15 @@ export type Database = {
           liquid_transparency?: number
           pure_black?: boolean
           theme?: string
+          ui_text_clarity?: string
           updated_at?: string
         }
         Update: {
+          background_opacity?: number
+          background_theme_enabled?: boolean
           created_at?: string
           display_name?: string | null
+          full_dark_background?: boolean
           id?: string
           liquid_bounce_damping?: number
           liquid_bounce_stiffness?: number
@@ -186,6 +197,7 @@ export type Database = {
           liquid_transparency?: number
           pure_black?: boolean
           theme?: string
+          ui_text_clarity?: string
           updated_at?: string
         }
         Relationships: []
