@@ -19,11 +19,11 @@ export function CourseGrid({courses,noteCounts,lastEdited,hiddenCourseId,onOpenC
   const glassActionStyle={backgroundColor:"var(--water-gel-bg)",backdropFilter:"blur(var(--liquid-density, 12px)) saturate(180%)",borderTop:"1px solid rgba(255,255,255,.32)"};
   const welcomeName=displayName?.trim()||"there";
   return <div className="flex h-full min-h-0 w-full flex-col gap-6 overflow-y-auto px-2 py-2">
-    <div className="relative flex flex-wrap items-center justify-center gap-4 overflow-hidden rounded-[28px] border border-white/20 bg-white/[0.10] px-5 py-5 text-center shadow-[inset_0_1px_2px_rgba(255,255,255,.35),0_10px_36px_rgba(0,0,0,.22)] backdrop-blur-xl sm:px-6 sm:py-5">
+    <div className="relative flex min-h-[112px] flex-wrap items-center justify-between gap-4 overflow-hidden rounded-[28px] border border-white/20 bg-white/[0.10] px-5 py-5 shadow-[inset_0_1px_2px_rgba(255,255,255,.35),0_10px_36px_rgba(0,0,0,.22)] backdrop-blur-xl sm:px-6 sm:py-5">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.16] via-transparent to-transparent" aria-hidden/>
-      <div className="relative min-w-0 max-w-full flex-1 py-0.5">
-        <h1 className="mx-auto max-w-full break-words text-[clamp(1.15rem,2.5vw,1.6rem)] font-bold uppercase leading-[1.05] tracking-[clamp(.10em,1.1vw,.20em)] text-foreground">WELCOME BACK, {welcomeName.toUpperCase()}</h1>
-        <p className="mx-auto mt-1.5 max-w-[44rem] text-[0.7rem] leading-5 text-muted-foreground">Select a course folder to open your notes and study workspace.</p>
+      <div className="relative flex min-w-0 flex-1 flex-col justify-center py-0.5">
+        <h1 className="max-w-full break-words text-[clamp(1.15rem,2.5vw,1.6rem)] font-bold uppercase leading-[1.05] tracking-[clamp(.10em,1.1vw,.20em)] text-foreground">WELCOME BACK, {welcomeName.toUpperCase()}</h1>
+        <p className="mt-1.5 max-w-xl text-xs leading-5 text-muted-foreground">Select a course folder to open your notes and study workspace.</p>
       </div>
       <div className="relative flex shrink-0 items-center gap-2">
         <ThemeToggle/>
