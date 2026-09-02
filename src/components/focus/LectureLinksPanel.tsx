@@ -1,5 +1,5 @@
 import { Bookmark, ExternalLink, Link2, Plus, Trash2, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { LectureLink } from "@/hooks/useLectureLinks";
@@ -29,6 +29,11 @@ export function LectureLinksPanel({ open, links, loading, cloudAvailable, curren
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState(currentUrl);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) setUrl(currentUrl);
+  }, [currentUrl, open]);
+
   if (!open) return null;
 
   const save = async () => {
