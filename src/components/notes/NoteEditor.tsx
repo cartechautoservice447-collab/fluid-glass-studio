@@ -82,6 +82,19 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
     });
   }, []);
 
+  const removeSegment = useCallback((index: number) => {
+    setBody((current) => {
+      const currentSegments = parseNoteSegments(current);
+      const segment = currentSegments[index];
+      if (!segment || segment.type !== "output") return current;
+      const before = current.slice(0, segment.start);
+      const after = current.slice(segment.end);
+      const joined = `${before}${after}`;
+      return joined.replace(/\n{3,}/g, "\n\n").replace(/^\n(?=\n)/, "");
+    });
+    setActiveSegmentIndex((current) => Math.max(0, current > index ? current - 1 : Math.min(current, segments.length - 2)));
+  }, [segments.length]);
+
   const replaceAll = useCallback((next: string) => {
     setBody(next);
     setActiveSegmentIndex(0);
@@ -151,7 +164,7 @@ export function NoteEditor({ minimized, onMinimize, note, collections, onUpdate,
       </div>
     </div>
     <div className={`min-h-0 flex-1 overflow-y-auto bg-[#0d1117] ${mode === "edit" ? "p-4" : "p-0"}`}>
-      {mode === "edit" ? <NoteDocumentEditor value={body} activeIndex={activeSegmentIndex} onActiveIndexChange={setActiveSegmentIndex} onChangeSegment={updateSegment} onActiveTextarea={setActiveTextarea} readability={readability} /> : <div className="min-h-full"><NotebookPreviewAdditive body={previewBody} readability={readability} /><div className="mx-auto w-full max-w-4xl px-6 pb-8 sm:px-10">{segments.filter((segment) => segment.type === "output").map((segment, index) => <section key={`preview-output-${segment.start}-${segment.end}-${index}`} className="mb-3 overflow-hidden rounded-xl border border-[#30363d] bg-[#010409] shadow-[0_8px_24px_rgba(0,0,0,0.22)]" aria-label={`Terminal output${index + 1}`}><div className="border-b border-[#21262d] bg-[#0d1117] px-3 py-2 text-[0.62rem] font-medium uppercase tracking-[0.14em] text-[#a8b3c0]">Output · Code {index + 1}</div><pre className={`max-h-56 overflow-auto px-4 py-3 font-mono text-[#d3d9e0] ${readability === "great" ? "text-[0.9rem] leading-7" : readability === "best" ? "text-[0.86rem] leading-7" : "text-[0.82rem] leading-6"}`}>{segment.content}</pre></section>)}</div></div>}
+      {mode === "edit" ? <NoteDocumentEditor value={body} activeIndex={activeSegmentIndex} onActiveIndexChange={setActiveSegmentIndex} onChangeSegment={updateSegment} onRemoveSegment={removeSegment} onActiveTextarea={setActiveTextarea} readability={readability} /> : <div className="min-h-full"><NotebookPreviewAdditive body={previewBody} readability={readability} /><div className="mx-auto w-full max-w-4xl px-6 pb-8 sm:px-10">{segments.filter((segment) => segment.type === "output").map((segment, index) => <section key={`preview-output-${segment.start}-${segment.end}-${index}`} className="mb-3 overflow-hidden rounded-xl border border-[#30363d] bg-[#010409] shadow-[0_8px_24px_rgba(0,0,0,0.22)]" aria-label={`Terminal output${index + 1}`}><div className="border-b border-[#21262d] bg-[#0d1117] px-3 py-2 text-[0.62rem] font-medium uppercase tracking-[0.14em] text-[#a8b3c0]">Output · Code {index + 1}</div><pre className={`max-h-56 overflow-auto px-4 py-3 font-mono text-[#d3d9e0] ${readability === "great" ? "text-[0.9rem] leading-7" : readability === "best" ? "text-[0.86rem] leading-7" : "text-[0.82rem] leading-6"}`}>{segment.content}</pre></section>)}</div></div>}
     </div>
     <p className="border-t border-white/10 bg-[#0d1117] px-4 py-2 text-[0.65rem] uppercase tracking-[0.2em] text-[#8b949e]">Autosaved · edited {relativeDate(note.updatedAt)}</p>
   </GlassPanel>
