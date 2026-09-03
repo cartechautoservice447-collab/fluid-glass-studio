@@ -22,6 +22,7 @@ const PATTERNS: Record<StudySessionPattern, { title: string; description: string
       { label: "Focus", minutes: 20, kind: "focus" },
       { label: "Rest", minutes: 10, kind: "rest" },
       { label: "Focus", minutes: 20, kind: "focus" },
+      { label: "Rest", minutes: 10, kind: "rest" },
     ],
   },
   classic: {
