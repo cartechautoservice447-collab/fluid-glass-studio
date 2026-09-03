@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Pause, Play, RotateCcw, Settings2, X } from "lucide-react";
 
+import { StudySessionPanel } from "@/components/focus/StudySessionPanel";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
@@ -42,6 +43,7 @@ function loadSession(): PersistedSession | null {
 export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const [durations, setDurations] = useState(DEFAULT_DURATIONS);
   const [mode, setMode] = useState<Mode>("focus");
+  const [view, setView] = useState<"timer" | "study">("timer");
   const [phase, setPhase] = useState<SessionPhase>("working");
   const [remaining, setRemaining] = useState(DEFAULT_DURATIONS.focus);
   const [running, setRunning] = useState(false);
@@ -76,6 +78,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
 
     const session = loadSession();
     if (session?.running && session.deadline > Date.now()) {
+      setView("timer");
       setMode(session.mode);
       setPhase(session.phase);
       setDeadline(session.deadline);
@@ -153,6 +156,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
     const nextPhase: SessionPhase = nextMode === "focus" ? "working" : "resting";
     const seconds = durations[nextMode];
     const nextDeadline = Date.now() + seconds * 1000;
+    setView("timer");
     setMode(nextMode);
     setPhase(nextPhase);
     setRemaining(seconds);
@@ -164,6 +168,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
 
   const selectMode = (next: Mode) => {
     if (locked) return;
+    setView("timer");
     setMode(next);
     setPhase(next === "focus" ? "working" : "resting");
     setRemaining(durations[next]);
@@ -178,6 +183,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
     const next = { ...durations, short: restSeconds };
     persistDurations(next);
     const nextDeadline = Date.now() + restSeconds * 1000;
+    setView("timer");
     setMode("short");
     setPhase("resting");
     setRemaining(restSeconds);
@@ -220,8 +226,6 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
     };
   }, [running, deadline, phase, durations.focus, restMinutes]);
 
-  // Flash the browser tab title while resting and the tab is in the background,
-  // so switching away from the site doesn't mean missing the rest period.
   useEffect(() => {
     if (phase !== "resting" || !running) {
       document.title = originalTitleRef.current;
@@ -282,53 +286,60 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
   return (
     <>
       <Dialog open={open && !locked} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-md overflow-hidden rounded-[28px] border-white/20 bg-black/35 p-0 text-foreground shadow-2xl backdrop-blur-2xl [&>button]:hidden">
+        <DialogContent className={`${view === "study" ? "max-w-2xl" : "max-w-md"} overflow-hidden rounded-[28px] border-white/20 bg-black/35 p-0 text-foreground shadow-2xl backdrop-blur-2xl [&>button]:hidden`}>
           <div className="relative p-6 sm:p-8">
             <div className="pointer-events-none absolute -right-20 -top-24 size-56 rounded-full bg-primary/20 blur-3xl" />
             <div className="relative">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <DialogTitle className="text-lg font-semibold tracking-tight">Pomodoro</DialogTitle>
                 <div className="flex items-center gap-1">
-                  {notifPermission !== "granted" && notifPermission !== "unsupported" && (
+                  {notifPermission !== "granted" && notifPermission !== "unsupported" && view === "timer" && (
                     <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={enableAlerts} aria-label="Enable rest notifications"><Bell className="size-4" /></Button>
                   )}
-                  <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => setSettingsOpen((value) => !value)} aria-label="Pomodoro settings"><Settings2 className="size-4" /></Button>
+                  {view === "timer" && <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => setSettingsOpen((value) => !value)} aria-label="Pomodoro settings"><Settings2 className="size-4" /></Button>}
                   <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => onOpenChange(false)} aria-label="Close Pomodoro"><X className="size-4" /></Button>
                 </div>
               </div>
 
-              {notifPermission === "default" && (
-                <button type="button" onClick={enableAlerts} className="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-left text-xs text-muted-foreground hover:bg-white/[0.08]">
-                  🔔 Tap to enable a sound + notification when rest starts
-                </button>
-              )}
-              {notifPermission === "denied" && (
-                <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-muted-foreground">
-                  Notifications are blocked for this site — you'll still get a sound and a flashing tab title when rest starts. Allow notifications in your browser's site settings for the full popup.
-                </p>
-              )}
-
-              {settingsOpen && (
-                <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-                  <p className="text-sm font-medium">Edit Pomodoro time</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {([["focus", "Focus", focusMinutes], ["short", "Short Break", restMinutes], ["long", "Long Break", longBreakMinutes]] as const).map(([item, label, value]) => (
-                      <label key={item} className="rounded-xl border border-white/10 bg-black/20 p-2">
-                        <span className="block text-[11px] text-muted-foreground">{label}</span>
-                        <div className="mt-1 flex items-center gap-1"><input aria-label={`${label} minutes`} type="number" min={1} max={120} value={value} onChange={(event) => changeDuration(item, Number(event.target.value))} className="w-full min-w-0 bg-transparent text-sm font-medium outline-none" /><span className="text-[10px] text-muted-foreground">min</span></div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-6 grid grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-white/[0.045] p-1">
-                {(Object.keys(LABELS) as Mode[]).map((item) => <button key={item} type="button" onClick={() => selectMode(item)} className={`rounded-xl px-2 py-2 text-xs font-medium transition ${mode === item ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>{LABELS[item]}</button>)}
+              <div className="mt-4 grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-white/[0.045] p-1">
+                <button type="button" onClick={() => setView("timer")} className={`rounded-lg px-3 py-2 text-xs font-medium transition ${view === "timer" ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>Pomodoro Timer</button>
+                <button type="button" onClick={() => { if (!locked) { setView("study"); setSettingsOpen(false); } }} className={`rounded-lg px-3 py-2 text-xs font-medium transition ${view === "study" ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>Study Session</button>
               </div>
 
-              <div className="flex flex-col items-center py-10"><div className="text-7xl font-semibold tabular-nums tracking-[-0.05em] text-foreground sm:text-8xl" aria-live="polite">{formatted}</div><p className="mt-3 text-sm text-muted-foreground">{running ? "Stay focused" : "Ready when you are"}</p></div>
+              {view === "study" ? <StudySessionPanel /> : <>
+                {notifPermission === "default" && (
+                  <button type="button" onClick={enableAlerts} className="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-left text-xs text-muted-foreground hover:bg-white/[0.08]">
+                    🔔 Tap to enable a sound + notification when rest starts
+                  </button>
+                )}
+                {notifPermission === "denied" && (
+                  <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-muted-foreground">
+                    Notifications are blocked for this site — you'll still get a sound and a flashing tab title when rest starts. Allow notifications in your browser's site settings for the full popup.
+                  </p>
+                )}
 
-              <div className="flex items-center justify-center gap-3"><Button variant="ghost" size="icon" className="size-11 rounded-full bg-white/[0.06] hover:bg-white/10" onClick={reset} aria-label="Reset timer"><RotateCcw className="size-4" /></Button><Button size="lg" className="h-12 rounded-full px-7 shadow-lg" onClick={toggleRunning}>{running ? <Pause className="mr-2 size-4" /> : <Play className="mr-2 size-4" />}{running ? "Pause" : "Start"}</Button></div>
+                {settingsOpen && (
+                  <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                    <p className="text-sm font-medium">Edit Pomodoro time</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {([["focus", "Focus", focusMinutes], ["short", "Short Break", restMinutes], ["long", "Long Break", longBreakMinutes]] as const).map(([item, label, value]) => (
+                        <label key={item} className="rounded-xl border border-white/10 bg-black/20 p-2">
+                          <span className="block text-[11px] text-muted-foreground">{label}</span>
+                          <div className="mt-1 flex items-center gap-1"><input aria-label={`${label} minutes`} type="number" min={1} max={120} value={value} onChange={(event) => changeDuration(item, Number(event.target.value))} className="w-full min-w-0 bg-transparent text-sm font-medium outline-none" /><span className="text-[10px] text-muted-foreground">min</span></div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-6 grid grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-white/[0.045] p-1">
+                  {(Object.keys(LABELS) as Mode[]).map((item) => <button key={item} type="button" onClick={() => selectMode(item)} className={`rounded-xl px-2 py-2 text-xs font-medium transition ${mode === item ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>{LABELS[item]}</button>)}
+                </div>
+
+                <div className="flex flex-col items-center py-10"><div className="text-7xl font-semibold tabular-nums tracking-[-0.05em] text-foreground sm:text-8xl" aria-live="polite">{formatted}</div><p className="mt-3 text-sm text-muted-foreground">{running ? "Stay focused" : "Ready when you are"}</p></div>
+
+                <div className="flex items-center justify-center gap-3"><Button variant="ghost" size="icon" className="size-11 rounded-full bg-white/[0.06] hover:bg-white/10" onClick={reset} aria-label="Reset timer"><RotateCcw className="size-4" /></Button><Button size="lg" className="h-12 rounded-full px-7 shadow-lg" onClick={toggleRunning}>{running ? <Pause className="mr-2 size-4" /> : <Play className="mr-2 size-4" />}{running ? "Pause" : "Start"}</Button></div>
+              </>}
             </div>
           </div>
         </DialogContent>
