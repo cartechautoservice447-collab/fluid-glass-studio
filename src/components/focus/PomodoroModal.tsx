@@ -151,7 +151,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
           setRemaining(typeof study.remaining === "number" ? Math.floor(study.remaining) : segment.minutes * 60);
           setRunning(false);
         }
-        setLocked(segment.kind === "resting");
+        setLocked(segment.kind === "rest");
         return;
       }
     }
@@ -282,7 +282,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
     setRemaining(first.minutes * 60);
     setDeadline(nextStudy.deadline);
     setRunning(true);
-    setLocked(first.kind === "resting");
+    setLocked(first.kind === "rest");
   };
 
   useEffect(() => {
@@ -305,7 +305,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
           setRemaining(segment.minutes * 60);
           setDeadline(nextDeadline);
           setRunning(true);
-          setLocked(segment.kind === "resting");
+          setLocked(segment.kind === "rest");
           if (segment.kind === "rest") notifyRestStart(segment.minutes * 60);
           return;
         }
@@ -394,7 +394,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
       setRunning(true);
       setPhase(active.kind === "focus" ? "working" : "resting");
       setMode(active.kind === "focus" ? "focus" : "short");
-      setLocked(active.kind === "resting");
+      setLocked(active.kind === "rest");
       return;
     }
     startNormalSession(mode);
