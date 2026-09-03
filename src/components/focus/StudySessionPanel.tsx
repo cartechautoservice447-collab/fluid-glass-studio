@@ -53,6 +53,7 @@ function buildSchedule(cycle: Segment[], targetMinutes: number) {
   let cycleIndex = 0;
   while (remaining > 0) {
     const segment = cycle[cycleIndex % cycle.length];
+    if (!segment) break;
     const minutes = Math.min(segment.minutes, remaining);
     schedule.push({ ...segment, minutes });
     remaining -= minutes;
@@ -88,7 +89,7 @@ export function StudySessionPanel() {
         if (value > 1) return value - 1;
         if (segmentIndex + 1 < schedule.length) {
           setSegmentIndex((value) => value + 1);
-          return schedule[segmentIndex + 1].minutes * 60;
+          return (schedule[segmentIndex + 1]?.minutes ?? 0) * 60;
         }
         setRunning(false);
         return 0;
