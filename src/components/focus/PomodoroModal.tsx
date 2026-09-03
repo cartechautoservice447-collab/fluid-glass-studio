@@ -124,8 +124,8 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
         setPhase(segment.kind === "focus" ? "working" : "resting");
         setDeadline(study.deadline);
         setRunning(true);
-        setLocked(segment.kind === "resting");
-        setRemaining(Math.max(0, Math.ceil((study.deadline - Date.now()) / 1000)));
+        setLocked(segment.kind === "rest");
+        setRemaining(Math.max(0, Math.ceil((((study.deadline ?? Date.now()) - Date.now())) / 1000)));
         return;
       }
     }
@@ -201,7 +201,6 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
         body: `Time to rest for ${Math.round(seconds / 60)} min. Step away from the screen.`,
         icon: "/pwa-icon-192.svg",
         tag: "liquid-glass-pomodoro-rest",
-        renotify: true,
       });
       n.onclick = () => { window.focus(); n.close(); };
     } catch {
@@ -251,7 +250,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
     setRemaining(first.minutes * 60);
     setDeadline(nextDeadline);
     setRunning(true);
-    setLocked(first.kind === "resting");
+    setLocked(first.kind === "rest");
     if (first.kind === "rest") notifyRestStart(first.minutes * 60);
   };
 
@@ -306,7 +305,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
           setRemaining(nextSegment.minutes * 60);
           setDeadline(nextDeadline);
           setRunning(true);
-          setLocked(nextSegment.kind === "resting");
+          setLocked(nextSegment.kind === "rest");
           if (nextSegment.kind === "rest") notifyRestStart(nextSegment.minutes * 60);
           return;
         }
