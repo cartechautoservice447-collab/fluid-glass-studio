@@ -1,0 +1,21 @@
+/* Keep the active Study Session timer above its individual schedule boxes. */
+[role="dialog"]:has([aria-label="Close Pomodoro"]) .relative:has(> div > div > p.uppercase) {
+  display: flex;
+  flex-direction: column;
+}
+
+[role="dialog"]:has([aria-label="Close Pomodoro"]) .relative:has(> div > div > p.uppercase) > [class*="flex flex-col items-center"] {
+  order: 1;
+}
+
+[role="dialog"]:has([aria-label="Close Pomodoro"]) .relative:has(> div > div > p.uppercase) > [class*="flex items-center justify-center gap-3"] {
+  order: 2;
+}
+
+[role="dialog"]:has([aria-label="Close Pomodoro"]) .relative:has(> div > div > p.uppercase) > [class*="mt-6 grid grid-cols-3"] {
+  order: 3;
+}
+
+[role="dialog"]:has([aria-label="Close Pomodoro"]) .relative:has(> div > div > p.uppercase) > div:has(> div > p.uppercase) {
+  order: 4;
+}
