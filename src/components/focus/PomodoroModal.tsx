@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, Clock3, Coffee, Flame, Pause, Play, RotateCcw, Settings2, SkipForward, Sparkles, Volume2, VolumeX, X } from "lucide-react";
+import { Check, Coffee, Flame, Pause, Play, RotateCcw, Settings2, SkipForward, Sparkles, Volume2, VolumeX, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 import { StudySessionPanel, type StudySessionPattern, type StudySessionSegment } from "@/components/focus/StudySessionPanel";
@@ -144,24 +144,11 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
         return;
       }
     }
-
     const session = loadSession();
     if (session && session.deadline > Date.now()) {
-      setView("timer");
-      setStudySession(null);
-      setMode(session.mode);
-      setPhase(session.phase);
-      setDeadline(session.deadline);
-      setRemaining(Math.max(0, Math.ceil((session.deadline - Date.now()) / 1000)));
-      setRunning(true);
+      setView("timer"); setStudySession(null); setMode(session.mode); setPhase(session.phase); setDeadline(session.deadline); setRemaining(Math.max(0, Math.ceil((session.deadline - Date.now()) / 1000))); setRunning(true);
     } else {
-      setView("timer");
-      setStudySession(null);
-      setMode("focus");
-      setPhase("working");
-      setDeadline(null);
-      setRemaining(durationFor("focus", nextSettings));
-      setRunning(false);
+      setView("timer"); setStudySession(null); setMode("focus"); setPhase("working"); setDeadline(null); setRemaining(durationFor("focus", nextSettings)); setRunning(false);
     }
   }, [open]);
 
@@ -174,10 +161,8 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
       [660, 880].forEach((freq, index) => {
-        const osc = ctx.createOscillator(); const gain = ctx.createGain();
-        osc.type = "sine"; osc.frequency.value = freq;
-        const start = ctx.currentTime + index * 0.18;
-        gain.gain.setValueAtTime(0.0001, start); gain.gain.exponentialRampToValueAtTime(0.2, start + 0.02); gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.3);
+        const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.type = "sine"; osc.frequency.value = freq;
+        const start = ctx.currentTime + index * 0.18; gain.gain.setValueAtTime(0.0001, start); gain.gain.exponentialRampToValueAtTime(0.2, start + 0.02); gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.3);
         osc.connect(gain); gain.connect(ctx.destination); osc.start(start); osc.stop(start + 0.32);
       });
       window.setTimeout(() => void ctx.close(), 900);
@@ -192,16 +177,12 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
   const notifyRestStart = (seconds: number) => {
     if (settings.soundEnabled) playChime();
     if (user?.id) void broadcastRestStart(user.id, Math.max(1, Math.round(seconds / 60)));
-    try {
-      if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-      new Notification("Break time!", { body: `Time to rest for ${Math.round(seconds / 60)} min. Step away from the screen.`, icon: "/pwa-icon-192.svg" });
-    } catch {}
+    try { if (typeof Notification === "undefined" || Notification.permission !== "granted") return; new Notification("Break time!", { body: `Time to rest for ${Math.round(seconds / 60)} min. Step away from the screen.`, icon: "/pwa-icon-192.svg" }); } catch {}
   };
 
   const startNormalSession = (nextMode: Mode) => {
     if (studySession) return;
-    const seconds = durationFor(nextMode, settings);
-    const nextDeadline = Date.now() + seconds * 1000;
+    const seconds = durationFor(nextMode, settings); const nextDeadline = Date.now() + seconds * 1000;
     setMode(nextMode); setPhase(nextMode === "focus" ? "working" : "resting"); setRemaining(seconds); setDeadline(nextDeadline); setRunning(true);
     persistSession({ mode: nextMode, phase: nextMode === "focus" ? "working" : "resting", deadline: nextDeadline, running: true });
     if (nextMode !== "focus") notifyRestStart(seconds);
@@ -210,8 +191,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
   const advanceNormalMode = useCallback(() => {
     const nextMode: Mode = mode === "focus" ? ((completedFocusSessions + 1) % settings.sessionsUntilLongBreak === 0 ? "long-break" : "short-break") : "focus";
     if (mode === "focus") setCompletedFocusSessions((count) => count + 1);
-    const nextDuration = durationFor(nextMode, settings);
-    const nextDeadline = Date.now() + nextDuration * 1000;
+    const nextDuration = durationFor(nextMode, settings); const nextDeadline = Date.now() + nextDuration * 1000;
     setMode(nextMode); setPhase(nextMode === "focus" ? "working" : "resting"); setRemaining(nextDuration); setDeadline(nextDeadline); setRunning(true);
     persistSession({ mode: nextMode, phase: nextMode === "focus" ? "working" : "resting", deadline: nextDeadline, running: true });
     if (nextMode !== "focus") notifyRestStart(nextDuration);
@@ -220,36 +200,28 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
   useEffect(() => {
     if (!running || deadline === null) return;
     const tick = () => {
-      const next = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-      setRemaining(next);
+      const next = Math.max(0, Math.ceil((deadline - Date.now()) / 1000)); setRemaining(next);
       if (next > 0) { rafRef.current = window.requestAnimationFrame(tick); return; }
-
       if (studySession) {
         const nextIndex = studySession.index + 1;
         if (nextIndex < studySession.schedule.length) {
-          const segment = studySession.schedule[nextIndex];
-          const nextDeadline = Date.now() + segment.minutes * 60 * 1000;
+          const segment = studySession.schedule[nextIndex]; const nextDeadline = Date.now() + segment.minutes * 60 * 1000;
           const nextStudy = { ...studySession, index: nextIndex, running: true, deadline: nextDeadline, remaining: segment.minutes * 60, pendingStart: false };
-          setStudySession(nextStudy); persistStudySession(nextStudy);
-          setMode(segment.kind === "focus" ? "focus" : "short-break"); setPhase(segment.kind === "focus" ? "working" : "resting"); setRemaining(segment.minutes * 60); setDeadline(nextDeadline); setRunning(true);
-          if (segment.kind === "rest") notifyRestStart(segment.minutes * 60);
-          rafRef.current = window.requestAnimationFrame(tick); return;
+          setStudySession(nextStudy); persistStudySession(nextStudy); setMode(segment.kind === "focus" ? "focus" : "short-break"); setPhase(segment.kind === "focus" ? "working" : "resting"); setRemaining(segment.minutes * 60); setDeadline(nextDeadline); setRunning(true);
+          if (segment.kind === "rest") notifyRestStart(segment.minutes * 60); rafRef.current = window.requestAnimationFrame(tick); return;
         }
-        setRunning(false); setDeadline(null); persistStudySession(null); setStudySession(null); setMode("focus"); setPhase("working"); setRemaining(durationFor("focus", settings)); setView("timer"); persistSession(null); return;
+        setRunning(false); setDeadline(null); setRemaining(0); return;
       }
       advanceNormalMode();
     };
-    rafRef.current = window.requestAnimationFrame(tick);
-    const onVisibility = () => tick();
-    document.addEventListener("visibilitychange", onVisibility);
+    rafRef.current = window.requestAnimationFrame(tick); const onVisibility = () => tick(); document.addEventListener("visibilitychange", onVisibility);
     return () => { if (rafRef.current !== null) window.cancelAnimationFrame(rafRef.current); document.removeEventListener("visibilitychange", onVisibility); };
   }, [running, deadline, studySession, settings, advanceNormalMode]);
 
   useEffect(() => {
     if (!open || !running) return;
     const syncTitle = () => { if (phase !== "resting" || !document.hidden) document.title = originalTitleRef.current; else document.title = document.title === FLASH_TITLE ? originalTitleRef.current : FLASH_TITLE; };
-    syncTitle(); const id = window.setInterval(syncTitle, 1000);
-    return () => { window.clearInterval(id); document.title = originalTitleRef.current; };
+    syncTitle(); const id = window.setInterval(syncTitle, 1000); return () => { window.clearInterval(id); document.title = originalTitleRef.current; };
   }, [open, running, phase]);
 
   const toggleRunning = () => {
@@ -261,8 +233,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
     enableAlerts();
     if (studySession) {
       const active = studySession.schedule[studySession.index]; if (!active) return;
-      const nextDeadline = Date.now() + remaining * 1000;
-      const resumed = { ...studySession, running: true, deadline: nextDeadline, remaining, pendingStart: false };
+      const nextDeadline = Date.now() + remaining * 1000; const resumed = { ...studySession, running: true, deadline: nextDeadline, remaining, pendingStart: false };
       setStudySession(resumed); persistStudySession(resumed); setDeadline(nextDeadline); setRunning(true); setPhase(active.kind === "focus" ? "working" : "resting"); return;
     }
     startNormalSession(mode);
@@ -274,17 +245,19 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
 
   const skip = () => {
     if (studySession) {
-      const nextIndex = studySession.index + 1;
-      if (nextIndex >= studySession.schedule.length) { reset(); return; }
-      const segment = studySession.schedule[nextIndex]; const nextDeadline = Date.now() + segment.minutes * 60 * 1000;
-      const nextStudy = { ...studySession, index: nextIndex, running: true, deadline: nextDeadline, remaining: segment.minutes * 60, pendingStart: false };
-      setStudySession(nextStudy); persistStudySession(nextStudy); setMode(segment.kind === "focus" ? "focus" : "short-break"); setPhase(segment.kind === "focus" ? "working" : "resting"); setRemaining(segment.minutes * 60); setDeadline(nextDeadline); setRunning(true);
-      if (segment.kind === "rest") notifyRestStart(segment.minutes * 60); return;
+      const nextIndex = studySession.index + 1; if (nextIndex >= studySession.schedule.length) { reset(); return; }
+      const segment = studySession.schedule[nextIndex]; const nextDeadline = Date.now() + segment.minutes * 60 * 1000; const nextStudy = { ...studySession, index: nextIndex, running: true, deadline: nextDeadline, remaining: segment.minutes * 60, pendingStart: false };
+      setStudySession(nextStudy); persistStudySession(nextStudy); setMode(segment.kind === "focus" ? "focus" : "short-break"); setPhase(segment.kind === "focus" ? "working" : "resting"); setRemaining(segment.minutes * 60); setDeadline(nextDeadline); setRunning(true); if (segment.kind === "rest") notifyRestStart(segment.minutes * 60); return;
     }
     setRunning(false); setDeadline(null); advanceNormalMode();
   };
 
   const updateSetting = (patch: Partial<PomodoroSettings>) => setSettings((current) => { const next = { ...current, ...patch }; saveSettings(next); return next; });
+
+  const selectMode = (nextMode: Mode) => {
+    if (studySession) return;
+    setMode(nextMode); setPhase(nextMode === "focus" ? "working" : "resting"); setRunning(false); setDeadline(null); setRemaining(durationFor(nextMode, settings)); persistSession(null);
+  };
 
   const startStudySession = (input: { pattern: StudySessionPattern; title: string; focusMinutes: number; schedule: StudySessionSegment[] }) => {
     const first = input.schedule[0]; if (!first) return;
@@ -294,7 +267,6 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
   };
 
   const restTotal = studySession?.schedule.filter((segment) => segment.kind === "rest").reduce((sum, segment) => sum + segment.minutes, 0) ?? 0;
-  const studyComplete = !!studySession && !studySession.running && studySession.index >= studySession.schedule.length - 1 && remaining === 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -322,7 +294,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
               <>
                 {!studySession && (
                   <div className="mt-4 grid grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-white/[0.045] p-1">
-                    {(Object.keys(MODE_META) as Mode[]).map((item) => <button key={item} type="button" onClick={() => setMode(item) || startNormalSession(item)} className={cn("rounded-xl px-2 py-2.5 text-xs font-semibold transition", mode === item ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground")}>{MODE_META[item].label}</button>)}
+                    {(Object.keys(MODE_META) as Mode[]).map((item) => <button key={item} type="button" onClick={() => selectMode(item)} className={cn("rounded-xl px-2 py-2.5 text-xs font-semibold transition", mode === item ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground")}>{MODE_META[item].label}</button>)}
                   </div>
                 )}
 
@@ -353,7 +325,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
 
                   {!studySession && <div className="flex items-center gap-1.5">{Array.from({ length: settings.sessionsUntilLongBreak }).map((_, index) => <span key={index} className="h-1.5 w-1.5 rounded-full" style={{ background: index < dotsFilled ? meta.ring : "rgba(255,255,255,0.15)" }} />)}</div>}
 
-                  {studySession && <div className="w-full grid gap-2">{studySession.schedule.map((segment, index) => { const isCurrent = index === studySession.index && studySession.running; const isPast = index < studySession.index || (index === studySession.index && studyComplete); return <div key={`${segment.label}-${index}`} className={cn("rounded-xl border p-3", isCurrent ? "border-white/35 bg-white/10" : isPast ? "border-white/10 bg-white/[0.025] opacity-55" : "border-white/10 bg-black/15")}><div className="flex items-center justify-between gap-2"><div className="flex items-center gap-2"><span className={cn("flex size-7 items-center justify-center rounded-lg", segment.kind === "focus" ? "bg-foreground/80 text-background" : "bg-white/15 text-foreground")}>{isPast ? <Check className="size-3.5" /> : <span className="text-[9px] font-semibold">{index + 1}</span>}</span><div><p className="text-xs font-medium">{segment.label}</p><p className="text-[9px] text-muted-foreground">{segment.minutes} min</p></div></div><span className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{isCurrent ? "Now" : isPast ? "Done" : "Next"}</span></div></div>; })}</div>}
+                  {studySession && <div className="w-full grid gap-2">{studySession.schedule.map((segment, index) => { const isCurrent = index === studySession.index && studySession.running; const isPast = index < studySession.index; return <div key={`${segment.label}-${index}`} className={cn("rounded-xl border p-3", isCurrent ? "border-white/35 bg-white/10" : isPast ? "border-white/10 bg-white/[0.025] opacity-55" : "border-white/10 bg-black/15")}><div className="flex items-center justify-between gap-2"><div className="flex items-center gap-2"><span className={cn("flex size-7 items-center justify-center rounded-lg", segment.kind === "focus" ? "bg-foreground/80 text-background" : "bg-white/15 text-foreground")}>{isPast ? <Check className="size-3.5" /> : <span className="text-[9px] font-semibold">{index + 1}</span>}</span><div><p className="text-xs font-medium">{segment.label}</p><p className="text-[9px] text-muted-foreground">{segment.minutes} min</p></div></div><span className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{isCurrent ? "Now" : isPast ? "Done" : "Next"}</span></div></div>; })}</div>}
 
                   <div className="flex w-full items-center justify-center gap-3">
                     <button type="button" onClick={reset} className="flex size-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-foreground hover:bg-white/10" aria-label="Reset timer"><RotateCcw className="size-4" /></button>
@@ -368,8 +340,6 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
           </div>
         </div>
       </DialogContent>
-
-      {false && <AnimatePresence />}
     </Dialog>
   );
 }
