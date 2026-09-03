@@ -39,7 +39,7 @@ export function CourseGrid({courses,noteCounts,lastEdited,hiddenCourseId,onOpenC
   const startStudySession=(input:StudySessionInput)=>{
     const first=input.schedule[0];
     if(!first)return;
-    localStorage.setItem(STUDY_SESSION_KEY,JSON.stringify({...input,index:0,running:true,deadline:Date.now()+first.minutes*60*1000}));
+    localStorage.setItem(STUDY_SESSION_KEY,JSON.stringify({...input,index:0,running:false,deadline:null,pendingStart:true}));
     setLaunchPomodoroAfterStudyClose(true);
     setStudySessionOpen(false);
   };
