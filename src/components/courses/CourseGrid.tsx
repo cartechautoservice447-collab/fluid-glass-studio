@@ -21,18 +21,27 @@ type StudySessionInput={pattern:StudySessionPattern;title:string;focusMinutes:nu
 
 export function CourseGrid({courses,noteCounts,lastEdited,hiddenCourseId,onOpenCourse,onCreateCourse,onDeleteCourse,userId,email,onLogout}:Props){
   const{displayName}=useCustomization();
-  const[pomodoroOpen,setPomodoroOpen]=useState(false),[studySessionOpen,setStudySessionOpen]=useState(false),[overviewOpen,setOverviewOpen]=useState(false),[reminderOpen,setReminderOpen]=useState(false);
+  const[pomodoroOpen,setPomodoroOpen]=useState(false),[studySessionOpen,setStudySessionOpen]=useState(false),[launchPomodoroAfterStudyClose,setLaunchPomodoroAfterStudyClose]=useState(false),[overviewOpen,setOverviewOpen]=useState(false),[reminderOpen,setReminderOpen]=useState(false);
   const[performance,setPerformance]=useState<"high"|"ultra">(()=>localStorage.getItem(performanceKey(userId))==="ultra"?"ultra":"high");
 
   useEffect(()=>{const key=performanceKey(userId),mode=localStorage.getItem(key)==="ultra"?"ultra":"high";setPerformance(mode);document.documentElement.dataset["glassPerformance"]=mode;const onExternalChange=(event:Event)=>{const detail=(event as CustomEvent<{userId?:string;mode?:"high"|"ultra"}>).detail;if(detail?.userId===userId&&detail.mode){setPerformance(detail.mode);document.documentElement.dataset["glassPerformance"]=detail.mode;}};window.addEventListener(PERFORMANCE_EVENT,onExternalChange);return()=>window.removeEventListener(PERFORMANCE_EVENT,onExternalChange)},[userId]);
+
+  useEffect(()=>{
+    if (studySessionOpen || !launchPomodoroAfterStudyClose) return;
+    const id=window.setTimeout(()=>{
+      setLaunchPomodoroAfterStudyClose(false);
+      setPomodoroOpen(true);
+    },160);
+    return()=>window.clearTimeout(id);
+  },[studySessionOpen,launchPomodoroAfterStudyClose]);
 
   const setPerformanceMode=(mode:"high"|"ultra")=>{setPerformance(mode);localStorage.setItem(performanceKey(userId),mode);document.documentElement.dataset["glassPerformance"]=mode;window.dispatchEvent(new CustomEvent(PERFORMANCE_EVENT,{detail:{userId,mode}}));};
   const startStudySession=(input:StudySessionInput)=>{
     const first=input.schedule[0];
     if(!first)return;
     localStorage.setItem(STUDY_SESSION_KEY,JSON.stringify({...input,index:0,running:true,deadline:Date.now()+first.minutes*60*1000}));
+    setLaunchPomodoroAfterStudyClose(true);
     setStudySessionOpen(false);
-    setPomodoroOpen(true);
   };
   const glassActionClass="liquid-panel group flex min-h-24 items-center gap-4 rounded-3xl p-5 text-left transition duration-200 hover:-translate-y-0.5 hover:brightness-110";
   const glassActionStyle={backgroundColor:"var(--water-gel-bg)",backdropFilter:"blur(var(--liquid-density, 12px)) saturate(180%)",borderTop:"1px solid rgba(255,255,255,.32)"};
