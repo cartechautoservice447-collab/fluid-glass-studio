@@ -40,6 +40,10 @@ const PATTERNS: Record<StudySessionPattern, { title: string; description: string
 const MAX_FOCUS_MINUTES = 150;
 const MIN_FOCUS_MINUTES = 30;
 
+type Props = {
+  onRestStart?: (seconds: number) => void;
+};
+
 function formatDuration(totalMinutes: number) {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
@@ -62,7 +66,6 @@ function buildSchedule(cycle: Segment[], targetFocusMinutes: number) {
       focusRemaining -= minutes;
       cycleIndex += 1;
 
-      // Rest is a break between focus blocks, so don't add one after the final focus block.
       if (focusRemaining > 0) {
         const next = cycle[cycleIndex % cycle.length];
         if (next?.kind === "rest") {
@@ -84,12 +87,13 @@ function formatClock(totalSeconds: number) {
   return `${minutes}:${seconds}`;
 }
 
-export function StudySessionPanel() {
+export function StudySessionPanel({ onRestStart }: Props) {
   const [pattern, setPattern] = useState<StudySessionPattern>("deep");
   const [focusMinutesTarget, setFocusMinutesTarget] = useState(150);
   const [running, setRunning] = useState(false);
   const [segmentIndex, setSegmentIndex] = useState(0);
   const [remaining, setRemaining] = useState(0);
+  const [started, setStarted] = useState(false);
 
   const selected = PATTERNS[pattern];
   const schedule = useMemo(
@@ -102,26 +106,34 @@ export function StudySessionPanel() {
     .reduce((sum, segment) => sum + segment.minutes, 0);
   const restMinutes = actualTotal - focusMinutes;
   const active = schedule[segmentIndex];
+  const completed = started && !running && remaining === 0 && segmentIndex >= schedule.length - 1;
 
   useEffect(() => {
     if (!running || !active) return;
+
     const id = window.setInterval(() => {
       setRemaining((value) => {
         if (value > 1) return value - 1;
         if (segmentIndex + 1 < schedule.length) {
+          const next = schedule[segmentIndex + 1];
           setSegmentIndex((value) => value + 1);
-          return (schedule[segmentIndex + 1]?.minutes ?? 0) * 60;
+          if (next?.kind === "rest") onRestStart?.(next.minutes * 60);
+          return (next?.minutes ?? 0) * 60;
         }
         setRunning(false);
         return 0;
       });
     }, 1000);
+
     return () => window.clearInterval(id);
-  }, [active, running, schedule, segmentIndex]);
+  }, [active, onRestStart, running, schedule, segmentIndex]);
 
   const start = () => {
+    const first = schedule[0];
+    if (!first) return;
+    setStarted(true);
     setSegmentIndex(0);
-    setRemaining((schedule[0]?.minutes ?? 0) * 60);
+    setRemaining(first.minutes * 60);
     setRunning(true);
   };
 
@@ -129,9 +141,76 @@ export function StudySessionPanel() {
 
   const reset = () => {
     setRunning(false);
+    setStarted(false);
     setSegmentIndex(0);
     setRemaining(0);
   };
+
+  if (started) {
+    return (
+      <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold">{selected.title}</p>
+            <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Live study session · {formatDuration(focusMinutes)} focus + {formatDuration(restMinutes)} rest.</p>
+          </div>
+          <div className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.05] px-2 py-1 text-[10px] font-medium text-muted-foreground">
+            <Clock3 className="size-3" /> {formatDuration(focusMinutes)} focus
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Focus time</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">{formatDuration(focusMinutes)}</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Rest time</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">{formatDuration(restMinutes)}</p>
+          </div>
+        </div>
+
+        <div className="mt-3 rounded-2xl border border-white/10 bg-black/25 p-5 text-center">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">{active?.label ?? "Complete"}</p>
+          <p className="mt-2 text-5xl font-semibold tabular-nums tracking-[-0.05em] text-foreground" aria-live="polite">{formatClock(remaining)}</p>
+          <p className="mt-2 text-[11px] text-muted-foreground">Block {Math.min(segmentIndex + 1, schedule.length)} of {schedule.length}</p>
+        </div>
+
+        <div className="mt-3">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Study timeline</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {schedule.map((segment, index) => {
+              const isActive = index === segmentIndex && running;
+              const isPast = index < segmentIndex || (index === segmentIndex && !running && remaining === 0);
+              return (
+                <div key={`${segment.label}-${index}`} className={`rounded-xl border p-3 transition ${isActive ? "border-white/40 bg-white/10" : isPast ? "border-white/10 bg-white/[0.025] opacity-55" : "border-white/10 bg-black/15"}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`flex size-7 items-center justify-center rounded-lg ${segment.kind === "focus" ? "bg-foreground/80 text-background" : "bg-white/15 text-foreground"}`}>
+                        {isPast ? <Check className="size-3.5" /> : <span className="text-[9px] font-semibold">{index + 1}</span>}
+                      </span>
+                      <div>
+                        <p className="text-xs font-medium text-foreground">{segment.label}</p>
+                        <p className="text-[9px] text-muted-foreground">{segment.minutes} min</p>
+                      </div>
+                    </div>
+                    <span className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{isActive ? "Now" : isPast ? "Done" : "Next"}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {completed && <p className="mt-3 text-center text-[11px] font-medium text-foreground">Study session complete.</p>}
+
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <Button type="button" variant="secondary" onClick={reset}><RotateCcw className="mr-2 size-3.5" />New</Button>
+          <Button type="button" variant="outline" onClick={running ? pause : start} className="col-span-2">{running ? <Pause className="mr-2 size-3.5" /> : <Play className="mr-2 size-3.5" />}{running ? "Pause session" : "Resume session"}</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
@@ -168,38 +247,29 @@ export function StudySessionPanel() {
           <span>Focus time</span>
           <span className="text-foreground">{formatDuration(focusMinutesTarget)}</span>
         </div>
-        <input type="range" min={MIN_FOCUS_MINUTES} max={MAX_FOCUS_MINUTES} step={10} value={focusMinutesTarget} disabled={running} onChange={(event) => { setFocusMinutesTarget(Math.min(MAX_FOCUS_MINUTES, Number(event.target.value))); reset(); }} className="mt-2 w-full accent-current disabled:opacity-50" aria-label="Study session focus time" />
+        <input type="range" min={MIN_FOCUS_MINUTES} max={MAX_FOCUS_MINUTES} step={10} value={focusMinutesTarget} onChange={(event) => { setFocusMinutesTarget(Math.min(MAX_FOCUS_MINUTES, Number(event.target.value))); reset(); }} className="mt-2 w-full accent-current" aria-label="Study session focus time" />
         <div className="mt-1 flex justify-between text-[9px] text-muted-foreground"><span>30 min focus</span><span>2.5 hr focus max</span></div>
       </label>
 
       <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Session plan</p>
-        <div className="flex h-10 w-full overflow-hidden rounded-lg">
+        <div className="grid gap-2 sm:grid-cols-2">
           {schedule.map((segment, index) => (
-            <div key={`${segment.label}-${index}`} className={`${segment.kind === "focus" ? "bg-foreground/80 text-background" : "bg-white/15 text-foreground"} flex min-w-0 items-center justify-center border-r border-black/20 px-1 ${index === segmentIndex && running ? "ring-2 ring-inset ring-white/80" : ""}`} style={{ width: `${(segment.minutes / actualTotal) * 100}%` }} title={`${segment.label} · ${segment.minutes} min`}>
-              <span className="truncate text-[9px] font-semibold">{segment.minutes}m</span>
+            <div key={`${segment.label}-${index}`} className="rounded-xl border border-white/10 bg-black/15 p-3">
+              <div className="flex items-center gap-2">
+                <span className={`flex size-7 items-center justify-center rounded-lg ${segment.kind === "focus" ? "bg-foreground/80 text-background" : "bg-white/15 text-foreground"}`}><span className="text-[9px] font-semibold">{index + 1}</span></span>
+                <div>
+                  <p className="text-xs font-medium text-foreground">{segment.label}</p>
+                  <p className="text-[9px] text-muted-foreground">{segment.minutes} min</p>
+                </div>
+              </div>
             </div>
           ))}
         </div>
         <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] text-muted-foreground"><span>Focus · {formatDuration(focusMinutes)}</span><span className="text-right">Rest · {formatDuration(restMinutes)}</span></div>
       </div>
 
-      {running && active && (
-        <div className="mt-4 rounded-xl border border-white/10 bg-black/25 p-4 text-center">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{active.label}</p>
-          <p className="mt-2 text-4xl font-semibold tabular-nums tracking-[-0.04em] text-foreground">{formatClock(remaining)}</p>
-          <p className="mt-2 text-[11px] text-muted-foreground">Segment {segmentIndex + 1} of {schedule.length}</p>
-        </div>
-      )}
-
-      {remaining === 0 && !running && segmentIndex === schedule.length - 1 && schedule.length > 0 && (
-        <p className="mt-3 text-center text-[11px] text-muted-foreground">Study session complete.</p>
-      )}
-
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        <Button type="button" variant="secondary" onClick={reset} disabled={!running && segmentIndex === 0 && remaining === 0}><RotateCcw className="mr-2 size-3.5" />Reset</Button>
-        <Button type="button" variant="outline" onClick={running ? pause : start} className="col-span-2">{running ? <Pause className="mr-2 size-3.5" /> : <Play className="mr-2 size-3.5" />}{running ? "Pause session" : "Start study session"}</Button>
-      </div>
+      <Button type="button" className="mt-4 w-full rounded-xl" onClick={start}><Play className="mr-2 size-3.5" />Start study session</Button>
     </div>
   );
 }
