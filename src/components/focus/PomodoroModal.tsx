@@ -42,12 +42,6 @@ function loadDurations(): Record<Mode, number> {
   } catch { return DEFAULT_DURATIONS; }
 }
 
-function formatTime(totalSeconds: number) {
-  const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
-  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
-  return `${minutes}:${seconds}`;
-}
-
 function loadSession(): PersistedSession | null {
   try {
     const saved = JSON.parse(localStorage.getItem(SESSION_KEY) ?? "null");
@@ -60,10 +54,9 @@ function loadStudySession(): StudySessionState | null {
   try {
     const saved = JSON.parse(localStorage.getItem(STUDY_SESSION_KEY) ?? "null");
     if (!saved || !Array.isArray(saved.schedule) || !saved.schedule.length) return null;
-    if (!saved.running || typeof saved.deadline !== "number" || saved.deadline <= Date.now()) return null;
     if (!["deep", "balanced", "classic"].includes(saved.pattern)) return null;
-    const index = Number.isInteger(saved.index) ? saved.index : 0;
-    if (index < 0 || index >= saved.schedule.length) return null;
+    if (typeof saved.index !== "number" || saved.index < 0 || saved.index >= saved.schedule.length) return null;
+    if (!saved.running || typeof saved.deadline !== "number" || saved.deadline <= Date.now()) return null;
     return saved as StudySessionState;
   } catch { return null; }
 }
@@ -75,11 +68,16 @@ function formatDuration(totalMinutes: number) {
   return minutes ? `${hours} hr ${minutes} min` : `${hours} hr`;
 }
 
+function formatTime(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
 export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { user } = useAuth();
   const [durations, setDurations] = useState(DEFAULT_DURATIONS);
   const [mode, setMode] = useState<Mode>("focus");
-  const [view, setView] = useState<"timer" | "study">("timer");
   const [phase, setPhase] = useState<SessionPhase>("working");
   const [remaining, setRemaining] = useState(DEFAULT_DURATIONS.focus);
   const [running, setRunning] = useState(false);
@@ -119,7 +117,6 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
       const segment = study.schedule[study.index];
       if (segment) {
         setStudySession(study);
-        setView("timer");
         setMode(segment.kind === "focus" ? "focus" : "short");
         setPhase(segment.kind === "focus" ? "working" : "resting");
         setDeadline(study.deadline);
@@ -132,7 +129,6 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
 
     const session = loadSession();
     if (session?.running && session.deadline > Date.now()) {
-      setView("timer");
       setMode(session.mode);
       setPhase(session.phase);
       setDeadline(session.deadline);
@@ -205,17 +201,16 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
       });
       n.onclick = () => { window.focus(); n.close(); };
     } catch {
-      /* Notification constructor can throw on some platforms — sound/title flash still cover it. */
+      /* Notification constructor can throw on some platforms. */
     }
   };
 
-  const startSession = (nextMode: Mode) => {
+  const startStandardSession = (nextMode: Mode) => {
     const nextPhase: SessionPhase = nextMode === "focus" ? "working" : "resting";
     const seconds = durations[nextMode];
     const nextDeadline = Date.now() + seconds * 1000;
     setStudySession(null);
     persistStudySession(null);
-    setView("timer");
     setMode(nextMode);
     setPhase(nextPhase);
     setRemaining(seconds);
@@ -243,23 +238,19 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
     setStudySession(nextStudy);
     persistStudySession(nextStudy);
     persistSession(null);
-    setView("timer");
-    setSettingsOpen(false);
-    setMobileSyncOpen(false);
     setMode(first.kind === "focus" ? "focus" : "short");
     setPhase(first.kind === "focus" ? "working" : "resting");
     setRemaining(first.minutes * 60);
     setDeadline(nextDeadline);
     setRunning(true);
     setLocked(first.kind === "resting");
-    if (first.kind === "rest") notifyRestStart(first.minutes * 60);
+    if (first.kind === "resting") notifyRestStart(first.minutes * 60);
   };
 
   const selectMode = (next: Mode) => {
     if (locked) return;
     setStudySession(null);
     persistStudySession(null);
-    setView("timer");
     setMode(next);
     setPhase(next === "focus" ? "working" : "resting");
     setRemaining(durations[next]);
@@ -269,12 +260,11 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
     persistSession(null);
   };
 
-  const beginRest = () => {
+  const beginStandardRest = () => {
     const restSeconds = Math.max(1, restMinutes) * 60;
     const next = { ...durations, short: restSeconds };
     persistDurations(next);
     const nextDeadline = Date.now() + restSeconds * 1000;
-    setView("timer");
     setMode("short");
     setPhase("resting");
     setRemaining(restSeconds);
@@ -307,7 +297,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
           setDeadline(nextDeadline);
           setRunning(true);
           setLocked(nextSegment.kind === "resting");
-          if (nextSegment.kind === "rest") notifyRestStart(nextSegment.minutes * 60);
+          if (nextSegment.kind === "resting") notifyRestStart(nextSegment.minutes * 60);
           return;
         }
 
@@ -326,7 +316,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
       setRunning(false);
       setDeadline(null);
       persistSession(null);
-      if (phase === "working") beginRest();
+      if (phase === "working") beginStandardRest();
       else {
         setPhase("working");
         setMode("focus");
@@ -368,18 +358,23 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
   }, [phase, running]);
 
   const formatted = useMemo(() => formatTime(remaining), [remaining]);
+  const totalStudyRest = useMemo(
+    () => studySession?.schedule.filter((segment) => segment.kind === "rest").reduce((sum, segment) => sum + segment.minutes, 0) ?? 0,
+    [studySession],
+  );
+  const studyComplete = studySession === null && localStorage.getItem(STUDY_SESSION_KEY) === null ? false : false;
 
   const toggleRunning = () => {
     if (locked) return;
     if (running) {
       setRunning(false);
       setDeadline(null);
+      persistSession(null);
       if (studySession) {
         const paused = { ...studySession, running: false, deadline: null };
         setStudySession(paused);
         persistStudySession(paused);
       }
-      persistSession(null);
       return;
     }
     ensureAudioContext();
@@ -392,10 +387,10 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
       persistStudySession(resumed);
       setDeadline(nextDeadline);
       setRunning(true);
-      setLocked(active.kind === "rest");
+      setLocked(active.kind === "resting");
       return;
     }
-    startSession(mode);
+    startStandardSession(mode);
   };
 
   const reset = () => {
@@ -411,18 +406,6 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
     persistSession(null);
   };
 
-  const newStudySession = () => {
-    setStudySession(null);
-    persistStudySession(null);
-    setRunning(false);
-    setDeadline(null);
-    setLocked(false);
-    setMode("focus");
-    setPhase("working");
-    setRemaining(durations.focus);
-    setView("study");
-  };
-
   const changeDuration = (durationMode: Mode, value: number) => {
     const safe = Math.min(120, Math.max(1, Math.round(value)));
     const next = { ...durations, [durationMode]: safe * 60 };
@@ -433,26 +416,37 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
     if (!running && !locked && mode === durationMode) setRemaining(safe * 60);
   };
 
-  const studyComplete = studySession && !studySession.running && studySession.index >= studySession.schedule.length - 1 && remaining === 0;
-  const currentStudySegment = studySession?.schedule[studySession.index];
+  const changeStudySession = () => {
+    setStudySession(null);
+    persistStudySession(null);
+    setRunning(false);
+    setDeadline(null);
+    setLocked(false);
+    setMode("focus");
+    setPhase("working");
+    setRemaining(durations.focus);
+  };
+
+  const activeStudySegment = studySession?.schedule[studySession.index];
+  const studyFinished = Boolean(studySession && !studySession.running && studySession.index >= studySession.schedule.length - 1 && remaining === 0);
 
   return (
     <>
       <Dialog open={open && !locked} onOpenChange={onOpenChange}>
-        <DialogContent className={`${view === "study" ? "max-w-2xl" : "max-w-2xl"} overflow-hidden rounded-[28px] border-white/20 bg-black/35 p-0 text-foreground shadow-2xl backdrop-blur-2xl [&>button]:hidden`}>
-          <div className="relative p-6 sm:p-8">
+        <DialogContent className="max-w-2xl overflow-hidden rounded-[28px] border-white/20 bg-black/35 p-0 text-foreground shadow-2xl backdrop-blur-2xl [&>button]:hidden">
+          <div className="relative max-h-[90vh] overflow-y-auto p-6 sm:p-8">
             <div className="pointer-events-none absolute -right-20 -top-24 size-56 rounded-full bg-primary/20 blur-3xl" />
             <div className="relative">
               <div className="flex items-center justify-between gap-3">
                 <DialogTitle className="text-lg font-semibold tracking-tight">Pomodoro</DialogTitle>
                 <div className="flex items-center gap-1">
-                  {view === "timer" && <Button variant="ghost" size="icon" className={`rounded-full ${mobileSyncOpen ? "bg-white/12 text-foreground" : "text-muted-foreground"} hover:bg-white/10`} onClick={() => setMobileSyncOpen((value) => !value)} aria-label="Mobile Pomodoro sync" aria-expanded={mobileSyncOpen} title="Mobile Pomodoro sync"><Bell className="size-4" /></Button>}
-                  {view === "timer" && <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => setSettingsOpen((value) => !value)} aria-label="Pomodoro settings"><Settings2 className="size-4" /></Button>}
+                  <Button variant="ghost" size="icon" className={`rounded-full ${mobileSyncOpen ? "bg-white/12 text-foreground" : "text-muted-foreground"} hover:bg-white/10`} onClick={() => setMobileSyncOpen((value) => !value)} aria-label="Mobile Pomodoro sync" aria-expanded={mobileSyncOpen}><Bell className="size-4" /></Button>
+                  <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => setSettingsOpen((value) => !value)} aria-label="Pomodoro settings"><Settings2 className="size-4" /></Button>
                   <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => onOpenChange(false)} aria-label="Close Pomodoro"><X className="size-4" /></Button>
                 </div>
               </div>
 
-              {mobileSyncOpen && view === "timer" && (
+              {mobileSyncOpen && (
                 <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4 shadow-lg backdrop-blur-xl">
                   <div className="flex items-start gap-3">
                     <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06]"><Smartphone className="size-4" /></div>
@@ -469,98 +463,46 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
                 </div>
               )}
 
-              {view === "study" ? (
-                <StudySessionPanel onStartSession={startStudySession} />
+              {studySession ? (
+                <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold">{studySession.title}</p>
+                      <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Pomodoro is running this study session.</p>
+                    </div>
+                    <button type="button" onClick={changeStudySession} disabled={running} className="shrink-0 rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-[10px] text-muted-foreground hover:bg-white/10 disabled:opacity-40">Change session</button>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Study focus</p><p className="mt-1 text-sm font-semibold text-foreground">{formatDuration(studySession.focusMinutes)}</p></div>
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Total rest</p><p className="mt-1 text-sm font-semibold text-foreground">{formatDuration(totalStudyRest)}</p></div>
+                  </div>
+                  <div className="mt-3 rounded-2xl border border-white/10 bg-black/25 p-5 text-center"><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">{activeStudySegment?.label ?? "Complete"}</p><p className="mt-2 text-5xl font-semibold tabular-nums tracking-[-0.05em] text-foreground" aria-live="polite">{formatted}</p><p className="mt-2 text-[11px] text-muted-foreground">Block {Math.min(studySession.index + 1, studySession.schedule.length)} of {studySession.schedule.length}</p></div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {studySession.schedule.map((segment, index) => {
+                      const isCurrent = index === studySession.index && studySession.running;
+                      const isPast = index < studySession.index || (index === studySession.index && studyFinished);
+                      return <div key={`${segment.label}-${index}`} className={`rounded-xl border p-3 transition ${isCurrent ? "border-white/40 bg-white/10" : isPast ? "border-white/10 bg-white/[0.025] opacity-55" : "border-white/10 bg-black/15"}`}><div className="flex items-center justify-between gap-2"><div className="flex items-center gap-2"><span className={`flex size-7 items-center justify-center rounded-lg ${segment.kind === "focus" ? "bg-foreground/80 text-background" : "bg-white/15 text-foreground"}`}>{isPast ? <Check className="size-3.5" /> : <span className="text-[9px] font-semibold">{index + 1}</span>}</span><div><p className="text-xs font-medium text-foreground">{segment.label}</p><p className="text-[9px] text-muted-foreground">{segment.minutes} min</p></div></div><span className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{isCurrent ? "Now" : isPast ? "Done" : "Next"}</span></div></div>;
+                    })}
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-2"><Button type="button" variant="secondary" onClick={reset}><RotateCcw className="mr-2 size-3.5" />Reset</Button><Button type="button" variant="outline" onClick={toggleRunning} className="col-span-2">{running ? <Pause className="mr-2 size-3.5" /> : <Play className="mr-2 size-3.5" />}{running ? "Pause session" : "Resume session"}</Button></div>
+                  {studyFinished && <p className="mt-3 text-center text-[11px] font-medium text-foreground">Study session complete.</p>}
+                </div>
               ) : (
                 <>
-                  {studySession && (
-                    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold">{studySession.title}</p>
-                          <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Pomodoro is running this study session.</p>
-                        </div>
-                        <button type="button" onClick={newStudySession} className="shrink-0 rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-[10px] text-muted-foreground hover:bg-white/10">Change session</button>
-                      </div>
-
-                      <div className="mt-3 grid grid-cols-2 gap-2">
-                        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                          <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Study focus</p>
-                          <p className="mt-1 text-sm font-semibold text-foreground">{formatDuration(studySession.focusMinutes)}</p>
-                        </div>
-                        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                          <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Total rest</p>
-                          <p className="mt-1 text-sm font-semibold text-foreground">{formatDuration(studySession.schedule.filter((segment) => segment.kind === "rest").reduce((sum, segment) => sum + segment.minutes, 0))}</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 rounded-2xl border border-white/10 bg-black/25 p-5 text-center">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">{currentStudySegment?.label ?? "Complete"}</p>
-                        <p className="mt-2 text-5xl font-semibold tabular-nums tracking-[-0.05em] text-foreground" aria-live="polite">{formatted}</p>
-                        <p className="mt-2 text-[11px] text-muted-foreground">Block {Math.min(studySession.index + 1, studySession.schedule.length)} of {studySession.schedule.length}</p>
-                      </div>
-
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                        {studySession.schedule.map((segment, index) => {
-                          const isCurrent = index === studySession.index && studySession.running;
-                          const isPast = index < studySession.index || (index === studySession.index && studyComplete);
-                          return (
-                            <div key={`${segment.label}-${index}`} className={`rounded-xl border p-3 transition ${isCurrent ? "border-white/40 bg-white/10" : isPast ? "border-white/10 bg-white/[0.025] opacity-55" : "border-white/10 bg-black/15"}`}>
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2">
-                                  <span className={`flex size-7 items-center justify-center rounded-lg ${segment.kind === "focus" ? "bg-foreground/80 text-background" : "bg-white/15 text-foreground"}`}>
-                                    {isPast ? <Check className="size-3.5" /> : <span className="text-[9px] font-semibold">{index + 1}</span>}
-                                  </span>
-                                  <div><p className="text-xs font-medium text-foreground">{segment.label}</p><p className="text-[9px] text-muted-foreground">{segment.minutes} min</p></div>
-                                </div>
-                                <span className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{isCurrent ? "Now" : isPast ? "Done" : "Next"}</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      <div className="mt-4 grid grid-cols-3 gap-2">
-                        <Button type="button" variant="secondary" onClick={reset}><RotateCcw className="mr-2 size-3.5" />Reset</Button>
-                        <Button type="button" variant="outline" onClick={toggleRunning} className="col-span-2">{running ? <Pause className="mr-2 size-3.5" /> : <Play className="mr-2 size-3.5" />}{running ? "Pause session" : "Resume session"}</Button>
-                      </div>
-                    </div>
-                  )}
-
                   {settingsOpen && (
                     <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
                       <p className="text-sm font-medium">Edit Pomodoro time</p>
                       <div className="grid grid-cols-3 gap-2">
-                        {([["focus", "Focus", focusMinutes], ["short", "Short Break", restMinutes], ["long", "Long Break", longBreakMinutes]] as const).map(([item, label, value]) => (
-                          <label key={item} className="rounded-xl border border-white/10 bg-black/20 p-2">
-                            <span className="block text-[11px] text-muted-foreground">{label}</span>
-                            <div className="mt-1 flex items-center gap-1"><input aria-label={`${label} minutes`} type="number" min={1} max={120} value={value} onChange={(event) => changeDuration(item, Number(event.target.value))} className="w-full min-w-0 bg-transparent text-sm font-medium outline-none" /><span className="text-[10px] text-muted-foreground">min</span></div>
-                          </label>
-                        ))}
+                        {([["focus", "Focus", focusMinutes], ["short", "Short Break", restMinutes], ["long", "Long Break", longBreakMinutes]] as const).map(([item, label, value]) => <label key={item} className="rounded-xl border border-white/10 bg-black/20 p-2"><span className="block text-[11px] text-muted-foreground">{label}</span><div className="mt-1 flex items-center gap-1"><input aria-label={`${label} minutes`} type="number" min={1} max={120} value={value} onChange={(event) => changeDuration(item, Number(event.target.value))} className="w-full min-w-0 bg-transparent text-sm font-medium outline-none" /><span className="text-[10px] text-muted-foreground">min</span></div></label>)}
                       </div>
                     </div>
                   )}
 
-                  {!studySession && !studyComplete && (
-                    <>
-                      <div className="mt-4 grid grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-white/[0.045] p-1">
-                        {(Object.keys(LABELS) as Mode[]).map((item) => <button key={item} type="button" onClick={() => selectMode(item)} className={`rounded-xl px-2 py-2 text-xs font-medium transition ${mode === item ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>{LABELS[item]}</button>)}
-                      </div>
+                  <div className="mt-5 grid grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-white/[0.045] p-1">{(Object.keys(LABELS) as Mode[]).map((item) => <button key={item} type="button" onClick={() => selectMode(item)} className={`rounded-xl px-2 py-2 text-xs font-medium transition ${mode === item ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>{LABELS[item]}</button>)}</div>
+                  <div className="flex flex-col items-center py-8"><div className="text-7xl font-semibold tabular-nums tracking-[-0.05em] text-foreground sm:text-8xl" aria-live="polite">{formatted}</div><p className="mt-3 text-sm text-muted-foreground">{running ? "Stay focused" : "Ready when you are"}</p></div>
+                  <div className="flex items-center justify-center gap-3"><Button variant="ghost" size="icon" className="size-11 rounded-full bg-white/[0.06] hover:bg-white/10" onClick={reset} aria-label="Reset timer"><RotateCcw className="size-4" /></Button><Button size="lg" className="h-12 rounded-full px-7 shadow-lg" onClick={toggleRunning}>{running ? <Pause className="mr-2 size-4" /> : <Play className="mr-2 size-4" />}{running ? "Pause" : "Start"}</Button></div>
 
-                      <div className="flex flex-col items-center py-10"><div className="text-7xl font-semibold tabular-nums tracking-[-0.05em] text-foreground sm:text-8xl" aria-live="polite">{formatted}</div><p className="mt-3 text-sm text-muted-foreground">{running ? "Stay focused" : "Ready when you are"}</p></div>
-
-                      <div className="flex items-center justify-center gap-3"><Button variant="ghost" size="icon" className="size-11 rounded-full bg-white/[0.06] hover:bg-white/10" onClick={reset} aria-label="Reset timer"><RotateCcw className="size-4" /></Button><Button size="lg" className="h-12 rounded-full px-7 shadow-lg" onClick={toggleRunning}>{running ? <Pause className="mr-2 size-4" /> : <Play className="mr-2 size-4" />}{running ? "Pause" : "Start"}</Button></div>
-                    </>
-                  )}
-
-                  {studyComplete && (
-                    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.045] p-5 text-center">
-                      <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-white/10"><Check className="size-5" /></div>
-                      <p className="mt-3 text-sm font-semibold">Study session complete</p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">Your selected Focus blocks are complete.</p>
-                      <Button type="button" variant="outline" className="mt-4 rounded-xl" onClick={newStudySession}>Start another study session</Button>
-                    </div>
-                  )}
+                  <StudySessionPanel onStartSession={startStudySession} />
                 </>
               )}
             </div>
@@ -568,16 +510,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
         </DialogContent>
       </Dialog>
 
-      {locked && <div className="fixed inset-0 z-[100] flex min-h-screen items-center justify-center overflow-hidden bg-black/60 p-5 backdrop-blur-xl" role="dialog" aria-modal="true" aria-label="Rest period in progress">
-        <div className="pointer-events-none absolute -left-24 -top-24 size-80 rounded-full bg-primary/20 blur-3xl" /><div className="pointer-events-none absolute -bottom-28 -right-20 size-96 rounded-full bg-white/10 blur-3xl" />
-        <div className="relative w-full max-w-lg rounded-[32px] border border-white/20 bg-black/35 p-7 text-center shadow-2xl backdrop-blur-2xl sm:p-10">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">Rest session</p>
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight">Website locked</h2>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">Your notes, course folders, dashboard, and workspace are unavailable until the rest timer finishes.</p>
-          <div className="mt-9 text-7xl font-semibold tabular-nums tracking-[-0.05em] sm:text-8xl">{formatted}</div>
-          <p className="mt-3 text-sm text-muted-foreground">Rest time remaining</p>
-        </div>
-      </div>}
+      {locked && <div className="fixed inset-0 z-[100] flex min-h-screen items-center justify-center overflow-hidden bg-black/60 p-5 backdrop-blur-xl" role="dialog" aria-modal="true" aria-label="Rest period in progress"><div className="pointer-events-none absolute -left-24 -top-24 size-80 rounded-full bg-primary/20 blur-3xl" /><div className="pointer-events-none absolute -bottom-28 -right-20 size-96 rounded-full bg-white/10 blur-3xl" /><div className="relative w-full max-w-lg rounded-[32px] border border-white/20 bg-black/35 p-7 text-center shadow-2xl backdrop-blur-2xl sm:p-10"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">Rest session</p><h2 className="mt-3 text-2xl font-semibold tracking-tight">Website locked</h2><p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">Your notes, course folders, dashboard, and workspace are unavailable until the rest timer finishes.</p><div className="mt-9 text-7xl font-semibold tabular-nums tracking-[-0.05em] sm:text-8xl">{formatted}</div><p className="mt-3 text-sm text-muted-foreground">Rest time remaining</p></div></div>}
     </>
   );
 }
