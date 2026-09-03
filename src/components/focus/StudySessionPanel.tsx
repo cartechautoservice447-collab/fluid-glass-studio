@@ -40,6 +40,7 @@ const PATTERNS: Record<StudySessionPattern, { title: string; description: string
 const MAX_FOCUS_MINUTES = 150;
 const MIN_FOCUS_MINUTES = 30;
 const TESTER_DURATION_SECONDS = 30;
+const STUDY_SESSION_KEY = "liquid-glass-study-session";
 
 type Props = {
   onStartSession: (input: {
@@ -132,6 +133,26 @@ export function StudySessionPanel({ onStartSession }: Props) {
     setTesterRemaining(TESTER_DURATION_SECONDS);
   };
 
+  const startSelectedStudySession = () => {
+    const first = schedule[0];
+    if (!first) return;
+    const pendingSession = {
+      pattern,
+      title: selected.title,
+      focusMinutes,
+      schedule,
+      index: 0,
+      running: false,
+      deadline: null,
+      remaining: first.minutes * 60,
+      pendingStart: true,
+    };
+    try {
+      localStorage.setItem(STUDY_SESSION_KEY, JSON.stringify(pendingSession));
+    } catch {}
+    onStartSession({ pattern, title: selected.title, focusMinutes, schedule });
+  };
+
   return (
     <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
       <div className="flex items-start justify-between gap-3">
@@ -210,7 +231,7 @@ export function StudySessionPanel({ onStartSession }: Props) {
         </div>
       </div>
 
-      <Button type="button" className="mt-4 w-full rounded-xl" onClick={() => onStartSession({ pattern, title: selected.title, focusMinutes, schedule })}>
+      <Button type="button" className="mt-4 w-full rounded-xl" onClick={startSelectedStudySession}>
         <Play className="mr-2 size-3.5" /> Start study session in Pomodoro
       </Button>
     </div>
