@@ -1,5 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, Check, Pause, Play, RotateCcw, Settings2, Smartphone, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import {
+  Coffee,
+  Flame,
+  Pause,
+  Play,
+  RotateCcw,
+  Settings2,
+  SkipForward,
+  Sparkles,
+  Volume2,
+  VolumeX,
+  X,
+} from "lucide-react";
 
 import {
   StudySessionPanel,
@@ -7,12 +20,14 @@ import {
   type StudySessionSegment,
 } from "@/components/focus/StudySessionPanel";
 import { StudySessionRing } from "@/components/focus/StudySessionRing";
+import { GlassPanel } from "@/components/liquid/GlassPanel";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
 import { broadcastRestStart } from "@/lib/pomodoroSync";
+import { cn } from "@/lib/utils";
 
-type Mode = "focus" | "short" | "long";
+type Mode = "focus" | "short-break" | "long-break";
 type SessionPhase = "working" | "resting";
 type PersistedSession = { mode: Mode; phase: SessionPhase; deadline: number; running: boolean };
 type StudySessionState = {
@@ -27,36 +42,75 @@ type StudySessionState = {
   pendingStart?: boolean;
 };
 
-const DEFAULT_DURATIONS: Record<Mode, number> = { focus: 60, short: 5 * 60, long: 15 * 60 };
-const LABELS: Record<Mode, string> = { focus: "Focus", short: "Short Break", long: "Long Break" };
-const STORAGE_KEY = "liquid-glass-pomodoro-durations";
+type PomodoroSettings = {
+  focusMinutes: number;
+  shortBreakMinutes: number;
+  longBreakMinutes: number;
+  sessionsUntilLongBreak: number;
+  soundEnabled: boolean;
+};
+
+const SETTINGS_KEY = "liquid-glass-pomodoro-settings-v1";
 const SESSION_KEY = "liquid-glass-pomodoro-session";
 const STUDY_SESSION_KEY = "liquid-glass-study-session";
-const FLASH_TITLE = "⏰ Break Time!";
+const DEFAULT_SETTINGS: PomodoroSettings = {
+  focusMinutes: 25,
+  shortBreakMinutes: 5,
+  longBreakMinutes: 15,
+  sessionsUntilLongBreak: 4,
+  soundEnabled: true,
+};
 
-function loadDurations(): Record<Mode, number> {
+const MODE_META: Record<Mode, { label: string; icon: typeof Flame; ring: string; glow: string }> = {
+  focus: { label: "Focus", icon: Flame, ring: "oklch(0.75 0.19 250)", glow: "oklch(0.62 0.18 250)" },
+  "short-break": { label: "Short Break", icon: Coffee, ring: "oklch(0.8 0.17 160)", glow: "oklch(0.68 0.16 160)" },
+  "long-break": { label: "Long Break", icon: Sparkles, ring: "oklch(0.78 0.16 300)", glow: "oklch(0.6 0.18 300)" },
+};
+
+function loadSettings(): PomodoroSettings {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
-    return {
-      focus: Number.isFinite(saved?.focus) && saved.focus > 0 ? saved.focus : DEFAULT_DURATIONS.focus,
-      short: Number.isFinite(saved?.short) && saved.short > 0 ? saved.short : DEFAULT_DURATIONS.short,
-      long: Number.isFinite(saved?.long) && saved.long > 0 ? saved.long : DEFAULT_DURATIONS.long,
-    };
-  } catch { return DEFAULT_DURATIONS; }
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return DEFAULT_SETTINGS;
+    return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<PomodoroSettings>) };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
+
+function saveSettings(settings: PomodoroSettings) {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // Best effort only.
+  }
+}
+
+function minutesToSeconds(minutes: number) {
+  return Math.max(1, minutes) * 60;
+}
+
+function durationFor(mode: Mode, settings: PomodoroSettings) {
+  if (mode === "focus") return minutesToSeconds(settings.focusMinutes);
+  if (mode === "short-break") return minutesToSeconds(settings.shortBreakMinutes);
+  return minutesToSeconds(settings.longBreakMinutes);
 }
 
 function formatTime(totalSeconds: number) {
-  const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
-  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  const minutes = Math.floor(Math.max(0, totalSeconds) / 60).toString().padStart(2, "0");
+  const seconds = (Math.max(0, totalSeconds) % 60).toString().padStart(2, "0");
   return `${minutes}:${seconds}`;
 }
 
 function loadSession(): PersistedSession | null {
   try {
     const saved = JSON.parse(localStorage.getItem(SESSION_KEY) ?? "null");
-    if (!saved || !["focus", "short", "long"].includes(saved.mode) || !["working", "resting"].includes(saved.phase)) return null;
-    return saved;
-  } catch { return null; }
+    if (!saved || !saved.running || typeof saved.deadline !== "number") return null;
+    if (!["focus", "short-break", "long-break"].includes(saved.mode)) return null;
+    if (!["working", "resting"].includes(saved.phase)) return null;
+    return saved as PersistedSession;
+  } catch {
+    return null;
+  }
 }
 
 function loadStudySession(): StudySessionState | null {
@@ -67,13 +121,12 @@ function loadStudySession(): StudySessionState | null {
     if (!Number.isInteger(saved.index) || saved.index < 0 || saved.index >= saved.schedule.length) return null;
     if (typeof saved.running !== "boolean") return null;
     if (saved.pendingStart) return saved as StudySessionState;
-    if (saved.running) {
-      if (typeof saved.deadline !== "number" || saved.deadline <= Date.now()) return null;
-    } else if (saved.remaining !== undefined && (!Number.isFinite(saved.remaining) || saved.remaining < 0)) {
-      return null;
-    }
+    if (saved.running && (typeof saved.deadline !== "number" || saved.deadline <= Date.now())) return null;
+    if (!saved.running && saved.remaining !== undefined && (!Number.isFinite(saved.remaining) || saved.remaining < 0)) return null;
     return saved as StudySessionState;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function formatDuration(totalMinutes: number) {
@@ -85,28 +138,30 @@ function formatDuration(totalMinutes: number) {
 
 export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { user } = useAuth();
-  const [durations, setDurations] = useState(DEFAULT_DURATIONS);
+  const [settings, setSettings] = useState<PomodoroSettings>(() => loadSettings());
   const [mode, setMode] = useState<Mode>("focus");
-  const [view, setView] = useState<"timer" | "study">("timer");
   const [phase, setPhase] = useState<SessionPhase>("working");
-  const [remaining, setRemaining] = useState(DEFAULT_DURATIONS.focus);
+  const [remaining, setRemaining] = useState(() => durationFor("focus", settings));
   const [running, setRunning] = useState(false);
   const [deadline, setDeadline] = useState<number | null>(null);
+  const [completedFocusSessions, setCompletedFocusSessions] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [mobileSyncOpen, setMobileSyncOpen] = useState(false);
   const [studySession, setStudySession] = useState<StudySessionState | null>(null);
-  const [focusMinutes, setFocusMinutes] = useState(1);
-  const [restMinutes, setRestMinutes] = useState(5);
-  const [longBreakMinutes, setLongBreakMinutes] = useState(15);
-  const [locked, setLocked] = useState(false);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
+  const rafRef = useRef<number | null>(null);
 
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const originalTitleRef = useRef<string>("");
+  const meta = MODE_META[mode];
+  const Icon = meta.icon;
+  const total = studySession?.schedule[studySession.index]?.minutes ? studySession.schedule[studySession.index].minutes * 60 : durationFor(mode, settings);
+  const progress = Math.min(1, Math.max(0, 1 - remaining / Math.max(1, total)));
+  const dotsFilled = completedFocusSessions === 0
+    ? 0
+    : completedFocusSessions % settings.sessionsUntilLongBreak === 0
+      ? settings.sessionsUntilLongBreak
+      : completedFocusSessions % settings.sessionsUntilLongBreak;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    originalTitleRef.current = document.title;
     if (!("Notification" in window)) {
       setNotifPermission("unsupported");
       return;
@@ -116,69 +171,52 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
 
   useEffect(() => {
     if (!open) return;
-    const saved = loadDurations();
-    setDurations(saved);
-    setFocusMinutes(Math.max(1, Math.round(saved.focus / 60)));
-    setRestMinutes(Math.max(1, Math.round(saved.short / 60)));
-    setLongBreakMinutes(Math.max(1, Math.round(saved.long / 60)));
+    setSettings(loadSettings());
 
     const study = loadStudySession();
     if (study) {
       const segment = study.schedule[study.index];
       if (segment) {
         setStudySession(study);
-        setView("timer");
-        setMode(segment.kind === "focus" ? "focus" : "short");
+        setMode(segment.kind === "focus" ? "focus" : "short-break");
         setPhase(segment.kind === "focus" ? "working" : "resting");
-        setLocked(segment.kind === "rest");
-
         if (study.pendingStart) {
           const nextDeadline = Date.now() + segment.minutes * 60 * 1000;
-          const started: StudySessionState = {
-            ...study,
-            pendingStart: false,
-            running: true,
-            deadline: nextDeadline,
-            remaining: segment.minutes * 60,
-          };
+          const started = { ...study, pendingStart: false, running: true, deadline: nextDeadline, remaining: segment.minutes * 60 };
           setStudySession(started);
-          persistStudySession(started);
+          localStorage.setItem(STUDY_SESSION_KEY, JSON.stringify(started));
           setDeadline(nextDeadline);
           setRemaining(segment.minutes * 60);
           setRunning(true);
-          return;
-        }
-
-        if (study.running && typeof study.deadline === "number") {
+        } else if (study.running && typeof study.deadline === "number") {
           setDeadline(study.deadline);
-          setRunning(true);
           setRemaining(Math.max(0, Math.ceil((study.deadline - Date.now()) / 1000)));
+          setRunning(true);
         } else {
-          const pausedRemaining = typeof study.remaining === "number" ? Math.max(0, Math.floor(study.remaining)) : segment.minutes * 60;
           setDeadline(null);
+          setRemaining(typeof study.remaining === "number" ? Math.floor(study.remaining) : segment.minutes * 60);
           setRunning(false);
-          setRemaining(pausedRemaining);
         }
         return;
       }
     }
 
     const session = loadSession();
-    if (session?.running && session.deadline > Date.now()) {
-      setView("timer");
+    if (session && session.deadline > Date.now()) {
       setMode(session.mode);
       setPhase(session.phase);
       setDeadline(session.deadline);
-      setRunning(true);
-      setLocked(session.phase === "resting" || session.mode !== "focus");
       setRemaining(Math.max(0, Math.ceil((session.deadline - Date.now()) / 1000)));
+      setRunning(true);
+    } else {
+      setMode("focus");
+      setPhase("working");
+      setDeadline(null);
+      setRemaining(durationFor("focus", loadSettings()));
+      setRunning(false);
+      setStudySession(null);
     }
   }, [open]);
-
-  const persistDurations = (next: Record<Mode, number>) => {
-    setDurations(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  };
 
   const persistSession = (next: PersistedSession | null) => {
     if (next) localStorage.setItem(SESSION_KEY, JSON.stringify(next));
@@ -190,70 +228,236 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
     else localStorage.removeItem(STUDY_SESSION_KEY);
   };
 
-  const ensureAudioContext = () => {
-    if (typeof window === "undefined") return null;
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return null;
-    if (!audioCtxRef.current) audioCtxRef.current = new Ctx();
-    if (audioCtxRef.current.state === "suspended") audioCtxRef.current.resume().catch(() => {});
-    return audioCtxRef.current;
-  };
-
   const playChime = () => {
-    const ctx = ensureAudioContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-    [660, 880].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.0001, now + i * 0.22);
-      gain.gain.exponentialRampToValueAtTime(0.35, now + i * 0.22 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.22 + 0.32);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now + i * 0.22);
-      osc.stop(now + i * 0.22 + 0.34);
-    });
+    try {
+      const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      [660, 880].forEach((freq, index) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        const start = ctx.currentTime + index * 0.18;
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.2, start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.3);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + 0.32);
+      });
+      window.setTimeout(() => void ctx.close(), 900);
+    } catch {
+      // Best effort only.
+    }
   };
 
   const enableAlerts = () => {
-    ensureAudioContext();
-    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission().then((result) => setNotifPermission(result)).catch(() => {});
+    if (typeof window === "undefined") return;
+    try {
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission().then((result) => setNotifPermission(result)).catch(() => {});
+      }
+    } catch {
+      // Ignore browser notification errors.
     }
   };
 
   const notifyRestStart = (seconds: number) => {
-    playChime();
+    if (settings.soundEnabled) playChime();
     if (user?.id) void broadcastRestStart(user.id, Math.max(1, Math.round(seconds / 60)));
-    if (typeof window === "undefined" || !("Notification" in window) || Notification.permission !== "granted") return;
     try {
-      const n = new Notification("Break time!", {
+      if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+      new Notification("Break time!", {
         body: `Time to rest for ${Math.round(seconds / 60)} min. Step away from the screen.`,
         icon: "/pwa-icon-192.svg",
-        tag: "liquid-glass-pomodoro-rest",
       });
-      n.onclick = () => { window.focus(); n.close(); };
     } catch {
-      /* Notification constructor can throw on some platforms — sound/title flash still cover it. */
+      // Best effort only.
     }
   };
 
-  const startSession = (nextMode: Mode) => {
-    if (studySession) return;
+  const startNormalSession = (nextMode: Mode) => {
     const nextPhase: SessionPhase = nextMode === "focus" ? "working" : "resting";
-    const seconds = durations[nextMode];
+    const seconds = durationFor(nextMode, settings);
     const nextDeadline = Date.now() + seconds * 1000;
-    setView("timer");
+    setStudySession(null);
+    persistStudySession(null);
     setMode(nextMode);
     setPhase(nextPhase);
     setRemaining(seconds);
     setDeadline(nextDeadline);
     setRunning(true);
-    setLocked(nextPhase === "resting");
     persistSession({ mode: nextMode, phase: nextPhase, deadline: nextDeadline, running: true });
+    if (nextMode !== "focus") notifyRestStart(seconds);
+  };
+
+  const advanceNormalMode = useCallback(() => {
+    const nextMode: Mode = mode === "focus"
+      ? (completedFocusSessions + 1) % settings.sessionsUntilLongBreak === 0 ? "long-break" : "short-break"
+      : "focus";
+
+    if (mode === "focus") setCompletedFocusSessions((count) => count + 1);
+    const nextDuration = durationFor(nextMode, settings);
+    const nextDeadline = Date.now() + nextDuration * 1000;
+    setMode(nextMode);
+    setPhase(nextMode === "focus" ? "working" : "resting");
+    setRemaining(nextDuration);
+    setDeadline(nextDeadline);
+    setRunning(true);
+    persistSession({ mode: nextMode, phase: nextMode === "focus" ? "working" : "resting", deadline: nextDeadline, running: true });
+    if (nextMode !== "focus") notifyRestStart(nextDuration);
+  }, [mode, completedFocusSessions, settings]);
+
+  useEffect(() => {
+    if (!running || deadline === null) return;
+    const tick = () => {
+      const next = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setRemaining(next);
+      if (next > 0) {
+        rafRef.current = window.requestAnimationFrame(tick);
+        return;
+      }
+
+      if (studySession) {
+        const nextIndex = studySession.index + 1;
+        if (nextIndex < studySession.schedule.length) {
+          const nextSegment = studySession.schedule[nextIndex];
+          const nextDeadline = Date.now() + nextSegment.minutes * 60 * 1000;
+          const nextStudy = {
+            ...studySession,
+            index: nextIndex,
+            running: true,
+            deadline: nextDeadline,
+            remaining: nextSegment.minutes * 60,
+            pendingStart: false,
+          };
+          setStudySession(nextStudy);
+          persistStudySession(nextStudy);
+          setMode(nextSegment.kind === "focus" ? "focus" : "short-break");
+          setPhase(nextSegment.kind === "focus" ? "working" : "resting");
+          setRemaining(nextSegment.minutes * 60);
+          setDeadline(nextDeadline);
+          setRunning(true);
+          if (nextSegment.kind === "rest") notifyRestStart(nextSegment.minutes * 60);
+          rafRef.current = window.requestAnimationFrame(tick);
+          return;
+        }
+
+        setRunning(false);
+        setDeadline(null);
+        persistStudySession(null);
+        setStudySession(null);
+        setMode("focus");
+        setPhase("working");
+        setRemaining(durationFor("focus", settings));
+        persistSession(null);
+        return;
+      }
+
+      advanceNormalMode();
+    };
+
+    rafRef.current = window.requestAnimationFrame(tick);
+    const onVisibility = () => tick();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      if (rafRef.current !== null) window.cancelAnimationFrame(rafRef.current);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [running, deadline, studySession, settings, advanceNormalMode]);
+
+  useEffect(() => {
+    if (!open || !running || deadline === null) return;
+    const syncTitle = () => {
+      if (phase !== "resting" || !document.hidden) {
+        document.title = "Glass Notes";
+      } else {
+        document.title = document.title === "⏰ Break Time!" ? "Glass Notes" : "⏰ Break Time!";
+      }
+    };
+    syncTitle();
+    const id = window.setInterval(syncTitle, 1000);
+    return () => {
+      window.clearInterval(id);
+      document.title = "Glass Notes";
+    };
+  }, [open, running, phase, deadline]);
+
+  const toggleRunning = () => {
+    if (running) {
+      setRunning(false);
+      setDeadline(null);
+      if (studySession) {
+        const paused = { ...studySession, running: false, deadline: null, remaining, pendingStart: false };
+        setStudySession(paused);
+        persistStudySession(paused);
+      }
+      persistSession(null);
+      return;
+    }
+
+    enableAlerts();
+    if (studySession) {
+      const active = studySession.schedule[studySession.index];
+      if (!active) return;
+      const nextDeadline = Date.now() + remaining * 1000;
+      const resumed = { ...studySession, running: true, deadline: nextDeadline, remaining, pendingStart: false };
+      setStudySession(resumed);
+      persistStudySession(resumed);
+      setDeadline(nextDeadline);
+      setRunning(true);
+      return;
+    }
+
+    startNormalSession(mode);
+  };
+
+  const reset = () => {
+    setRunning(false);
+    setDeadline(null);
+    setMode(studySession ? "focus" : mode);
+    setPhase("working");
+    setRemaining(studySession ? durationFor("focus", settings) : durationFor(mode, settings));
+    if (studySession) {
+      setStudySession(null);
+      persistStudySession(null);
+    }
+    persistSession(null);
+  };
+
+  const skip = () => {
+    if (studySession) {
+      const nextIndex = studySession.index + 1;
+      if (nextIndex >= studySession.schedule.length) {
+        reset();
+        return;
+      }
+      const nextSegment = studySession.schedule[nextIndex];
+      const nextDeadline = Date.now() + nextSegment.minutes * 60 * 1000;
+      const nextStudy = { ...studySession, index: nextIndex, running: true, deadline: nextDeadline, remaining: nextSegment.minutes * 60, pendingStart: false };
+      setStudySession(nextStudy);
+      persistStudySession(nextStudy);
+      setMode(nextSegment.kind === "focus" ? "focus" : "short-break");
+      setPhase(nextSegment.kind === "focus" ? "working" : "resting");
+      setRemaining(nextSegment.minutes * 60);
+      setDeadline(nextDeadline);
+      setRunning(true);
+      if (nextSegment.kind === "rest") notifyRestStart(nextSegment.minutes * 60);
+      return;
+    }
+    setRunning(false);
+    setDeadline(null);
+    advanceNormalMode();
+  };
+
+  const updateSetting = (patch: Partial<PomodoroSettings>) => {
+    setSettings((current) => {
+      const next = { ...current, ...patch };
+      saveSettings(next);
+      return next;
+    });
   };
 
   const startStudySession = (input: { pattern: StudySessionPattern; title: string; focusMinutes: number; schedule: StudySessionSegment[] }) => {
@@ -269,351 +473,145 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
       running: true,
       deadline: nextDeadline,
       remaining: first.minutes * 60,
+      pendingStart: false,
     };
-
-    ensureAudioContext();
     setStudySession(nextStudy);
     persistStudySession(nextStudy);
     persistSession(null);
-    setView("timer");
     setSettingsOpen(false);
-    setMobileSyncOpen(false);
-    setMode(first.kind === "focus" ? "focus" : "short");
+    setMode(first.kind === "focus" ? "focus" : "short-break");
     setPhase(first.kind === "focus" ? "working" : "resting");
     setRemaining(first.minutes * 60);
     setDeadline(nextDeadline);
     setRunning(true);
-    setLocked(first.kind === "rest");
-    if (first.kind === "rest") notifyRestStart(first.minutes * 60);
   };
 
-  const selectMode = (next: Mode) => {
-    if (locked || studySession) return;
-    setView("timer");
-    setMode(next);
-    setPhase(next === "focus" ? "working" : "resting");
-    setRemaining(durations[next]);
-    setRunning(false);
-    setDeadline(null);
-    setLocked(next !== "focus");
-    persistSession(null);
-  };
-
-  const beginRest = () => {
-    const restSeconds = Math.max(1, restMinutes) * 60;
-    const next = { ...durations, short: restSeconds };
-    persistDurations(next);
-    const nextDeadline = Date.now() + restSeconds * 1000;
-    setView("timer");
-    setMode("short");
-    setPhase("resting");
-    setRemaining(restSeconds);
-    setLocked(true);
-    setDeadline(nextDeadline);
-    setRunning(true);
-    persistSession({ mode: "short", phase: "resting", deadline: nextDeadline, running: true });
-    notifyRestStart(restSeconds);
-  };
-
-  useEffect(() => {
-    if (!running || deadline === null) return;
-    const tick = () => {
-      const next = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-      setRemaining(next);
-      if (next !== 0) return;
-
-      if (studySession) {
-        const nextIndex = studySession.index + 1;
-        if (nextIndex < studySession.schedule.length) {
-          const nextSegment = studySession.schedule[nextIndex];
-          if (!nextSegment) return;
-          const nextDeadline = Date.now() + nextSegment.minutes * 60 * 1000;
-          const nextStudy: StudySessionState = {
-            ...studySession,
-            index: nextIndex,
-            running: true,
-            deadline: nextDeadline,
-            remaining: nextSegment.minutes * 60,
-            pendingStart: false,
-          };
-          setStudySession(nextStudy);
-          persistStudySession(nextStudy);
-          setMode(nextSegment.kind === "focus" ? "focus" : "short");
-          setPhase(nextSegment.kind === "focus" ? "working" : "resting");
-          setRemaining(nextSegment.minutes * 60);
-          setDeadline(nextDeadline);
-          setRunning(true);
-          setLocked(nextSegment.kind === "rest");
-          if (nextSegment.kind === "rest") notifyRestStart(nextSegment.minutes * 60);
-          return;
-        }
-
-        setRunning(false);
-        setDeadline(null);
-        persistStudySession(null);
-        setStudySession(null);
-        setMode("focus");
-        setPhase("working");
-        setRemaining(durations.focus);
-        setLocked(false);
-        persistSession(null);
-        return;
-      }
-
-      setRunning(false);
-      setDeadline(null);
-      persistSession(null);
-      if (phase === "working") beginRest();
-      else {
-        setPhase("working");
-        setMode("focus");
-        setRemaining(durations.focus);
-        setLocked(false);
-      }
-    };
-
-    tick();
-    const id = window.setInterval(tick, 250);
-    const onVisibility = () => tick();
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      window.clearInterval(id);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, [deadline, durations.focus, phase, restMinutes, running, studySession]);
-
-  useEffect(() => {
-    if (phase !== "resting" || !running) {
-      document.title = originalTitleRef.current;
-      return;
-    }
-    let flashOn = false;
-    const flashTitle = () => {
-      if (!document.hidden) {
-        document.title = originalTitleRef.current;
-        return;
-      }
-      flashOn = !flashOn;
-      document.title = flashOn ? FLASH_TITLE : originalTitleRef.current;
-    };
-    flashTitle();
-    const id = window.setInterval(flashTitle, 1000);
-    return () => {
-      window.clearInterval(id);
-      document.title = originalTitleRef.current;
-    };
-  }, [phase, running]);
-
-  const formatted = useMemo(() => formatTime(remaining), [remaining]);
-
-  const toggleRunning = () => {
-    if (locked) return;
-    if (running) {
-      setRunning(false);
-      setDeadline(null);
-      if (studySession) {
-        const paused = { ...studySession, running: false, deadline: null, remaining, pendingStart: false };
-        setStudySession(paused);
-        persistStudySession(paused);
-      }
-      persistSession(null);
-      return;
-    }
-    ensureAudioContext();
-    if (studySession) {
-      const active = studySession.schedule[studySession.index];
-      if (!active) return;
-      const nextDeadline = Date.now() + remaining * 1000;
-      const resumed = { ...studySession, running: true, deadline: nextDeadline, remaining, pendingStart: false };
-      setStudySession(resumed);
-      persistStudySession(resumed);
-      setDeadline(nextDeadline);
-      setRunning(true);
-      setLocked(active.kind === "rest");
-      return;
-    }
-    startSession(mode);
-  };
-
-  const reset = () => {
-    if (locked) return;
-    setStudySession(null);
-    persistStudySession(null);
-    setRunning(false);
-    setDeadline(null);
-    setPhase("working");
-    setMode("focus");
-    setRemaining(durations.focus);
-    setLocked(false);
-    persistSession(null);
-  };
-
-  const newStudySession = () => {
-    setStudySession(null);
-    persistStudySession(null);
-    setRunning(false);
-    setDeadline(null);
-    setLocked(false);
-    setMode("focus");
-    setPhase("working");
-    setRemaining(durations.focus);
-    setView("study");
-  };
-
-  const changeDuration = (durationMode: Mode, value: number) => {
-    const safe = Math.min(120, Math.max(1, Math.round(value)));
-    const next = { ...durations, [durationMode]: safe * 60 };
-    persistDurations(next);
-    if (durationMode === "focus") setFocusMinutes(safe);
-    if (durationMode === "short") setRestMinutes(safe);
-    if (durationMode === "long") setLongBreakMinutes(safe);
-    if (!running && !locked && mode === durationMode) setRemaining(safe * 60);
-  };
-
-  const studyComplete = studySession && !studySession.running && studySession.index >= studySession.schedule.length - 1 && remaining === 0;
-  const currentStudySegment = studySession?.schedule[studySession.index];
+  const radius = 92;
+  const circumference = 2 * Math.PI * radius;
+  const dashOffset = circumference * (1 - progress);
+  const currentSegment = studySession?.schedule[studySession.index];
+  const restTotal = studySession?.schedule.filter((segment) => segment.kind === "rest").reduce((sum, segment) => sum + segment.minutes, 0) ?? 0;
+  const studyComplete = !!studySession && !studySession.running && studySession.index >= studySession.schedule.length - 1 && remaining === 0;
 
   return (
-    <>
-      <Dialog open={open && !locked} onOpenChange={onOpenChange}>
-        <DialogContent className={`${view === "study" ? "max-w-2xl" : "max-w-2xl"} max-h-[92vh] overflow-hidden rounded-[28px] border-white/20 bg-black/35 p-0 text-foreground shadow-2xl backdrop-blur-2xl [&>button]:hidden`}>
-          <div className="relative max-h-[92vh] overflow-y-auto overscroll-contain p-6 sm:p-8">
-            <div className="pointer-events-none absolute -right-20 -top-24 size-56 rounded-full bg-primary/20 blur-3xl" />
-            <div className="relative">
-              <div className="flex items-center justify-between gap-3">
-                <DialogTitle className="text-lg font-semibold tracking-tight">Pomodoro</DialogTitle>
-                <div className="flex items-center gap-1">
-                  {view === "timer" && <Button variant="ghost" size="icon" className={`rounded-full ${mobileSyncOpen ? "bg-white/12 text-foreground" : "text-muted-foreground"} hover:bg-white/10`} onClick={() => setMobileSyncOpen((value) => !value)} aria-label="Mobile Pomodoro sync" aria-expanded={mobileSyncOpen} title="Mobile Pomodoro sync"><Bell className="size-4" /></Button>}
-                  {view === "timer" && <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => setSettingsOpen((value) => !value)} aria-label="Pomodoro settings"><Settings2 className="size-4" /></Button>}
-                  <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => onOpenChange(false)} aria-label="Close Pomodoro"><X className="size-4" /></Button>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md overflow-hidden rounded-[28px] border-white/20 bg-black/35 p-0 text-foreground shadow-2xl backdrop-blur-2xl [&>button]:hidden">
+        <div className="relative max-h-[92vh] overflow-x-hidden overflow-y-auto overscroll-contain p-6 sm:p-8">
+          <span aria-hidden className="pointer-events-none absolute -right-20 -top-24 size-56 rounded-full bg-primary/20 blur-3xl" />
+          <div className="relative">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-lg font-semibold tracking-tight">Pomodoro</DialogTitle>
+              <div className="flex items-center gap-1">
+                {notifPermission !== "granted" && notifPermission !== "unsupported" && (
+                  <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={enableAlerts} aria-label="Enable rest notifications"><span className="text-sm">🔔</span></Button>
+                )}
+                <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => setSettingsOpen((value) => !value)} aria-label="Pomodoro settings"><Settings2 className="size-4" /></Button>
+                <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => onOpenChange(false)} aria-label="Close Pomodoro"><X className="size-4" /></Button>
+              </div>
+            </div>
+
+            {studySession ? (
+              <div className="mt-4 space-y-4">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Current Study Session</p>
+                      <p className="mt-1 truncate text-sm font-semibold">{studySession.title}</p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">Pomodoro is running the selected Study Session blocks.</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2 text-[10px] text-muted-foreground">
+                      <span>{formatDuration(studySession.focusMinutes)} focus</span>
+                      <span>·</span>
+                      <span>{formatDuration(restTotal)} rest</span>
+                    </div>
+                  </div>
+                </div>
+
+                <GlassPanel className="relative flex w-full items-center justify-center !p-6">
+                  <span aria-hidden className="pointer-events-none absolute -top-8 -z-10 size-48 rounded-full opacity-40 blur-[70px]" style={{ background: meta.glow }} />
+                  <div className="flex flex-col items-center">
+                    <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5 text-xs font-semibold" style={{ color: meta.ring }}>
+                      <Icon className="size-3.5" />
+                      {currentSegment?.label ?? meta.label}
+                    </div>
+                    <StudySessionRing segment={currentSegment} remaining={remaining} />
+                    <p className="mt-1 text-[11px] text-muted-foreground">Block {Math.min(studySession.index + 1, studySession.schedule.length)} of {studySession.schedule.length}</p>
+                  </div>
+                </GlassPanel>
+
+                <div className="grid gap-2">
+                  {studySession.schedule.map((segment, index) => {
+                    const isCurrent = index === studySession.index && studySession.running;
+                    const isPast = index < studySession.index || (index === studySession.index && studyComplete);
+                    return <div key={`${segment.label}-${index}`} className={cn("rounded-xl border p-3", isCurrent ? "border-white/35 bg-white/10" : isPast ? "border-white/10 bg-white/[0.025] opacity-55" : "border-white/10 bg-black/15")}>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2"><span className={cn("flex size-7 items-center justify-center rounded-lg", segment.kind === "focus" ? "bg-foreground/80 text-background" : "bg-white/15 text-foreground")}>{isPast ? "✓" : index + 1}</span><div><p className="text-xs font-medium">{segment.label}</p><p className="text-[9px] text-muted-foreground">{segment.minutes} min</p></div></div>
+                        <span className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{isCurrent ? "Now" : isPast ? "Done" : "Next"}</span>
+                      </div>
+                    </div>;
+                  })}
+                </div>
+
+                <div className="flex items-center justify-center gap-3">
+                  <button type="button" onClick={reset} className="flex size-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-foreground transition hover:bg-white/10" aria-label="Reset timer"><RotateCcw className="size-4" /></button>
+                  <button type="button" onClick={toggleRunning} className="flex h-14 w-14 items-center justify-center rounded-full text-background shadow-lg transition active:scale-95" style={{ background: meta.ring, boxShadow: `0 8px 28px -6px ${meta.glow}` }} aria-label={running ? "Pause timer" : "Start timer"}>{running ? <Pause className="size-6" fill="currentColor" /> : <Play className="ml-0.5 size-6" fill="currentColor" />}</button>
+                  <button type="button" onClick={skip} className="flex size-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-foreground transition hover:bg-white/10" aria-label="Skip to next session"><SkipForward className="size-4" /></button>
                 </div>
               </div>
+            ) : (
+              <GlassPanel className="relative mt-4 flex w-full flex-col items-center gap-6 !p-7">
+                <span aria-hidden className="pointer-events-none absolute -top-8 -z-10 size-56 rounded-full opacity-40 blur-[70px]" style={{ background: meta.glow }} />
 
-              {mobileSyncOpen && view === "timer" && (
-                <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4 shadow-lg backdrop-blur-xl">
-                  <div className="flex items-start gap-3">
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06]"><Smartphone className="size-4" /></div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold">Mobile Pomodoro Sync</p>
-                      <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Open this website on your phone and sign in to the same account. When this timer starts a rest period, your mobile site receives the rest-time alert.</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2">
-                    <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Device alerts</span>
-                    {notifPermission === "granted" ? <span className="text-xs font-medium text-foreground">Enabled</span> : notifPermission === "unsupported" ? <span className="text-xs text-muted-foreground">Unsupported</span> : <button type="button" onClick={enableAlerts} className="rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-[10px] font-medium text-foreground hover:bg-white/15">Enable on this device</button>}
-                  </div>
-                  <p className="mt-2 text-[10px] text-muted-foreground">No notes or note content are sent — only the rest duration.</p>
+                <div className="flex w-full items-center justify-between">
+                  <AnimatePresence mode="wait">
+                    <motion.div key={mode} initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.25 }} className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5 text-xs font-semibold" style={{ color: meta.ring }}>
+                      <Icon className="size-3.5" />{meta.label}
+                    </motion.div>
+                  </AnimatePresence>
+                  <button type="button" onClick={() => setSettingsOpen((value) => !value)} className="flex size-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-muted-foreground transition hover:bg-white/10" aria-label="Timer settings"><Settings2 className="size-4" /></button>
                 </div>
-              )}
 
-              {view === "study" ? (
-                <StudySessionPanel onStartSession={startStudySession} />
-              ) : (
-                <>
-                  {studySession && (
-                    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold">{studySession.title}</p>
-                          <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Pomodoro is running this study session.</p>
-                        </div>
-                        <button type="button" onClick={newStudySession} className="shrink-0 rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-[10px] text-muted-foreground hover:bg-white/10">Change session</button>
+                <div className="relative flex items-center justify-center">
+                  <svg width={radius * 2 + 16} height={radius * 2 + 16} className="-rotate-90">
+                    <circle cx={radius + 8} cy={radius + 8} r={radius} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={10} />
+                    <circle cx={radius + 8} cy={radius + 8} r={radius} fill="none" stroke={meta.ring} strokeWidth={10} strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={dashOffset} style={{ transition: "stroke-dashoffset 0.3s linear, stroke 0.5s ease" }} />
+                  </svg>
+                  <div className="absolute flex flex-col items-center"><span className="font-mono text-5xl font-semibold tabular-nums text-foreground">{formatTime(remaining)}</span><span className="mt-1 text-[11px] text-muted-foreground">Session {completedFocusSessions + 1}</span></div>
+                </div>
+
+                <div className="flex items-center gap-1.5">{Array.from({ length: settings.sessionsUntilLongBreak }).map((_, index) => <span key={index} className="h-1.5 w-1.5 rounded-full" style={{ background: index < dotsFilled ? meta.ring : "rgba(255,255,255,0.15)" }} />)}</div>
+
+                <div className="flex w-full items-center justify-center gap-3">
+                  <button type="button" onClick={reset} className="flex size-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-foreground transition hover:bg-white/10" aria-label="Reset timer"><RotateCcw className="size-4" /></button>
+                  <button type="button" onClick={toggleRunning} className="flex h-14 w-14 items-center justify-center rounded-full text-background shadow-lg transition active:scale-95" style={{ background: meta.ring, boxShadow: `0 8px 28px -6px ${meta.glow}` }} aria-label={running ? "Pause timer" : "Start timer"}>{running ? <Pause className="size-6" fill="currentColor" /> : <Play className="ml-0.5 size-6" fill="currentColor" />}</button>
+                  <button type="button" onClick={skip} className="flex size-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-foreground transition hover:bg-white/10" aria-label="Skip to next session"><SkipForward className="size-4" /></button>
+                </div>
+
+                {settingsOpen && (
+                  <AnimatePresence>
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="w-full overflow-hidden">
+                      <div className="mt-1 grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                        <label className="block text-xs text-muted-foreground">Focus (min)<input type="number" min={1} max={120} value={settings.focusMinutes} onChange={(event) => updateSetting({ focusMinutes: Math.min(120, Math.max(1, Number(event.target.value) || 1)) })} className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-foreground outline-none" /></label>
+                        <label className="block text-xs text-muted-foreground">Short break (min)<input type="number" min={1} max={60} value={settings.shortBreakMinutes} onChange={(event) => updateSetting({ shortBreakMinutes: Math.min(60, Math.max(1, Number(event.target.value) || 1)) })} className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-foreground outline-none" /></label>
+                        <label className="block text-xs text-muted-foreground">Long break (min)<input type="number" min={1} max={90} value={settings.longBreakMinutes} onChange={(event) => updateSetting({ longBreakMinutes: Math.min(90, Math.max(1, Number(event.target.value) || 1)) })} className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-foreground outline-none" /></label>
+                        <label className="block text-xs text-muted-foreground">Sessions / long break<input type="number" min={2} max={8} value={settings.sessionsUntilLongBreak} onChange={(event) => updateSetting({ sessionsUntilLongBreak: Math.min(8, Math.max(2, Number(event.target.value) || 4)) })} className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-foreground outline-none" /></label>
+                        <button type="button" onClick={() => updateSetting({ soundEnabled: !settings.soundEnabled })} className="col-span-2 mt-1 flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-medium text-foreground transition hover:bg-white/10">{settings.soundEnabled ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}{settings.soundEnabled ? "Chime on session end: On" : "Chime on session end: Off"}</button>
                       </div>
+                    </motion.div>
+                  </AnimatePresence>
+                )}
+              </GlassPanel>
+            )}
 
-                      <div className="mt-3 grid grid-cols-2 gap-2">
-                        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                          <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Study focus</p>
-                          <p className="mt-1 text-sm font-semibold text-foreground">{formatDuration(studySession.focusMinutes)}</p>
-                        </div>
-                        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                          <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Total rest</p>
-                          <p className="mt-1 text-sm font-semibold text-foreground">{formatDuration(studySession.schedule.filter((segment) => segment.kind === "rest").reduce((sum, segment) => sum + segment.minutes, 0))}</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 rounded-2xl border border-white/10 bg-black/25 p-5 text-center">
-                        <StudySessionRing segment={currentStudySegment} remaining={remaining} />
-                        <p className="mt-2 text-[11px] text-muted-foreground">Block {Math.min(studySession.index + 1, studySession.schedule.length)} of {studySession.schedule.length}</p>
-                      </div>
-
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                        {studySession.schedule.map((segment, index) => {
-                          const isCurrent = index === studySession.index && studySession.running;
-                          const isPast = index < studySession.index || (index === studySession.index && studyComplete);
-                          return (
-                            <div key={`${segment.label}-${index}`} className={`rounded-xl border p-3 transition ${isCurrent ? "border-white/40 bg-white/10" : isPast ? "border-white/10 bg-white/[0.025] opacity-55" : "border-white/10 bg-black/15"}`}>
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2">
-                                  <span className={`flex size-7 items-center justify-center rounded-lg ${segment.kind === "focus" ? "bg-foreground/80 text-background" : "bg-white/15 text-foreground"}`}>
-                                    {isPast ? <Check className="size-3.5" /> : <span className="text-[9px] font-semibold">{index + 1}</span>}
-                                  </span>
-                                  <div><p className="text-xs font-medium text-foreground">{segment.label}</p><p className="text-[9px] text-muted-foreground">{segment.minutes} min</p></div>
-                                </div>
-                                <span className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{isCurrent ? "Now" : isPast ? "Done" : "Next"}</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      <div className="mt-4 grid grid-cols-3 gap-2">
-                        <Button type="button" variant="secondary" onClick={reset}><RotateCcw className="mr-2 size-3.5" />Reset</Button>
-                        <Button type="button" variant="outline" onClick={toggleRunning} className="col-span-2">{running ? <Pause className="mr-2 size-3.5" /> : <Play className="mr-2 size-3.5" />}{running ? "Pause session" : "Resume session"}</Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {settingsOpen && (
-                    <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-                      <p className="text-sm font-medium">Edit Pomodoro time</p>
-                      <div className="grid grid-cols-3 gap-2">
-                        {([["focus", "Focus", focusMinutes], ["short", "Short Break", restMinutes], ["long", "Long Break", longBreakMinutes]] as const).map(([item, label, value]) => (
-                          <label key={item} className="rounded-xl border border-white/10 bg-black/20 p-2">
-                            <span className="block text-[11px] text-muted-foreground">{label}</span>
-                            <div className="mt-1 flex items-center gap-1"><input aria-label={`${label} minutes`} type="number" min={1} max={120} value={value} onChange={(event) => changeDuration(item, Number(event.target.value))} className="w-full min-w-0 bg-transparent text-sm font-medium outline-none" /><span className="text-[10px] text-muted-foreground">min</span></div>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {!studySession && !studyComplete && (
-                    <>
-                      <div className="mt-4 grid grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-white/[0.045] p-1">
-                        {(Object.keys(LABELS) as Mode[]).map((item) => <button key={item} type="button" onClick={() => selectMode(item)} className={`rounded-xl px-2 py-2 text-xs font-medium transition ${mode === item ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>{LABELS[item]}</button>)}
-                      </div>
-
-                      <div className="flex flex-col items-center py-10"><div className="text-7xl font-semibold tabular-nums tracking-[-0.05em] text-foreground sm:text-8xl" aria-live="polite">{formatted}</div><p className="mt-3 text-sm text-muted-foreground">{running ? "Stay focused" : "Ready when you are"}</p></div>
-
-                      <div className="flex items-center justify-center gap-3"><Button variant="ghost" size="icon" className="size-11 rounded-full bg-white/[0.06] hover:bg-white/10" onClick={reset} aria-label="Reset timer"><RotateCcw className="size-4" /></Button><Button size="lg" className="h-12 rounded-full px-7 shadow-lg" onClick={toggleRunning}>{running ? <Pause className="mr-2 size-4" /> : <Play className="mr-2 size-4" />}{running ? "Pause" : "Start"}</Button></div>
-                    </>
-                  )}
-
-                  {studyComplete && (
-                    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.045] p-5 text-center">
-                      <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-white/10"><Check className="size-5" /></div>
-                      <p className="mt-3 text-sm font-semibold">Study session complete</p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">Your selected Focus blocks are complete.</p>
-                      <Button type="button" variant="outline" className="mt-4 rounded-xl" onClick={newStudySession}>Start another study session</Button>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+            {studyComplete && (
+              <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.045] p-5 text-center">
+                <p className="text-sm font-semibold">Study session complete</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">Your selected Focus blocks are complete.</p>
+              </div>
+            )}
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {locked && <div className="fixed inset-0 z-[100] flex min-h-screen items-center justify-center overflow-hidden bg-black/60 p-5 backdrop-blur-xl" role="dialog" aria-modal="true" aria-label="Rest period in progress">
-        <div className="pointer-events-none absolute -left-24 -top-24 size-80 rounded-full bg-primary/20 blur-3xl" /><div className="pointer-events-none absolute -bottom-28 -right-20 size-96 rounded-full bg-white/10 blur-3xl" />
-        <div className="relative w-full max-w-lg rounded-[32px] border border-white/20 bg-black/35 p-7 text-center shadow-2xl backdrop-blur-2xl sm:p-10">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">Rest session</p>
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight">Website locked</h2>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">Your notes, course folders, dashboard, and workspace are unavailable until the rest timer finishes.</p>
-          <div className="mt-9 text-7xl font-semibold tabular-nums tracking-[-0.05em] sm:text-8xl">{formatted}</div>
-          <p className="mt-3 text-sm text-muted-foreground">Rest time remaining</p>
         </div>
-      </div>}
-    </>
+      </DialogContent>
+    </Dialog>
   );
 }
