@@ -37,8 +37,8 @@ const PATTERNS: Record<StudySessionPattern, { title: string; description: string
   },
 };
 
-const MAX_SESSION_MINUTES = 150;
-const MIN_SESSION_MINUTES = 30;
+const MAX_FOCUS_MINUTES = 150;
+const MIN_FOCUS_MINUTES = 30;
 
 function formatDuration(totalMinutes: number) {
   const hours = Math.floor(totalMinutes / 60);
@@ -47,18 +47,34 @@ function formatDuration(totalMinutes: number) {
   return minutes ? `${hours} hr ${minutes} min` : `${hours} hr`;
 }
 
-function buildSchedule(cycle: Segment[], targetMinutes: number) {
+function buildSchedule(cycle: Segment[], targetFocusMinutes: number) {
   const schedule: Segment[] = [];
-  let remaining = targetMinutes;
+  let focusRemaining = targetFocusMinutes;
   let cycleIndex = 0;
-  while (remaining > 0) {
+
+  while (focusRemaining > 0) {
     const segment = cycle[cycleIndex % cycle.length];
     if (!segment) break;
-    const minutes = Math.min(segment.minutes, remaining);
-    schedule.push({ ...segment, minutes });
-    remaining -= minutes;
-    cycleIndex += 1;
+
+    if (segment.kind === "focus") {
+      const minutes = Math.min(segment.minutes, focusRemaining);
+      schedule.push({ ...segment, minutes });
+      focusRemaining -= minutes;
+      cycleIndex += 1;
+
+      // Rest is a break between focus blocks, so don't add one after the final focus block.
+      if (focusRemaining > 0) {
+        const next = cycle[cycleIndex % cycle.length];
+        if (next?.kind === "rest") {
+          schedule.push({ ...next });
+          cycleIndex += 1;
+        }
+      }
+    } else {
+      cycleIndex += 1;
+    }
   }
+
   return schedule;
 }
 
@@ -70,15 +86,20 @@ function formatClock(totalSeconds: number) {
 
 export function StudySessionPanel() {
   const [pattern, setPattern] = useState<StudySessionPattern>("deep");
-  const [totalMinutes, setTotalMinutes] = useState(150);
+  const [focusMinutesTarget, setFocusMinutesTarget] = useState(150);
   const [running, setRunning] = useState(false);
   const [segmentIndex, setSegmentIndex] = useState(0);
   const [remaining, setRemaining] = useState(0);
 
   const selected = PATTERNS[pattern];
-  const schedule = useMemo(() => buildSchedule(selected.cycle, totalMinutes), [selected.cycle, totalMinutes]);
+  const schedule = useMemo(
+    () => buildSchedule(selected.cycle, focusMinutesTarget),
+    [selected.cycle, focusMinutesTarget],
+  );
   const actualTotal = schedule.reduce((sum, segment) => sum + segment.minutes, 0);
-  const focusMinutes = schedule.filter((segment) => segment.kind === "focus").reduce((sum, segment) => sum + segment.minutes, 0);
+  const focusMinutes = schedule
+    .filter((segment) => segment.kind === "focus")
+    .reduce((sum, segment) => sum + segment.minutes, 0);
   const restMinutes = actualTotal - focusMinutes;
   const active = schedule[segmentIndex];
 
@@ -117,10 +138,10 @@ export function StudySessionPanel() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold">Study Session</p>
-          <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Choose a study style and plan a session up to 2.5 hours.</p>
+          <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Choose a study style and set focused study time up to 2.5 hours.</p>
         </div>
         <div className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.05] px-2 py-1 text-[10px] font-medium text-muted-foreground">
-          <Clock3 className="size-3" /> {formatDuration(actualTotal)}
+          <Clock3 className="size-3" /> {formatDuration(actualTotal)} total
         </div>
       </div>
 
@@ -144,11 +165,11 @@ export function StudySessionPanel() {
 
       <label className="mt-4 block">
         <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
-          <span>Session length</span>
-          <span className="text-foreground">{formatDuration(totalMinutes)}</span>
+          <span>Focus time</span>
+          <span className="text-foreground">{formatDuration(focusMinutesTarget)}</span>
         </div>
-        <input type="range" min={MIN_SESSION_MINUTES} max={MAX_SESSION_MINUTES} step={10} value={totalMinutes} disabled={running} onChange={(event) => { setTotalMinutes(Math.min(MAX_SESSION_MINUTES, Number(event.target.value))); reset(); }} className="mt-2 w-full accent-current disabled:opacity-50" aria-label="Study session length" />
-        <div className="mt-1 flex justify-between text-[9px] text-muted-foreground"><span>30 min</span><span>2.5 hr max</span></div>
+        <input type="range" min={MIN_FOCUS_MINUTES} max={MAX_FOCUS_MINUTES} step={10} value={focusMinutesTarget} disabled={running} onChange={(event) => { setFocusMinutesTarget(Math.min(MAX_FOCUS_MINUTES, Number(event.target.value))); reset(); }} className="mt-2 w-full accent-current disabled:opacity-50" aria-label="Study session focus time" />
+        <div className="mt-1 flex justify-between text-[9px] text-muted-foreground"><span>30 min focus</span><span>2.5 hr focus max</span></div>
       </label>
 
       <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
