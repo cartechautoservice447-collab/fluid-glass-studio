@@ -6,6 +6,7 @@ import {
   type StudySessionPattern,
   type StudySessionSegment,
 } from "@/components/focus/StudySessionPanel";
+import { StudySessionRing } from "@/components/focus/StudySessionRing";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
@@ -494,8 +495,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
                       </div>
 
                       <div className="mt-3 rounded-2xl border border-white/10 bg-black/25 p-5 text-center">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">{currentStudySegment?.label ?? "Complete"}</p>
-                        <p className="mt-2 text-5xl font-semibold tabular-nums tracking-[-0.05em] text-foreground" aria-live="polite">{formatted}</p>
+                        <StudySessionRing segment={currentStudySegment} remaining={remaining} />
                         <p className="mt-2 text-[11px] text-muted-foreground">Block {Math.min(studySession.index + 1, studySession.schedule.length)} of {studySession.schedule.length}</p>
                       </div>
 
