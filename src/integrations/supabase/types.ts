@@ -79,6 +79,44 @@ export type Database = {
         }
         Relationships: []
       }
+      lecture_links: {
+        Row: {
+          course_id: string
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lecture_links_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notes: {
         Row: {
           body: string
