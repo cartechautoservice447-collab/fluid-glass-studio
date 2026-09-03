@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, Pause, Play, RotateCcw, Settings2, X } from "lucide-react";
+import { Bell, Pause, Play, RotateCcw, Settings2, Smartphone, X } from "lucide-react";
 
 import { StudySessionPanel } from "@/components/focus/StudySessionPanel";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useAuth } from "@/context/AuthContext";
+import { broadcastRestStart } from "@/lib/pomodoroSync";
 
 type Mode = "focus" | "short" | "long";
 type SessionPhase = "working" | "resting";
@@ -41,6 +43,7 @@ function loadSession(): PersistedSession | null {
 }
 
 export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { user } = useAuth();
   const [durations, setDurations] = useState(DEFAULT_DURATIONS);
   const [mode, setMode] = useState<Mode>("focus");
   const [view, setView] = useState<"timer" | "study">("timer");
@@ -49,6 +52,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
   const [running, setRunning] = useState(false);
   const [deadline, setDeadline] = useState<number | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mobileSyncOpen, setMobileSyncOpen] = useState(false);
   const [focusMinutes, setFocusMinutes] = useState(1);
   const [restMinutes, setRestMinutes] = useState(5);
   const [longBreakMinutes, setLongBreakMinutes] = useState(15);
@@ -135,20 +139,18 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
 
   const notifyRestStart = (seconds: number) => {
     playChime();
+    if (user?.id) void broadcastRestStart(user.id, Math.max(1, Math.round(seconds / 60)));
     if (typeof window === "undefined" || !("Notification" in window) || Notification.permission !== "granted") return;
     try {
       const n = new Notification("Break time!", {
         body: `Time to rest for ${Math.round(seconds / 60)} min. Step away from the screen.`,
         icon: "/pwa-icon-192.svg",
         tag: "liquid-glass-pomodoro-rest",
-        ...( { renotify: true } as Record<string, unknown> ),
+        renotify: true,
       });
-      n.onclick = () => {
-        window.focus();
-        n.close();
-      };
+      n.onclick = () => { window.focus(); n.close(); };
     } catch {
-      /* Notification constructor can throw on some platforms (e.g. iOS Safari) — sound/title flash still cover it. */
+      /* Notification constructor can throw on some platforms — sound/title flash still cover it. */
     }
   };
 
@@ -196,16 +198,13 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
 
   useEffect(() => {
     if (!running || deadline === null) return;
-
     const tick = () => {
       const next = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
       setRemaining(next);
       if (next !== 0) return;
-
       setRunning(false);
       setDeadline(null);
       persistSession(null);
-
       if (phase === "working") {
         beginRest();
       } else {
@@ -215,7 +214,6 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
         setLocked(false);
       }
     };
-
     tick();
     const id = window.setInterval(tick, 250);
     const onVisibility = () => tick();
@@ -224,7 +222,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
       window.clearInterval(id);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [running, deadline, phase, durations.focus, restMinutes]);
+  }, [running, deadline, phase, durations.focus, restMinutes, user?.id]);
 
   useEffect(() => {
     if (phase !== "resting" || !running) {
@@ -258,7 +256,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
       persistSession(null);
       return;
     }
-    enableAlerts();
+    ensureAudioContext();
     startSession(mode);
   };
 
@@ -293,31 +291,35 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
               <div className="flex items-center justify-between gap-3">
                 <DialogTitle className="text-lg font-semibold tracking-tight">Pomodoro</DialogTitle>
                 <div className="flex items-center gap-1">
-                  {notifPermission !== "granted" && notifPermission !== "unsupported" && view === "timer" && (
-                    <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={enableAlerts} aria-label="Enable rest notifications"><Bell className="size-4" /></Button>
-                  )}
+                  {view === "timer" && <Button variant="ghost" size="icon" className={`rounded-full ${mobileSyncOpen ? "bg-white/12 text-foreground" : "text-muted-foreground"} hover:bg-white/10`} onClick={() => setMobileSyncOpen((value) => !value)} aria-label="Mobile Pomodoro sync" aria-expanded={mobileSyncOpen} title="Mobile Pomodoro sync"><Bell className="size-4" /></Button>}
                   {view === "timer" && <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => setSettingsOpen((value) => !value)} aria-label="Pomodoro settings"><Settings2 className="size-4" /></Button>}
                   <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-white/10" onClick={() => onOpenChange(false)} aria-label="Close Pomodoro"><X className="size-4" /></Button>
                 </div>
               </div>
 
+              {mobileSyncOpen && view === "timer" && (
+                <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4 shadow-lg backdrop-blur-xl">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06]"><Smartphone className="size-4" /></div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold">Mobile Pomodoro Sync</p>
+                      <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Open this website on your phone and sign in to the same account. When this timer starts a rest period, your mobile site receives the rest-time alert.</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+                    <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Device alerts</span>
+                    {notifPermission === "granted" ? <span className="text-xs font-medium text-foreground">Enabled</span> : notifPermission === "unsupported" ? <span className="text-xs text-muted-foreground">Unsupported</span> : <button type="button" onClick={enableAlerts} className="rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-[10px] font-medium text-foreground hover:bg-white/15">Enable on this device</button>}
+                  </div>
+                  <p className="mt-2 text-[10px] text-muted-foreground">No notes or note content are sent — only the rest duration.</p>
+                </div>
+              )}
+
               <div className="mt-4 grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-white/[0.045] p-1">
-                <button type="button" onClick={() => setView("timer")} className={`rounded-lg px-3 py-2 text-xs font-medium transition ${view === "timer" ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>Pomodoro Timer</button>
-                <button type="button" onClick={() => { if (!locked) { setView("study"); setSettingsOpen(false); } }} className={`rounded-lg px-3 py-2 text-xs font-medium transition ${view === "study" ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>Study Session</button>
+                <button type="button" onClick={() => { setView("timer"); setMobileSyncOpen(false); }} className={`rounded-lg px-3 py-2 text-xs font-medium transition ${view === "timer" ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>Pomodoro Timer</button>
+                <button type="button" onClick={() => { if (!locked) { setView("study"); setSettingsOpen(false); setMobileSyncOpen(false); } }} className={`rounded-lg px-3 py-2 text-xs font-medium transition ${view === "study" ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>Study Session</button>
               </div>
 
               {view === "study" ? <StudySessionPanel /> : <>
-                {notifPermission === "default" && (
-                  <button type="button" onClick={enableAlerts} className="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-left text-xs text-muted-foreground hover:bg-white/[0.08]">
-                    🔔 Tap to enable a sound + notification when rest starts
-                  </button>
-                )}
-                {notifPermission === "denied" && (
-                  <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-muted-foreground">
-                    Notifications are blocked for this site — you'll still get a sound and a flashing tab title when rest starts. Allow notifications in your browser's site settings for the full popup.
-                  </p>
-                )}
-
                 {settingsOpen && (
                   <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
                     <p className="text-sm font-medium">Edit Pomodoro time</p>
@@ -349,7 +351,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
         <div className="pointer-events-none absolute -left-24 -top-24 size-80 rounded-full bg-primary/20 blur-3xl" /><div className="pointer-events-none absolute -bottom-28 -right-20 size-96 rounded-full bg-white/10 blur-3xl" />
         <div className="relative w-full max-w-lg rounded-[32px] border border-white/20 bg-black/35 p-7 text-center shadow-2xl backdrop-blur-2xl sm:p-10">
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">Rest session</p>
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Website locked</h2>
+          <h2 className="mt-3 text-2xl font-semibold tracking-tight">Website locked</h2>
           <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">Your notes, course folders, dashboard, and workspace are unavailable until the rest timer finishes.</p>
           <div className="mt-9 text-7xl font-semibold tabular-nums tracking-[-0.05em] sm:text-8xl">{formatted}</div>
           <p className="mt-3 text-sm text-muted-foreground">Rest time remaining</p>
