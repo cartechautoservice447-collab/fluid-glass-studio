@@ -23,6 +23,8 @@ type StudySessionState = {
   index: number;
   running: boolean;
   deadline: number | null;
+  remaining?: number;
+  pendingStart?: boolean;
 };
 
 const DEFAULT_DURATIONS: Record<Mode, number> = { focus: 60, short: 5 * 60, long: 15 * 60 };
@@ -61,10 +63,15 @@ function loadStudySession(): StudySessionState | null {
   try {
     const saved = JSON.parse(localStorage.getItem(STUDY_SESSION_KEY) ?? "null");
     if (!saved || !Array.isArray(saved.schedule) || !saved.schedule.length) return null;
-    if (!saved.running || typeof saved.deadline !== "number" || saved.deadline <= Date.now()) return null;
     if (!["deep", "balanced", "classic"].includes(saved.pattern)) return null;
-    const index = Number.isInteger(saved.index) ? saved.index : 0;
-    if (index < 0 || index >= saved.schedule.length) return null;
+    if (!Number.isInteger(saved.index) || saved.index < 0 || saved.index >= saved.schedule.length) return null;
+    if (typeof saved.running !== "boolean") return null;
+    if (saved.pendingStart) return saved as StudySessionState;
+    if (saved.running) {
+      if (typeof saved.deadline !== "number" || saved.deadline <= Date.now()) return null;
+    } else if (saved.remaining !== undefined && (!Number.isFinite(saved.remaining) || saved.remaining < 0)) {
+      return null;
+    }
     return saved as StudySessionState;
   } catch { return null; }
 }
@@ -123,10 +130,35 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
         setView("timer");
         setMode(segment.kind === "focus" ? "focus" : "short");
         setPhase(segment.kind === "focus" ? "working" : "resting");
-        setDeadline(study.deadline);
-        setRunning(true);
         setLocked(segment.kind === "rest");
-        setRemaining(Math.max(0, Math.ceil((((study.deadline ?? Date.now()) - Date.now())) / 1000)));
+
+        if (study.pendingStart) {
+          const nextDeadline = Date.now() + segment.minutes * 60 * 1000;
+          const started: StudySessionState = {
+            ...study,
+            pendingStart: false,
+            running: true,
+            deadline: nextDeadline,
+            remaining: segment.minutes * 60,
+          };
+          setStudySession(started);
+          persistStudySession(started);
+          setDeadline(nextDeadline);
+          setRemaining(segment.minutes * 60);
+          setRunning(true);
+          return;
+        }
+
+        if (study.running && typeof study.deadline === "number") {
+          setDeadline(study.deadline);
+          setRunning(true);
+          setRemaining(Math.max(0, Math.ceil((study.deadline - Date.now()) / 1000)));
+        } else {
+          const pausedRemaining = typeof study.remaining === "number" ? Math.max(0, Math.floor(study.remaining)) : segment.minutes * 60;
+          setDeadline(null);
+          setRunning(false);
+          setRemaining(pausedRemaining);
+        }
         return;
       }
     }
@@ -210,11 +242,10 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
   };
 
   const startSession = (nextMode: Mode) => {
+    if (studySession) return;
     const nextPhase: SessionPhase = nextMode === "focus" ? "working" : "resting";
     const seconds = durations[nextMode];
     const nextDeadline = Date.now() + seconds * 1000;
-    setStudySession(null);
-    persistStudySession(null);
     setView("timer");
     setMode(nextMode);
     setPhase(nextPhase);
@@ -237,6 +268,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
       index: 0,
       running: true,
       deadline: nextDeadline,
+      remaining: first.minutes * 60,
     };
 
     ensureAudioContext();
@@ -256,9 +288,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
   };
 
   const selectMode = (next: Mode) => {
-    if (locked) return;
-    setStudySession(null);
-    persistStudySession(null);
+    if (locked || studySession) return;
     setView("timer");
     setMode(next);
     setPhase(next === "focus" ? "working" : "resting");
@@ -298,7 +328,14 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
           const nextSegment = studySession.schedule[nextIndex];
           if (!nextSegment) return;
           const nextDeadline = Date.now() + nextSegment.minutes * 60 * 1000;
-          const nextStudy: StudySessionState = { ...studySession, index: nextIndex, running: true, deadline: nextDeadline };
+          const nextStudy: StudySessionState = {
+            ...studySession,
+            index: nextIndex,
+            running: true,
+            deadline: nextDeadline,
+            remaining: nextSegment.minutes * 60,
+            pendingStart: false,
+          };
           setStudySession(nextStudy);
           persistStudySession(nextStudy);
           setMode(nextSegment.kind === "focus" ? "focus" : "short");
@@ -375,7 +412,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
       setRunning(false);
       setDeadline(null);
       if (studySession) {
-        const paused = { ...studySession, running: false, deadline: null };
+        const paused = { ...studySession, running: false, deadline: null, remaining, pendingStart: false };
         setStudySession(paused);
         persistStudySession(paused);
       }
@@ -387,7 +424,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
       const active = studySession.schedule[studySession.index];
       if (!active) return;
       const nextDeadline = Date.now() + remaining * 1000;
-      const resumed = { ...studySession, running: true, deadline: nextDeadline };
+      const resumed = { ...studySession, running: true, deadline: nextDeadline, remaining, pendingStart: false };
       setStudySession(resumed);
       persistStudySession(resumed);
       setDeadline(nextDeadline);
