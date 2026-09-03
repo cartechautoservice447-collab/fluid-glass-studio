@@ -476,8 +476,8 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
   return (
     <>
       <Dialog open={open && !locked} onOpenChange={onOpenChange}>
-        <DialogContent className={`${view === "study" ? "max-w-2xl" : "max-w-2xl"} overflow-hidden rounded-[28px] border-white/20 bg-black/35 p-0 text-foreground shadow-2xl backdrop-blur-2xl [&>button]:hidden`}>
-          <div className="relative p-6 sm:p-8">
+        <DialogContent className={`${view === "study" ? "max-w-2xl" : "max-w-2xl"} max-h-[92vh] overflow-hidden rounded-[28px] border-white/20 bg-black/35 p-0 text-foreground shadow-2xl backdrop-blur-2xl [&>button]:hidden`}>
+          <div className="relative max-h-[92vh] overflow-y-auto overscroll-contain p-6 sm:p-8">
             <div className="pointer-events-none absolute -right-20 -top-24 size-56 rounded-full bg-primary/20 blur-3xl" />
             <div className="relative">
               <div className="flex items-center justify-between gap-3">
