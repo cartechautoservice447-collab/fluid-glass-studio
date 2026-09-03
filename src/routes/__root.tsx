@@ -10,7 +10,6 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import pomodoroPlainTimerCss from "../pomodoro-plain-timer.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { registerPwaServiceWorker } from "../lib/pwa";
 
@@ -81,7 +80,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "stylesheet", href: pomodoroPlainTimerCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "apple-touch-icon", href: "/pwa-icon-192.svg", sizes: "192x192", type: "image/svg+xml" },

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Check, Clock3, Pause, Play, RotateCcw } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Check, Clock3, Play } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -39,7 +39,6 @@ const PATTERNS: Record<StudySessionPattern, { title: string; description: string
 
 const MAX_FOCUS_MINUTES = 150;
 const MIN_FOCUS_MINUTES = 30;
-const TESTER_DURATION_SECONDS = 30;
 
 type Props = {
   onStartSession: (input: {
@@ -55,10 +54,6 @@ function formatDuration(totalMinutes: number) {
   const minutes = totalMinutes % 60;
   if (!hours) return `${minutes} min`;
   return minutes ? `${hours} hr ${minutes} min` : `${hours} hr`;
-}
-
-function formatTesterTime(totalSeconds: number) {
-  return `00:${String(Math.max(0, totalSeconds)).padStart(2, "0")}`;
 }
 
 function buildSchedule(cycle: StudySessionSegment[], targetFocusMinutes: number) {
@@ -94,8 +89,6 @@ function buildSchedule(cycle: StudySessionSegment[], targetFocusMinutes: number)
 export function StudySessionPanel({ onStartSession }: Props) {
   const [pattern, setPattern] = useState<StudySessionPattern>("deep");
   const [focusMinutesTarget, setFocusMinutesTarget] = useState(150);
-  const [testerRemaining, setTesterRemaining] = useState(TESTER_DURATION_SECONDS);
-  const [testerRunning, setTesterRunning] = useState(false);
 
   const selected = PATTERNS[pattern];
   const schedule = useMemo(
@@ -107,30 +100,6 @@ export function StudySessionPanel({ onStartSession }: Props) {
     .filter((segment) => segment.kind === "focus")
     .reduce((sum, segment) => sum + segment.minutes, 0);
   const restMinutes = actualTotal - focusMinutes;
-
-  useEffect(() => {
-    if (!testerRunning) return;
-    const id = window.setInterval(() => {
-      setTesterRemaining((value) => {
-        if (value <= 1) {
-          setTesterRunning(false);
-          return 0;
-        }
-        return value - 1;
-      });
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [testerRunning]);
-
-  const startTester = () => {
-    if (testerRemaining === 0) setTesterRemaining(TESTER_DURATION_SECONDS);
-    setTesterRunning(true);
-  };
-
-  const resetTester = () => {
-    setTesterRunning(false);
-    setTesterRemaining(TESTER_DURATION_SECONDS);
-  };
 
   return (
     <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
@@ -187,27 +156,6 @@ export function StudySessionPanel({ onStartSession }: Props) {
           ))}
         </div>
         <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] text-muted-foreground"><span>Focus · {formatDuration(focusMinutes)}</span><span className="text-right">Rest · {formatDuration(restMinutes)}</span></div>
-      </div>
-
-      <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold text-foreground">30s Tester</p>
-            <p className="mt-1 text-[10px] leading-4 text-muted-foreground">Quickly test the Study Session countdown without starting a real session.</p>
-          </div>
-          <span className="rounded-lg border border-white/10 bg-black/20 px-2 py-1 font-mono text-[10px] text-muted-foreground">30 sec</span>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <div className="min-w-[92px] rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-center font-mono text-lg font-semibold tabular-nums text-foreground" aria-live="polite">{formatTesterTime(testerRemaining)}</div>
-          <Button type="button" size="sm" variant="outline" onClick={testerRunning ? () => setTesterRunning(false) : startTester} className="rounded-xl">
-            {testerRunning ? <Pause className="mr-1.5 size-3.5" /> : <Play className="mr-1.5 size-3.5" />}
-            {testerRunning ? "Pause" : testerRemaining === 0 ? "Run again" : "Start"}
-          </Button>
-          <Button type="button" size="sm" variant="ghost" onClick={resetTester} className="rounded-xl" aria-label="Reset 30 second tester">
-            <RotateCcw className="mr-1.5 size-3.5" />Reset
-          </Button>
-          {testerRemaining === 0 && <span className="text-[10px] font-medium text-foreground">Tester complete</span>}
-        </div>
       </div>
 
       <Button type="button" className="mt-4 w-full rounded-xl" onClick={() => onStartSession({ pattern, title: selected.title, focusMinutes, schedule })}>
