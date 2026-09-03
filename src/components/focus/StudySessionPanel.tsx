@@ -53,6 +53,7 @@ function buildSchedule(cycle: Segment[], targetMinutes: number) {
   let cycleIndex = 0;
   while (remaining > 0) {
     const segment = cycle[cycleIndex % cycle.length];
+    if (!segment) break;
     const minutes = Math.min(segment.minutes, remaining);
     schedule.push({ ...segment, minutes });
     remaining -= minutes;
