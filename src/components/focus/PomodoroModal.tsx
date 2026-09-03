@@ -65,6 +65,13 @@ function formatTime(totalSeconds: number) {
   return `${Math.floor(safe / 60).toString().padStart(2, "0")}:${(safe % 60).toString().padStart(2, "0")}`;
 }
 
+function formatDuration(totalMinutes: number) {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (!hours) return `${minutes} min`;
+  return minutes ? `${hours} hr ${minutes} min` : `${hours} hr`;
+}
+
 function loadSession(): PersistedSession | null {
   try {
     const saved = JSON.parse(localStorage.getItem(SESSION_KEY) ?? "null");
@@ -465,6 +472,39 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
                 <button type="button" onClick={() => { setView("timer"); setMobileSyncOpen(false); }} className={`rounded-lg px-3 py-2 text-xs font-medium transition ${view === "timer" ? "bg-white/15 text-foreground" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>Pomodoro Timer</button>
                 <button type="button" onClick={() => { if (!locked) { setView("study"); setSettingsOpen(false); setMobileSyncOpen(false); } }} className={`rounded-lg px-3 py-2 text-xs font-medium transition ${view === "study" ? "bg-white/15 text-foreground" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"}`}>Study Session</button>
               </div>
+
+              {studySession && (
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Current Study Session</p>
+                      <p className="mt-1 truncate text-sm font-semibold text-foreground">{studySession.title}</p>
+                    </div>
+                    <div className="shrink-0 text-right text-[10px] text-muted-foreground">
+                      <p>{formatDuration(studySession.focusMinutes)} focus</p>
+                      <p>{formatDuration(studySession.schedule.filter((segment) => segment.kind === "rest").reduce((sum, segment) => sum + segment.minutes, 0))} rest</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 max-h-48 overflow-y-auto space-y-2 pr-1">
+                    {studySession.schedule.map((segment, index) => {
+                      const active = index === studySession.index;
+                      const complete = index < studySession.index;
+                      return (
+                        <div key={`${segment.label}-${index}`} className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 ${active ? "border-white/30 bg-white/10" : complete ? "border-white/10 bg-black/20 opacity-60" : "border-white/10 bg-black/15"}`}>
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <span className={`flex size-7 shrink-0 items-center justify-center rounded-lg text-[9px] font-semibold ${segment.kind === "focus" ? "bg-foreground/80 text-background" : "bg-white/15 text-foreground"}`}>{complete ? "✓" : index + 1}</span>
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-foreground">{segment.label}</p>
+                              <p className="text-[9px] text-muted-foreground">{segment.minutes} min</p>
+                            </div>
+                          </div>
+                          <span className="shrink-0 text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{active ? "Now" : complete ? "Done" : "Next"}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {view === "study" ? <StudySessionPanel onStartSession={startStudySession} /> : <>
                 {settingsOpen && (
