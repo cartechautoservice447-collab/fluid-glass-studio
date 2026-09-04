@@ -12,6 +12,53 @@ const POMODORO_SESSION_KEY = "liquid-glass-pomodoro-session";
 const WEB_PUSH_PUBLIC_KEY = import.meta.env.VITE_WEB_PUSH_PUBLIC_KEY || "BOMQ0gr879geMIiymoRz_NkMobpvHh04WX5-XYiyp54FacZnEltC8QxRVmyIGEl1OW6rdUI1-uszdH9wWbO-56g";
 const REST_END_NOTIFICATION_DELAY_BUFFER_MS = 250;
 
+type NativeLocalNotifications = {
+  checkPermissions?: () => Promise<{ display: string }>;
+  requestPermissions?: () => Promise<{ display: string }>;
+  schedule: (options: { notifications: Array<Record<string, unknown>> }) => Promise<unknown>;
+};
+
+function getNativeLocalNotifications(): NativeLocalNotifications | null {
+  if (typeof window === "undefined") return null;
+  const capacitor = (window as typeof window & { Capacitor?: { isNativePlatform?: () => boolean; Plugins?: { LocalNotifications?: NativeLocalNotifications } } }).Capacitor;
+  if (!capacitor?.isNativePlatform?.()) return null;
+  return capacitor.Plugins?.LocalNotifications ?? null;
+}
+
+async function ensureNativeNotificationPermission(plugin: NativeLocalNotifications) {
+  try {
+    const current = await plugin.checkPermissions?.();
+    if (current?.display === "granted") return true;
+    const requested = await plugin.requestPermissions?.();
+    return requested?.display === "granted";
+  } catch {
+    return false;
+  }
+}
+
+function notificationId() {
+  return Math.max(1, Date.now() % 2147483000);
+}
+
+async function scheduleNativeNotification(title: string, body: string, delayMs = 50, tag?: string) {
+  const plugin = getNativeLocalNotifications();
+  if (!plugin || !(await ensureNativeNotificationPermission(plugin))) return false;
+  try {
+    await plugin.schedule({
+      notifications: [{
+        id: notificationId(),
+        title,
+        body,
+        schedule: { at: new Date(Date.now() + Math.max(50, delayMs)) },
+        extra: { tag: tag ?? "liquid-glass-pomodoro", url: "/" },
+      }],
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function pomodoroChannelName(userId: string) {
   return `pomodoro-sync:${userId}`;
 }
@@ -37,6 +84,7 @@ function getActiveRestSeconds(fallbackMinutes: number) {
 type AppNotificationOptions = NotificationOptions & { tag?: string; vibrate?: number[] };
 
 async function showAppNotification(title: string, options: AppNotificationOptions) {
+  if (await scheduleNativeNotification(title, options.body ?? "", 50, options.tag)) return;
   if (typeof window === "undefined" || !("Notification" in window) || Notification.permission !== "granted") return;
 
   try {
@@ -68,6 +116,7 @@ function urlBase64ToUint8Array(value: string) {
 }
 
 async function ensurePushSubscription(userId: string) {
+  if (getNativeLocalNotifications()) return null;
   if (typeof window === "undefined" || !WEB_PUSH_PUBLIC_KEY || !("serviceWorker" in navigator) || !("PushManager" in window)) return null;
   if (!("Notification" in window)) return null;
 
@@ -107,6 +156,7 @@ async function ensurePushSubscription(userId: string) {
 }
 
 async function sendCrossDevicePush(userId: string, title: string, body: string, tag: string, excludeEndpoint?: string | null) {
+  if (getNativeLocalNotifications()) return;
   try {
     await supabase.functions.invoke("send-push-notification", {
       body: { userId, title, body, tag, excludeEndpoint: excludeEndpoint ?? null },
@@ -141,8 +191,29 @@ export function showRestFinishedNotification() {
 }
 
 function scheduleRestFinishedNotification(seconds: number, userId?: string, excludeEndpoint?: string | null) {
-  if (typeof window === "undefined" || !("Notification" in window) || Notification.permission !== "granted") return;
   const delay = Math.max(1, seconds) * 1000 + REST_END_NOTIFICATION_DELAY_BUFFER_MS;
+  const nativePlugin = getNativeLocalNotifications();
+  if (nativePlugin) {
+    void (async () => {
+      if (!(await ensureNativeNotificationPermission(nativePlugin))) return;
+      try {
+        await nativePlugin.schedule({
+          notifications: [{
+            id: notificationId(),
+            title: "Rest time finished",
+            body: "Your rest time has finished. Focus time is starting now.",
+            schedule: { at: new Date(Date.now() + delay) },
+            extra: { tag: "liquid-glass-pomodoro-rest-finished", url: "/" },
+          }],
+        });
+      } catch {
+        // Local native scheduling is best-effort.
+      }
+    })();
+    return;
+  }
+
+  if (typeof window === "undefined" || !("Notification" in window) || Notification.permission !== "granted") return;
   window.setTimeout(() => {
     showRestFinishedNotification();
     if (userId) {
@@ -212,6 +283,12 @@ export function usePomodoroRestSync(userId: string | null, onRestStart?: (payloa
         const safeMinutes = Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes) : 5;
         const safeSeconds = Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : safeMinutes * 60;
         onRestStart?.({ minutes: safeMinutes, seconds: safeSeconds });
+
+        if (getNativeLocalNotifications()) {
+          showRestStartNotification(safeSeconds);
+          scheduleRestFinishedNotification(safeSeconds);
+          return;
+        }
 
         if (!("Notification" in window) || Notification.permission !== "granted") return;
         showRestStartNotification(safeSeconds);
