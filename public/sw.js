@@ -1,5 +1,5 @@
-const CACHE_NAME = "liquid-glass-studio-v7";
-const APP_SHELL = ["/", "/manifest.webmanifest", "/pwa-icon-512-v2.svg", "/offline.html"];
+const CACHE_NAME = "liquid-glass-studio-v8";
+const APP_SHELL = ["/", "/manifest.webmanifest", "/pwa-icon-exact-512.webp", "/offline.html"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -65,8 +65,8 @@ self.addEventListener("push", (event) => {
   const title = data.title || "Liquid Glass Studio";
   const options = {
     body: data.body || "You have a Pomodoro update.",
-    icon: "/pwa-icon-512-v2.svg",
-    badge: "/pwa-icon-512-v2.svg",
+    icon: "/pwa-icon-exact-512.webp",
+    badge: "/pwa-icon-exact-512.webp",
     tag: data.tag || "liquid-glass-pomodoro",
     renotify: true,
     vibrate: [200, 100, 200],
