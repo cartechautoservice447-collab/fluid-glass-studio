@@ -1,5 +1,5 @@
 import { BookOpen, Bookmark, FileText, NotebookPen, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { CourseNotesView } from "@/components/courses/CourseNotesView";
 import { LectureLinksPanel } from "@/components/focus/LectureLinksPanel";
@@ -39,15 +39,19 @@ function toEmbeddableUrl(raw: string): string | null {
         const embed = new URL(`https://www.youtube.com/embed/${encodeURIComponent(videoId)}`);
         const playlistId = url.searchParams.get("list");
         if (playlistId) embed.searchParams.set("list", playlistId);
+        embed.searchParams.set("enablejsapi", "1");
         return embed.toString();
       }
       const shortsMatch = url.pathname.match(/^\/shorts\/([^/]+)/i);
-      if (shortsMatch?.[1]) return `https://www.youtube.com/embed/${encodeURIComponent(shortsMatch[1])}`;
+      if (shortsMatch?.[1]) return `https://www.youtube.com/embed/${encodeURIComponent(shortsMatch[1])}?enablejsapi=1`;
       const embedMatch = url.pathname.match(/^\/embed\/([^/]+)/i);
-      if (embedMatch?.[1]) return normalized;
+      if (embedMatch?.[1]) {
+        url.searchParams.set("enablejsapi", "1");
+        return url.toString();
+      }
       if (url.pathname === "/playlist") {
         const playlistId = url.searchParams.get("list");
-        return playlistId ? `https://www.youtube.com/embed/videoseries?list=${encodeURIComponent(playlistId)}` : normalized;
+        return playlistId ? `https://www.youtube.com/embed/videoseries?list=${encodeURIComponent(playlistId)}&enablejsapi=1` : normalized;
       }
     }
 
@@ -57,6 +61,7 @@ function toEmbeddableUrl(raw: string): string | null {
         const embed = new URL(`https://www.youtube.com/embed/${encodeURIComponent(videoId)}`);
         const playlistId = url.searchParams.get("list");
         if (playlistId) embed.searchParams.set("list", playlistId);
+        embed.searchParams.set("enablejsapi", "1");
         return embed.toString();
       }
     }
@@ -68,7 +73,7 @@ function toEmbeddableUrl(raw: string): string | null {
 }
 
 export function ReminderCenter({ open, onOpenChange, courses, userId, email, onLogout }: Props) {
-  const [browserUrl, setBrowserUrl] = useState(DEFAULT_YOUTUBE_URL);
+  const [browserUrl, setBrowserUrl] = useState(() => toEmbeddableUrl(DEFAULT_YOUTUBE_URL) ?? DEFAULT_YOUTUBE_URL);
   const [urlInput, setUrlInput] = useState("");
   const [iframeKey, setIframeKey] = useState(0);
   const [notesOpen, setNotesOpen] = useState(courses.length > 0);
@@ -77,6 +82,7 @@ export function ReminderCenter({ open, onOpenChange, courses, userId, email, onL
   const [pdfMode, setPdfMode] = useState(false);
   const [savedLinksOpen, setSavedLinksOpen] = useState(false);
   const lectureLinks = useLectureLinks(userId, activeCourseId);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
     if (!activeCourseId || !courses.some((course) => course.id === activeCourseId)) {
@@ -90,6 +96,21 @@ export function ReminderCenter({ open, onOpenChange, courses, userId, email, onL
   useEffect(() => {
     if (pdfMode && courses.length > 0) setNotesOpen(true);
   }, [pdfMode, courses.length]);
+
+  useEffect(() => {
+    if (!open) return;
+    const pauseStudyHubMedia = () => {
+      document.querySelectorAll("video").forEach((video) => {
+        video.pause();
+      });
+      const iframe = iframeRef.current;
+      if (!iframe || !iframe.contentWindow) return;
+      iframe.contentWindow.postMessage(JSON.stringify({ event: "command", func: "pauseVideo", args: [] }), "*");
+    };
+    const onRestLock = () => pauseStudyHubMedia();
+    window.addEventListener("glass-pomodoro-rest-lock", onRestLock);
+    return () => window.removeEventListener("glass-pomodoro-rest-lock", onRestLock);
+  }, [open]);
 
   if (!open) return null;
 
@@ -136,7 +157,7 @@ export function ReminderCenter({ open, onOpenChange, courses, userId, email, onL
       <div className="min-h-0 flex-1 overflow-hidden">
         <div className="flex h-full" onPointerMove={(event) => { if ((event.currentTarget as HTMLElement).dataset["resizing"] === "true") adjustSplit(event as unknown as React.PointerEvent<HTMLDivElement>); }} onPointerUp={(event) => { (event.currentTarget as HTMLElement).dataset["resizing"] = "false"; }} onPointerLeave={(event) => { if ((event.currentTarget as HTMLElement).dataset["resizing"] === "true") adjustSplit(event as unknown as React.PointerEvent<HTMLDivElement>); }}>
           <div className="flex min-h-0 min-w-0 flex-col" style={{ width: notesOpen && activeCourse ? `${splitRatio}%` : "100%" }}>
-            {pdfMode ? <PdfStudyViewer active={true} /> : <div className="min-h-0 flex-1 bg-black"><iframe key={iframeKey} src={browserUrl} title="CS50 lecture viewer" className="h-full w-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen /></div>}
+            {pdfMode ? <PdfStudyViewer active={true} /> : <div className="min-h-0 flex-1 bg-black"><iframe ref={iframeRef} key={iframeKey} src={browserUrl} title="CS50 lecture viewer" className="h-full w-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen /></div>}
           </div>
           {notesOpen && activeCourse ? <>
             <div role="separator" aria-label="Resize lecture and note editor panes" aria-orientation="vertical" tabIndex={0} className="group relative z-10 w-2 shrink-0 cursor-col-resize bg-white/[.04]" onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); const parent = event.currentTarget.parentElement; if (parent) parent.dataset["resizing"] = "true"; }} onKeyDown={(event) => { if (event.key === "ArrowLeft") setSplitRatio((value) => Math.max(25, value - 5)); if (event.key === "ArrowRight") setSplitRatio((value) => Math.min(75, value + 5)); }}><span className="absolute left-1/2 top-1/2 h-16 w-px -translate-x-1/2 -translate-y-1/2 bg-white/20 transition group-hover:bg-white/45" /></div>
