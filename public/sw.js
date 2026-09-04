@@ -1,4 +1,4 @@
-const CACHE_NAME = "liquid-glass-studio-v5";
+const CACHE_NAME = "liquid-glass-studio-v6";
 const APP_SHELL = ["/", "/manifest.webmanifest", "/pwa-icon.svg", "/offline.html"];
 
 self.addEventListener("install", (event) => {
@@ -54,13 +54,36 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data?.text() ?? "" };
+  }
+
+  const title = data.title || "Liquid Glass Studio";
+  const options = {
+    body: data.body || "You have a Pomodoro update.",
+    icon: "/pwa-icon-192.svg",
+    badge: "/pwa-icon-192.svg",
+    tag: data.tag || "liquid-glass-pomodoro",
+    renotify: true,
+    vibrate: [200, 100, 200],
+    data: { url: data.url || "/" },
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  const targetUrl = event.notification.data?.url || "/";
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
       const visibleClient = clients.find((client) => "focus" in client);
       if (visibleClient) return visibleClient.focus();
-      return self.clients.openWindow("/");
+      return self.clients.openWindow(targetUrl);
     }),
   );
 });
