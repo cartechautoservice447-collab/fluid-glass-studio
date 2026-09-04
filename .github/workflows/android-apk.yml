@@ -72,9 +72,10 @@ jobs:
           sudo apt-get install -y imagemagick
           command -v convert
           RES="android/app/src/main/res"
-          SOURCE="public/pwa-icon-transparent.svg"
+          SOURCE="public/android-icon-transparent-512.webp"
           rm -rf "$RES/mipmap-anydpi-v26"
           test -f "$SOURCE"
+          identify "$SOURCE"
           for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
             case "$density" in
               mdpi) size=48 ;;
