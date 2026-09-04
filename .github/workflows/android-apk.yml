@@ -6,6 +6,10 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   build-apk:
     runs-on: ubuntu-latest
@@ -90,6 +94,23 @@ jobs:
       - name: Build installable debug APK
         working-directory: android
         run: ./gradlew clean assembleDebug --no-daemon
+
+      - name: Remove previous APK artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api --paginate \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.name == "liquid-glass-studio-android-apk") | .id' \
+          | while read -r artifact_id; do
+              [ -z "$artifact_id" ] && continue
+              echo "Deleting previous APK artifact $artifact_id"
+              gh api --method DELETE \
+                -H "Accept: application/vnd.github+json" \
+                "/repos/${GITHUB_REPOSITORY}/actions/artifacts/$artifact_id"
+            done
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
