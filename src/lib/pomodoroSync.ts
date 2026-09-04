@@ -20,9 +20,21 @@ type NativeLocalNotifications = {
 
 function getNativeLocalNotifications(): NativeLocalNotifications | null {
   if (typeof window === "undefined") return null;
-  const capacitor = (window as typeof window & { Capacitor?: { isNativePlatform?: () => boolean; Plugins?: { LocalNotifications?: NativeLocalNotifications } } }).Capacitor;
+  const capacitor = (window as typeof window & {
+    Capacitor?: {
+      isNativePlatform?: () => boolean;
+      Plugins?: { LocalNotifications?: NativeLocalNotifications };
+      registerPlugin?: (name: string) => unknown;
+    };
+  }).Capacitor;
   if (!capacitor?.isNativePlatform?.()) return null;
-  return capacitor.Plugins?.LocalNotifications ?? null;
+  if (capacitor.Plugins?.LocalNotifications) return capacitor.Plugins.LocalNotifications;
+  try {
+    const plugin = capacitor.registerPlugin?.("LocalNotifications");
+    return (plugin as NativeLocalNotifications | undefined) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function ensureNativeNotificationPermission(plugin: NativeLocalNotifications) {
