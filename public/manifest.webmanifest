@@ -11,10 +11,16 @@
   "background_color": "#07070c",
   "icons": [
     {
-      "src": "/pwa-icon-transparent.svg",
+      "src": "/pwa-icon-exact-192.webp",
+      "sizes": "192x192",
+      "type": "image/webp",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa-icon-exact-512.webp",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any"
+      "type": "image/webp",
+      "purpose": "any maskable"
     }
   ]
 }
