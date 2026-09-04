@@ -211,7 +211,7 @@ export function AuthPage() {
               <p className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
                 {message}
               </p>
-              {!isReset && message.includes("confirmation email") && (
+              {!isReset && (message.includes("Check your email") || message.includes("confirmation email")) && (
                 <button
                   type="button"
                   onClick={() => void resend()}
