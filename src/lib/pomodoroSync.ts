@@ -9,7 +9,7 @@ export const REST_START_EVENT = "rest-start";
 
 const STUDY_SESSION_KEY = "liquid-glass-study-session";
 const POMODORO_SESSION_KEY = "liquid-glass-pomodoro-session";
-const WEB_PUSH_PUBLIC_KEY = import.meta.env.VITE_WEB_PUSH_PUBLIC_KEY as string | undefined;
+const WEB_PUSH_PUBLIC_KEY = import.meta.env.VITE_WEB_PUSH_PUBLIC_KEY || "BOMQ0gr879geMIiymoRz_NkMobpvHh04WX5-XYiyp54FacZnEltC8QxRVmyIGEl1OW6rdUI1-uszdH9wWbO-56g";
 const REST_END_NOTIFICATION_DELAY_BUFFER_MS = 250;
 
 export function pomodoroChannelName(userId: string) {
