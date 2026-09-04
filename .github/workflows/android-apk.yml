@@ -1,0 +1,81 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: "HTTPS URL of the deployed Liquid Glass Studio web app"
+        required: true
+        type: string
+  push:
+    branches:
+      - main
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    env:
+      APP_URL: ${{ github.event.inputs.app_url || vars.APP_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate app URL
+        run: |
+          if [ -z "$APP_URL" ]; then
+            echo "APP_URL is not configured. Run this workflow manually and provide the deployed HTTPS app URL." >&2
+            exit 1
+          fi
+          case "$APP_URL" in
+            https://*) ;;
+            *) echo "APP_URL must start with https://" >&2; exit 1 ;;
+          esac
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Capacitor tooling
+        run: npm install --no-save @capacitor/core @capacitor/cli @capacitor/android
+
+      - name: Create Capacitor Android wrapper
+        run: |
+          cat > capacitor.config.ts <<'EOF'
+          import type { CapacitorConfig } from '@capacitor/cli';
+
+          const config: CapacitorConfig = {
+            appId: 'com.liquidglassstudio.app',
+            appName: 'Liquid Glass Studio',
+            webDir: 'dist',
+            server: {
+              url: process.env.APP_URL,
+              cleartext: false,
+            },
+          };
+
+          export default config;
+          EOF
+          npx cap add android
+
+      - name: Build installable debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: liquid-glass-studio-android-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
