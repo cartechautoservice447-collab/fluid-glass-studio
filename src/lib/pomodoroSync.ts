@@ -40,7 +40,7 @@ async function showAppNotification(title: string, options: AppNotificationOption
 
   try {
     if ("serviceWorker" in navigator) {
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await navigator.serviceWorker.getRegistration() ?? await navigator.serviceWorker.register("/sw.js", { scope: "/" });
       await registration.showNotification(title, options);
       return;
     }
