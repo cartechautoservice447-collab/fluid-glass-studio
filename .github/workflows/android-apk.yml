@@ -12,18 +12,9 @@ permissions:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-    env:
-      APP_URL: https://fluid-glass-studio.lovable.app
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Validate app URL
-        run: |
-          case "$APP_URL" in
-            https://*) ;;
-            *) echo "APP_URL must start with https://" >&2; exit 1 ;;
-          esac
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -39,10 +30,26 @@ jobs:
         with:
           node-version: 22
 
+      - name: Install app dependencies
+        run: npm install
+
+      - name: Build standalone static app bundle
+        run: |
+          rm -rf dist
+          npm run build -- --config vite.android.config.ts
+          test -d .output/public
+          rm -rf dist
+          mkdir -p dist
+          cp -a .output/public/. dist/
+          if [ -f dist/_shell.html ]; then
+            cp dist/_shell.html dist/index.html
+          fi
+          test -f dist/index.html
+
       - name: Install Capacitor tooling
         run: npm install --no-save @capacitor/core @capacitor/cli @capacitor/android
 
-      - name: Create Capacitor Android wrapper
+      - name: Create bundled Capacitor Android app
         run: |
           cat > capacitor.config.ts <<'EOF'
           import type { CapacitorConfig } from '@capacitor/cli';
@@ -51,16 +58,10 @@ jobs:
             appId: 'com.liquidglassstudio.app',
             appName: 'Liquid Glass Studio',
             webDir: 'dist',
-            server: {
-              url: process.env.APP_URL,
-              cleartext: false,
-            },
           };
 
           export default config;
           EOF
-          mkdir -p dist
-          printf '<!doctype html><html><head><meta charset="utf-8"><title>Liquid Glass Studio</title></head><body></body></html>' > dist/index.html
           npx cap add android
           npx cap sync android
 
@@ -70,7 +71,7 @@ jobs:
           sudo apt-get install -y imagemagick
           command -v convert
           RES="android/app/src/main/res"
-          SOURCE="public/pwa-icon-exact-192.webp"
+          SOURCE="public/pwa-icon-transparent.svg"
           rm -rf "$RES/mipmap-anydpi-v26"
           test -f "$SOURCE"
           for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
@@ -82,23 +83,26 @@ jobs:
               xxxhdpi) size=192 ;;
             esac
             mkdir -p "$RES/mipmap-$density"
-            TMP="/tmp/icon-$density.png"
-            MASK="/tmp/mask-$density.png"
-            convert "$SOURCE" -resize "${size}x${size}!" -strip "$TMP"
-            radius=$((size*26/192))
-            convert -size "${size}x${size}" xc:none -fill white -draw "roundrectangle 0,0 $((size-1)),$((size-1)) $radius,$radius" "$MASK"
-            convert "$TMP" "$MASK" -alpha off -compose CopyOpacity -composite -strip "$RES/mipmap-$density/ic_launcher.png"
+            convert -background none "$SOURCE" -resize "${size}x${size}!" -strip "$RES/mipmap-$density/ic_launcher.png"
             cp "$RES/mipmap-$density/ic_launcher.png" "$RES/mipmap-$density/ic_launcher_round.png"
           done
 
-      - name: Verify Capacitor Android Gradle files
+      - name: Verify bundled Android app files
         run: |
           test -f android/capacitor.settings.gradle
           test -f android/app/capacitor.build.gradle
+          test -f dist/index.html
+          grep -R "fluid-glass-studio.lovable.app" -n dist android/app/src/main/assets 2>/dev/null && exit 1 || true
 
-      - name: Build installable debug APK
+      - name: Build installable standalone debug APK
         working-directory: android
         run: ./gradlew clean assembleDebug --no-daemon
+
+      - name: Verify APK
+        run: |
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          ls -lh "$APK"
 
       - name: Publish APK as GitHub Release asset
         env:
@@ -107,9 +111,9 @@ jobs:
           set -euo pipefail
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
           TAG="android-apk-${GITHUB_RUN_NUMBER}"
-          TITLE="Liquid Glass Studio Android APK ${GITHUB_RUN_NUMBER}"
+          TITLE="Liquid Glass Studio Standalone Android APK ${GITHUB_RUN_NUMBER}"
           gh release create "$TAG" "$APK" \
             --repo "$GITHUB_REPOSITORY" \
             --title "$TITLE" \
-            --notes "Installable Liquid Glass Studio Android APK built from commit ${GITHUB_SHA}. Includes the current high quality rounded Liquid Glass icon." \
+            --notes "Standalone installable Liquid Glass Studio Android APK built from commit ${GITHUB_SHA}. The application bundle is packaged inside the APK and does not use the Lovable website URL as its runtime page. Includes the current high quality rounded Liquid Glass icon." \
             --prerelease
