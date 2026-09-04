@@ -62,6 +62,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y imagemagick
+          command -v convert
           RES="android/app/src/main/res"
           ICON="public/pwa-icon-exact-512.webp"
           rm -rf "$RES/mipmap-anydpi-v26"
@@ -74,7 +75,7 @@ jobs:
               xxxhdpi) size=192 ;;
             esac
             mkdir -p "$RES/mipmap-$density"
-            magick "$ICON" -resize "${size}x${size}!" -strip "$RES/mipmap-$density/ic_launcher.png"
+            convert "$ICON" -resize "${size}x${size}!" -strip "$RES/mipmap-$density/ic_launcher.png"
             cp "$RES/mipmap-$density/ic_launcher.png" "$RES/mipmap-$density/ic_launcher_round.png"
           done
 
