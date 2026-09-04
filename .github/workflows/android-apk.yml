@@ -79,6 +79,11 @@ jobs:
             cp "$RES/mipmap-$density/ic_launcher.png" "$RES/mipmap-$density/ic_launcher_round.png"
           done
 
+      - name: Verify Capacitor Android Gradle files
+        run: |
+          test -f android/capacitor.settings.gradle
+          test -f android/capacitor.build.gradle
+
       - name: Build installable debug APK
         working-directory: android
         run: ./gradlew clean assembleDebug --no-daemon
