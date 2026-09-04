@@ -27,6 +27,12 @@ if (capacitor?.isNativePlatform?.()) {
       ...notification,
       channelId: notification.channelId ?? CHANNEL_ID,
       sound: notification.sound ?? "default",
+      foreground: notification.foreground ?? true,
+      schedule: {
+        ...notification.schedule,
+        allowWhileIdle: true,
+        isExactNotification: false,
+      },
     })),
   });
 
