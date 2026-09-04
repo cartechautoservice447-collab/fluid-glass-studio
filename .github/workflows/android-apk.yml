@@ -47,8 +47,8 @@ jobs:
           fi
           test -f dist/index.html
 
-      - name: Install Capacitor tooling
-        run: npm install --no-save @capacitor/core @capacitor/cli @capacitor/android
+      - name: Install Capacitor tooling and native notifications
+        run: npm install --no-save @capacitor/core @capacitor/cli @capacitor/android @capacitor/local-notifications
 
       - name: Create bundled Capacitor Android app
         run: |
@@ -120,5 +120,5 @@ jobs:
           gh release create "$TAG" "$APK" \
             --repo "$GITHUB_REPOSITORY" \
             --title "$TITLE" \
-            --notes "Standalone installable Liquid Glass Studio Android APK built from commit ${GITHUB_SHA}. The application bundle is packaged inside the APK and does not use the Lovable website URL as its runtime page. Includes the current high quality rounded Liquid Glass icon." \
+            --notes "Standalone installable Liquid Glass Studio Android APK built from commit ${GITHUB_SHA}. The application bundle is packaged inside the APK and does not use the Lovable website URL as its runtime page. Includes native Android local notifications and the current rounded Liquid Glass icon." \
             --prerelease
