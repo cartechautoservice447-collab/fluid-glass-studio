@@ -51,10 +51,9 @@ function showRestFinishedNotification() {
 }
 
 function scheduleRestFinishedNotification(seconds: number) {
-  if (typeof window === "undefined" || !("Notification" in window) || Notification.permission !== "granted") return () => {};
+  if (typeof window === "undefined" || !("Notification" in window) || Notification.permission !== "granted") return;
   const delay = Math.max(1, seconds) * 1000 + REST_END_NOTIFICATION_DELAY_BUFFER_MS;
-  const timer = window.setTimeout(showRestFinishedNotification, delay);
-  return () => window.clearTimeout(timer);
+  window.setTimeout(showRestFinishedNotification, delay);
 }
 
 /** Broadcasts the rest duration — never note content or personal data. */
@@ -135,7 +134,7 @@ export function usePomodoroRestSync(userId: string | null, onRestStart?: (payloa
       channel = null;
       setStatus("idle");
     };
-  }, [userId, onRestStart]);
+  }, [userId]);
 
   return status;
 }
