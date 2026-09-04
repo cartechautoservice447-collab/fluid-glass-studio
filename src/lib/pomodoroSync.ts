@@ -20,21 +20,9 @@ type NativeLocalNotifications = {
 
 function getNativeLocalNotifications(): NativeLocalNotifications | null {
   if (typeof window === "undefined") return null;
-  const capacitor = (window as typeof window & {
-    Capacitor?: {
-      isNativePlatform?: () => boolean;
-      Plugins?: { LocalNotifications?: NativeLocalNotifications };
-      registerPlugin?: (name: string) => unknown;
-    };
-  }).Capacitor;
+  const capacitor = (window as typeof window & { Capacitor?: { isNativePlatform?: () => boolean; Plugins?: { LocalNotifications?: NativeLocalNotifications } } }).Capacitor;
   if (!capacitor?.isNativePlatform?.()) return null;
-  if (capacitor.Plugins?.LocalNotifications) return capacitor.Plugins.LocalNotifications;
-  try {
-    const plugin = capacitor.registerPlugin?.("LocalNotifications");
-    return (plugin as NativeLocalNotifications | undefined) ?? null;
-  } catch {
-    return null;
-  }
+  return capacitor.Plugins?.LocalNotifications ?? null;
 }
 
 async function ensureNativeNotificationPermission(plugin: NativeLocalNotifications) {
@@ -71,79 +59,6 @@ async function scheduleNativeNotification(title: string, body: string, delayMs =
   }
 }
 
-export async function getDeviceNotificationStatus(): Promise<"granted" | "default" | "denied" | "unsupported"> {
-  const nativePlugin = getNativeLocalNotifications();
-  if (nativePlugin) {
-    try {
-      const permission = await nativePlugin.checkPermissions?.();
-      if (permission?.display === "granted") return "granted";
-      if (permission?.display === "denied") return "denied";
-      return "default";
-    } catch {
-      return "denied";
-    }
-  }
-
-  if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
-  return Notification.permission;
-}
-
-export async function requestDeviceNotificationPermission(): Promise<"granted" | "default" | "denied" | "unsupported"> {
-  const nativePlugin = getNativeLocalNotifications();
-  if (nativePlugin) {
-    try {
-      const permission = await nativePlugin.requestPermissions?.();
-      if (permission?.display === "granted") return "granted";
-      if (permission?.display === "denied") return "denied";
-      return "default";
-    } catch {
-      return "denied";
-    }
-  }
-
-  if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
-  try {
-    return await Notification.requestPermission();
-  } catch {
-    return "denied";
-  }
-}
-
-function installNativeNotificationBridge() {
-  if (typeof window === "undefined" || !getNativeLocalNotifications() || "Notification" in window) return;
-  class NativeNotificationBridge {
-    static get permission(): NotificationPermission {
-      return "default";
-    }
-
-    static async requestPermission(): Promise<NotificationPermission> {
-      const status = await requestDeviceNotificationPermission();
-      return status === "granted" ? "granted" : status === "denied" ? "denied" : "default";
-    }
-
-    constructor(title: string, options?: NotificationOptions) {
-      void scheduleNativeNotification(title, options?.body ?? "", 50, (options as AppNotificationOptions | undefined)?.tag);
-    }
-
-    onclick: ((this: Notification, ev: Event) => unknown) | null = null;
-
-    close() {}
-  }
-
-  try {
-    Object.defineProperty(window, "Notification", {
-      configurable: true,
-      value: NativeNotificationBridge,
-    });
-  } catch {
-    // The native plugin remains available even if the Web Notification shim cannot be installed.
-  }
-}
-
-installNativeNotificationBridge();
-
-type AppNotificationOptions = NotificationOptions & { tag?: string; vibrate?: number[] };
-
 export function pomodoroChannelName(userId: string) {
   return `pomodoro-sync:${userId}`;
 }
@@ -165,6 +80,8 @@ function getActiveRestSeconds(fallbackMinutes: number) {
 
   return readDeadline(STUDY_SESSION_KEY) ?? readDeadline(POMODORO_SESSION_KEY) ?? fallbackSeconds;
 }
+
+type AppNotificationOptions = NotificationOptions & { tag?: string; vibrate?: number[] };
 
 async function showAppNotification(title: string, options: AppNotificationOptions) {
   if (await scheduleNativeNotification(title, options.body ?? "", 50, options.tag)) return;
