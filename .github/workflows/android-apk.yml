@@ -94,8 +94,10 @@ jobs:
           test -f android/capacitor.settings.gradle
           test -f android/app/capacitor.build.gradle
           test -f dist/index.html
-          if grep -R "fluid-glass-studio.lovable.app" -n dist android/app/src/main/assets 2>/dev/null; then
-            echo "Standalone APK must not contain the Lovable runtime URL" >&2
+          # Authentication callback URLs are data used by the auth flow and are
+          # not a remote runtime. Only reject an actual Capacitor remote server.
+          if grep -R -E "server[[:space:]]*:[[:space:]]*\\{|server\\.url|serverUrl" -n capacitor.config.ts android/app/src/main/assets/capacitor.config.json 2>/dev/null; then
+            echo "Standalone APK must not configure a remote runtime server" >&2
             exit 1
           fi
 
@@ -120,5 +122,5 @@ jobs:
           gh release create "$TAG" "$APK" \
             --repo "$GITHUB_REPOSITORY" \
             --title "$TITLE" \
-            --notes "Standalone installable Liquid Glass Studio Android APK built from commit ${GITHUB_SHA}. The application bundle is packaged inside the APK and does not use the Lovable website URL as its runtime page. Includes native Android local notifications and the current rounded Liquid Glass icon." \
+            --notes "Standalone installable Liquid Glass Studio Android APK built from commit ${GITHUB_SHA}. The application bundle is packaged inside the APK and does not use a remote website as its runtime page. Includes native Android local notifications and the current rounded Liquid Glass icon." \
             --prerelease
