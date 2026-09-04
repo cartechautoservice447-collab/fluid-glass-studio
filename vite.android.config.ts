@@ -2,10 +2,14 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
   tanstackStart: {
-    // Android APK build: ship the app as a client-side static bundle so the
-    // installed APK does not depend on the Lovable website URL at runtime.
     spa: {
       enabled: true,
     },
+  },
+  // The SPA shell is prerendered by TanStack Start during the build.
+  // Use a Node-executable Nitro target for that temporary preview server;
+  // the Android APK itself still packages only the generated static public bundle.
+  nitro: {
+    preset: "node-server",
   },
 });
