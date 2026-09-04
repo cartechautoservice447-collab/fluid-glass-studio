@@ -56,7 +56,13 @@ jobs:
 
           export default config;
           EOF
+          # Capacitor requires the configured webDir to exist before adding the platform.
+          # The Android app loads the production APP_URL, so this minimal local shell is only
+          # used to satisfy Capacitor's platform-generation/sync checks.
+          mkdir -p dist
+          printf '<!doctype html><html><head><meta charset="utf-8"><title>Liquid Glass Studio</title></head><body></body></html>' > dist/index.html
           npx cap add android
+          npx cap sync android
 
       - name: Apply uploaded Liquid Glass Studio icon
         run: |
@@ -82,7 +88,7 @@ jobs:
       - name: Verify Capacitor Android Gradle files
         run: |
           test -f android/capacitor.settings.gradle
-          test -f android/capacitor.build.gradle
+          test -f android/app/capacitor.build.gradle
 
       - name: Build installable debug APK
         working-directory: android
