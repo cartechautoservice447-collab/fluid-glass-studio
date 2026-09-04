@@ -10,6 +10,8 @@ export const REST_START_EVENT = "rest-start";
 const STUDY_SESSION_KEY = "liquid-glass-study-session";
 const POMODORO_SESSION_KEY = "liquid-glass-pomodoro-session";
 const WEB_PUSH_PUBLIC_KEY = import.meta.env.VITE_WEB_PUSH_PUBLIC_KEY || "BOMQ0gr879geMIiymoRz_NkMobpvHh04WX5-XYiyp54FacZnEltC8QxRVmyIGEl1OW6rdUI1-uszdH9wWbO-56g";
+const WEB_NOTIFICATION_ICON = "/pwa-icon-exact-192.webp";
+const WEB_NOTIFICATION_BADGE = "/pwa-icon-exact-192.webp";
 const REST_END_NOTIFICATION_DELAY_BUFFER_MS = 250;
 
 type NativeLocalNotifications = {
@@ -83,14 +85,31 @@ function getActiveRestSeconds(fallbackMinutes: number) {
 
 type AppNotificationOptions = NotificationOptions & { tag?: string; vibrate?: number[] };
 
+async function getWebNotificationRegistration() {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
+  try {
+    const registration = await navigator.serviceWorker.getRegistration("/") ?? await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    await navigator.serviceWorker.ready;
+    return registration;
+  } catch {
+    return null;
+  }
+}
+
 async function showAppNotification(title: string, options: AppNotificationOptions) {
   if (await scheduleNativeNotification(title, options.body ?? "", 50, options.tag)) return;
   if (typeof window === "undefined" || !("Notification" in window) || Notification.permission !== "granted") return;
 
+  const webOptions: AppNotificationOptions = {
+    ...options,
+    icon: WEB_NOTIFICATION_ICON,
+    badge: WEB_NOTIFICATION_BADGE,
+  };
+
   try {
-    if ("serviceWorker" in navigator) {
-      const registration = await navigator.serviceWorker.getRegistration() ?? await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-      await registration.showNotification(title, options);
+    const registration = await getWebNotificationRegistration();
+    if (registration) {
+      await registration.showNotification(title, webOptions);
       return;
     }
   } catch {
@@ -98,7 +117,7 @@ async function showAppNotification(title: string, options: AppNotificationOption
   }
 
   try {
-    const notification = new Notification(title, options);
+    const notification = new Notification(title, webOptions);
     notification.onclick = () => {
       window.focus();
       notification.close();
@@ -124,7 +143,8 @@ async function ensurePushSubscription(userId: string) {
     if (Notification.permission === "default") await Notification.requestPermission();
     if (Notification.permission !== "granted") return null;
 
-    const registration = await navigator.serviceWorker.getRegistration() ?? await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    const registration = await getWebNotificationRegistration();
+    if (!registration) return null;
     let subscription = await registration.pushManager.getSubscription();
     if (!subscription) {
       subscription = await registration.pushManager.subscribe({
@@ -169,8 +189,8 @@ async function sendCrossDevicePush(userId: string, title: string, body: string, 
 export function showRestStartNotification(seconds: number) {
   void showAppNotification("Rest time started", {
     body: `Your rest time has started. You have ${seconds < 60 ? `${seconds} seconds` : `${Math.ceil(seconds / 60)} minutes`} to rest.`,
-    icon: "/pwa-icon-192.svg",
-    badge: "/pwa-icon-192.svg",
+    icon: WEB_NOTIFICATION_ICON,
+    badge: WEB_NOTIFICATION_BADGE,
     tag: "liquid-glass-pomodoro-rest",
     renotify: true,
     vibrate: [200, 100, 200],
@@ -181,8 +201,8 @@ export function showRestStartNotification(seconds: number) {
 export function showRestFinishedNotification() {
   void showAppNotification("Rest time finished", {
     body: "Your rest time has finished. Focus time is starting now.",
-    icon: "/pwa-icon-192.svg",
-    badge: "/pwa-icon-192.svg",
+    icon: WEB_NOTIFICATION_ICON,
+    badge: WEB_NOTIFICATION_BADGE,
     tag: "liquid-glass-pomodoro-rest-finished",
     renotify: true,
     vibrate: [200, 100, 200],
