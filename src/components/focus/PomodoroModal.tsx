@@ -237,8 +237,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
         body: `Time to rest for ${Math.round(seconds / 60)} min. Step away from the screen.`,
         icon: "/pwa-icon-192.svg",
         tag: "liquid-glass-pomodoro-rest",
-        renotify: true,
-      });
+      } as NotificationOptions);
       n.onclick = () => { window.focus(); n.close(); };
     } catch {}
   };
