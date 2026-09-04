@@ -35,11 +35,13 @@ jobs:
 
       - name: Build standalone static app bundle
         run: |
-          rm -rf dist
+          rm -rf dist android-dist
           npm run build -- --config vite.android.config.ts
-          test -d .output/public
-          mkdir -p dist
-          cp -a .output/public/. dist/
+          test -d dist/client
+          mkdir -p android-dist
+          cp -a dist/client/. android-dist/
+          rm -rf dist
+          mv android-dist dist
           if [ -f dist/_shell.html ]; then
             cp dist/_shell.html dist/index.html
           fi
