@@ -70,8 +70,9 @@ jobs:
           sudo apt-get install -y imagemagick
           command -v convert
           RES="android/app/src/main/res"
-          ICON="public/pwa-icon-transparent.svg"
+          SOURCE="public/pwa-icon-exact-512.webp"
           rm -rf "$RES/mipmap-anydpi-v26"
+          test -f "$SOURCE"
           for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
             case "$density" in
               mdpi) size=48 ;;
@@ -81,7 +82,11 @@ jobs:
               xxxhdpi) size=192 ;;
             esac
             mkdir -p "$RES/mipmap-$density"
-            convert -background none "$ICON" -resize "${size}x${size}!" -strip "$RES/mipmap-$density/ic_launcher.png"
+            TMP="/tmp/icon-$density.png"
+            MASK="/tmp/mask-$density.png"
+            convert "$SOURCE" -resize "${size}x${size}!" -strip "$TMP"
+            convert -size "${size}x${size}" xc:none -fill white -draw "roundrectangle 5,5 $((size-5)),$((size-5)) $((size*84/396)),$((size*84/396))" "$MASK"
+            convert "$TMP" "$MASK" -alpha off -compose CopyOpacity -composite -strip "$RES/mipmap-$density/ic_launcher.png"
             cp "$RES/mipmap-$density/ic_launcher.png" "$RES/mipmap-$density/ic_launcher_round.png"
           done
 
