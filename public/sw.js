@@ -1,4 +1,4 @@
-const CACHE_NAME = "liquid-glass-studio-v4";
+const CACHE_NAME = "liquid-glass-studio-v5";
 const APP_SHELL = ["/", "/manifest.webmanifest", "/pwa-icon.svg", "/offline.html"];
 
 self.addEventListener("install", (event) => {
@@ -21,7 +21,6 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
 
   if (request.mode === "navigate") {
-    // Always prefer the newly published HTML. Only fall back to cache when offline.
     const networkFirst = fetch(request)
       .then((response) => {
         if (response.ok) {
@@ -53,6 +52,17 @@ self.addEventListener("fetch", (event) => {
       }),
     );
   }
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      const visibleClient = clients.find((client) => "focus" in client);
+      if (visibleClient) return visibleClient.focus();
+      return self.clients.openWindow("/");
+    }),
+  );
 });
 
 self.addEventListener("message", (event) => {
