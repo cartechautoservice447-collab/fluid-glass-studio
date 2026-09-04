@@ -59,7 +59,7 @@ async function showAppNotification(title: string, options: AppNotificationOption
   }
 }
 
-function showRestStartNotification(seconds: number) {
+export function showRestStartNotification(seconds: number) {
   void showAppNotification("Rest time started", {
     body: `Your rest time has started. You have ${seconds < 60 ? `${seconds} seconds` : `${Math.ceil(seconds / 60)} minutes`} to rest.`,
     icon: "/pwa-icon-192.svg",
@@ -71,7 +71,7 @@ function showRestStartNotification(seconds: number) {
   });
 }
 
-function showRestFinishedNotification() {
+export function showRestFinishedNotification() {
   void showAppNotification("Rest time finished", {
     body: "Your rest time has finished. Focus time is starting now.",
     icon: "/pwa-icon-192.svg",
@@ -91,8 +91,14 @@ function scheduleRestFinishedNotification(seconds: number) {
 
 /** Broadcasts the rest duration — never note content or personal data. */
 export async function broadcastRestStart(userId: string, minutes: number) {
+  const seconds = getActiveRestSeconds(minutes);
+
+  // Always notify the device that started the rest. This is intentionally outside
+  // the realtime try/catch so a network/channel failure cannot suppress the local alert.
+  showRestStartNotification(seconds);
+  scheduleRestFinishedNotification(seconds);
+
   try {
-    const seconds = getActiveRestSeconds(minutes);
     const channel = supabase.channel(pomodoroChannelName(userId), { config: { broadcast: { self: false } } });
     await new Promise<void>((resolve) => {
       channel.subscribe((status) => {
@@ -104,17 +110,9 @@ export async function broadcastRestStart(userId: string, minutes: number) {
       event: REST_START_EVENT,
       payload: { minutes: Math.max(1, Math.round(seconds / 60)), seconds } satisfies RestStartPayload,
     });
-
-    // On mobile, the page-level Notification constructor is not supported.
-    // Show the sender's local alert through the registered service worker instead.
-    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-      showRestStartNotification(seconds);
-    }
-
-    scheduleRestFinishedNotification(seconds);
     setTimeout(() => void supabase.removeChannel(channel), 1500);
   } catch {
-    /* Sync is best-effort; local rest behavior is unaffected. */
+    /* Sync is best-effort; local rest notifications are already scheduled above. */
   }
 }
 
