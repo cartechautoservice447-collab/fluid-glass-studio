@@ -9,6 +9,7 @@ export const REST_START_EVENT = "rest-start";
 
 const STUDY_SESSION_KEY = "liquid-glass-study-session";
 const POMODORO_SESSION_KEY = "liquid-glass-pomodoro-session";
+const WEB_PUSH_PUBLIC_KEY = import.meta.env.VITE_WEB_PUSH_PUBLIC_KEY as string | undefined;
 const REST_END_NOTIFICATION_DELAY_BUFFER_MS = 250;
 
 export function pomodoroChannelName(userId: string) {
@@ -59,6 +60,62 @@ async function showAppNotification(title: string, options: AppNotificationOption
   }
 }
 
+function urlBase64ToUint8Array(value: string) {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map((character) => character.charCodeAt(0)));
+}
+
+async function ensurePushSubscription(userId: string) {
+  if (typeof window === "undefined" || !WEB_PUSH_PUBLIC_KEY || !("serviceWorker" in navigator) || !("PushManager" in window)) return null;
+  if (!("Notification" in window)) return null;
+
+  try {
+    if (Notification.permission === "default") await Notification.requestPermission();
+    if (Notification.permission !== "granted") return null;
+
+    const registration = await navigator.serviceWorker.getRegistration() ?? await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(WEB_PUSH_PUBLIC_KEY),
+      });
+    }
+
+    const json = subscription.toJSON();
+    if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) return null;
+
+    const { error } = await (supabase as any)
+      .from("push_subscriptions")
+      .upsert(
+        {
+          user_id: userId,
+          endpoint: json.endpoint,
+          p256dh: json.keys.p256dh,
+          auth: json.keys.auth,
+        },
+        { onConflict: "endpoint" },
+      );
+    if (error) throw error;
+
+    return json.endpoint;
+  } catch {
+    return null;
+  }
+}
+
+async function sendCrossDevicePush(userId: string, title: string, body: string, tag: string, excludeEndpoint?: string | null) {
+  try {
+    await supabase.functions.invoke("send-push-notification", {
+      body: { userId, title, body, tag, excludeEndpoint: excludeEndpoint ?? null },
+    });
+  } catch {
+    // Cross-device push is best-effort; the local notification and realtime sync continue independently.
+  }
+}
+
 export function showRestStartNotification(seconds: number) {
   void showAppNotification("Rest time started", {
     body: `Your rest time has started. You have ${seconds < 60 ? `${seconds} seconds` : `${Math.ceil(seconds / 60)} minutes`} to rest.`,
@@ -83,20 +140,39 @@ export function showRestFinishedNotification() {
   });
 }
 
-function scheduleRestFinishedNotification(seconds: number) {
+function scheduleRestFinishedNotification(seconds: number, userId?: string, excludeEndpoint?: string | null) {
   if (typeof window === "undefined" || !("Notification" in window) || Notification.permission !== "granted") return;
   const delay = Math.max(1, seconds) * 1000 + REST_END_NOTIFICATION_DELAY_BUFFER_MS;
-  window.setTimeout(showRestFinishedNotification, delay);
+  window.setTimeout(() => {
+    showRestFinishedNotification();
+    if (userId) {
+      void sendCrossDevicePush(
+        userId,
+        "Rest time finished",
+        "Your rest time has finished. Focus time is starting now.",
+        "liquid-glass-pomodoro-rest-finished",
+        excludeEndpoint,
+      );
+    }
+  }, delay);
 }
 
-/** Broadcasts the rest duration — never note content or personal data. */
+/** Broadcasts the rest duration and sends a Web Push to the user's other registered devices. */
 export async function broadcastRestStart(userId: string, minutes: number) {
   const seconds = getActiveRestSeconds(minutes);
 
-  // Always notify the device that started the rest. This is intentionally outside
-  // the realtime try/catch so a network/channel failure cannot suppress the local alert.
   showRestStartNotification(seconds);
   scheduleRestFinishedNotification(seconds);
+
+  const sourceEndpoint = await ensurePushSubscription(userId);
+  void sendCrossDevicePush(
+    userId,
+    "Rest time started",
+    `Your rest time has started. You have ${seconds < 60 ? `${seconds} seconds` : `${Math.ceil(seconds / 60)} minutes`} to rest.`,
+    "liquid-glass-pomodoro-rest",
+    sourceEndpoint,
+  );
+  scheduleRestFinishedNotification(seconds, userId, sourceEndpoint);
 
   try {
     const channel = supabase.channel(pomodoroChannelName(userId), { config: { broadcast: { self: false } } });
@@ -112,11 +188,11 @@ export async function broadcastRestStart(userId: string, minutes: number) {
     });
     setTimeout(() => void supabase.removeChannel(channel), 1500);
   } catch {
-    /* Sync is best-effort; local rest notifications are already scheduled above. */
+    /* Realtime sync is best-effort; Web Push and local notifications already started above. */
   }
 }
 
-/** Subscribes the current device to rest-start signals for this account. */
+/** Subscribes the current device to rest-start signals and registers it for cross-device push. */
 export function usePomodoroRestSync(userId: string | null, onRestStart?: (payload: RestStartPayload) => void) {
   const [status, setStatus] = useState<SyncStatus>("idle");
   const restFinishedTimerRef = useRef<number | null>(null);
@@ -126,6 +202,7 @@ export function usePomodoroRestSync(userId: string | null, onRestStart?: (payloa
       setStatus("idle");
       return;
     }
+    void ensurePushSubscription(userId);
     setStatus("connecting");
     let channel: RealtimeChannel | null = supabase.channel(pomodoroChannelName(userId));
     channel
