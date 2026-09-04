@@ -295,6 +295,7 @@ export function PomodoroModal({ open, onOpenChange }: { open: boolean; onOpenCha
         const nextIndex = studySession.index + 1;
         if (nextIndex < studySession.schedule.length) {
           const segment = studySession.schedule[nextIndex];
+          if (!segment) return;
           const nextDeadline = Date.now() + segment.minutes * 60 * 1000;
           const nextStudy = { ...studySession, index: nextIndex, running: true, deadline: nextDeadline, remaining: segment.minutes * 60 };
           setStudySession(nextStudy);
