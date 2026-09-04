@@ -7,8 +7,7 @@ on:
       - main
 
 permissions:
-  contents: read
-  actions: write
+  contents: write
 
 jobs:
   build-apk:
@@ -95,28 +94,16 @@ jobs:
         working-directory: android
         run: ./gradlew clean assembleDebug --no-daemon
 
-      - name: Remove previous APK artifacts
+      - name: Publish APK as GitHub Release asset
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh api --paginate \
-            -H "Accept: application/vnd.github+json" \
-            "/repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" \
-            --jq '.artifacts[] | select(.name == "liquid-glass-studio-android-apk") | .id' \
-          | while read -r artifact_id; do
-              [ -z "$artifact_id" ] && continue
-              echo "Deleting previous APK artifact $artifact_id"
-              gh api --method DELETE \
-                -H "Accept: application/vnd.github+json" \
-                "/repos/${GITHUB_REPOSITORY}/actions/artifacts/$artifact_id"
-            done
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: liquid-glass-studio-android-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 1
-          overwrite: true
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          TAG="android-apk-${GITHUB_RUN_NUMBER}"
+          TITLE="Liquid Glass Studio Android APK ${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG" "$APK" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$TITLE" \
+            --notes "Installable Liquid Glass Studio Android APK built from commit ${GITHUB_SHA}." \
+            --prerelease
