@@ -9,7 +9,7 @@ const inputClass =
   "h-11 w-full rounded-xl border border-white/20 bg-white/10 pl-10 pr-3 text-sm text-foreground outline-none transition focus:border-sky-300/70 focus:ring-2 focus:ring-sky-300/20";
 
 export function AuthPage() {
-  const { signInWithPassword, signUpWithPassword, resetPassword, signInWithGoogle } = useAuth();
+  const { signInWithPassword, signUpWithPassword, resendConfirmation, resetPassword, signInWithGoogle } = useAuth();
   const [mode, setMode] = useState<Mode>("sign-in");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -17,6 +17,7 @@ export function AuthPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [resending, setResending] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
 
   const isReset = mode === "reset";
@@ -48,6 +49,20 @@ export function AuthPage() {
       setError(caught instanceof Error ? caught.message : "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const resend = async () => {
+    setError("");
+    setMessage("");
+    setResending(true);
+    try {
+      await resendConfirmation(email);
+      setMessage("A new confirmation email has been sent. Open the newest link and finish verification.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "We couldn't resend the confirmation email. Please try again later.");
+    } finally {
+      setResending(false);
     }
   };
 
@@ -177,12 +192,36 @@ export function AuthPage() {
           )}
 
           {error && (
-            <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">{error}</p>
+            <div className="space-y-2">
+              <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">{error}</p>
+              {!isReset && email.trim() && (
+                <button
+                  type="button"
+                  onClick={() => void resend()}
+                  disabled={resending}
+                  className="text-xs font-medium text-sky-200 underline-offset-2 hover:underline disabled:opacity-60"
+                >
+                  {resending ? "Sending confirmation email…" : "Resend confirmation email"}
+                </button>
+              )}
+            </div>
           )}
           {message && (
-            <p className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
-              {message}
-            </p>
+            <div className="space-y-2">
+              <p className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+                {message}
+              </p>
+              {!isReset && message.includes("confirmation email") && (
+                <button
+                  type="button"
+                  onClick={() => void resend()}
+                  disabled={resending}
+                  className="text-xs font-medium text-sky-200 underline-offset-2 hover:underline disabled:opacity-60"
+                >
+                  {resending ? "Sending confirmation email…" : "Resend confirmation email"}
+                </button>
+              )}
+            </div>
           )}
 
           <button
