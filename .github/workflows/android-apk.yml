@@ -64,13 +64,13 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Apply uploaded Liquid Glass Studio icon
+      - name: Apply transparent Liquid Glass Studio icon
         run: |
           sudo apt-get update
           sudo apt-get install -y imagemagick
           command -v convert
           RES="android/app/src/main/res"
-          ICON="public/pwa-icon-exact-512.webp"
+          ICON="public/pwa-icon-transparent.svg"
           rm -rf "$RES/mipmap-anydpi-v26"
           for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
             case "$density" in
@@ -81,7 +81,7 @@ jobs:
               xxxhdpi) size=192 ;;
             esac
             mkdir -p "$RES/mipmap-$density"
-            convert "$ICON" -resize "${size}x${size}!" -strip "$RES/mipmap-$density/ic_launcher.png"
+            convert -background none "$ICON" -resize "${size}x${size}!" -strip "$RES/mipmap-$density/ic_launcher.png"
             cp "$RES/mipmap-$density/ic_launcher.png" "$RES/mipmap-$density/ic_launcher_round.png"
           done
 
