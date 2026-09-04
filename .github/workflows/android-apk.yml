@@ -56,9 +56,6 @@ jobs:
 
           export default config;
           EOF
-          # Capacitor requires the configured webDir to exist before adding the platform.
-          # The Android app loads the production APP_URL, so this minimal local shell is only
-          # used to satisfy Capacitor's platform-generation/sync checks.
           mkdir -p dist
           printf '<!doctype html><html><head><meta charset="utf-8"><title>Liquid Glass Studio</title></head><body></body></html>' > dist/index.html
           npx cap add android
@@ -100,4 +97,5 @@ jobs:
           name: liquid-glass-studio-android-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 1
+          overwrite: true
