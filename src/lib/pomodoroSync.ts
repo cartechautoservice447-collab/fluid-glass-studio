@@ -60,8 +60,8 @@ async function showAppNotification(title: string, options: AppNotificationOption
 }
 
 function showRestStartNotification(seconds: number) {
-  void showAppNotification("Break time!", {
-    body: `Time to rest for ${seconds < 60 ? `${seconds} sec` : `${Math.ceil(seconds / 60)} min`}. Step away from the screen.`,
+  void showAppNotification("Rest time started", {
+    body: `Your rest time has started. You have ${seconds < 60 ? `${seconds} seconds` : `${Math.ceil(seconds / 60)} minutes`} to rest.`,
     icon: "/pwa-icon-192.svg",
     badge: "/pwa-icon-192.svg",
     tag: "liquid-glass-pomodoro-rest",
@@ -72,8 +72,8 @@ function showRestStartNotification(seconds: number) {
 }
 
 function showRestFinishedNotification() {
-  void showAppNotification("Rest finished!", {
-    body: "Your rest is over. Focus time is starting.",
+  void showAppNotification("Rest time finished", {
+    body: "Your rest time has finished. Focus time is starting now.",
     icon: "/pwa-icon-192.svg",
     badge: "/pwa-icon-192.svg",
     tag: "liquid-glass-pomodoro-rest-finished",
