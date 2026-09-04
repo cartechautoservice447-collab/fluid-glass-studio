@@ -14,7 +14,31 @@ import pomodoroPlainTimerCss from "../pomodoro-plain-timer.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { registerPwaServiceWorker } from "../lib/pwa";
 
+function isNativeCapacitorApp(): boolean {
+  return typeof window !== "undefined" && Boolean(window.Capacitor?.isNativePlatform?.());
+}
+
 function NotFoundComponent() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Capacitor's local WebView can occasionally restore a stale asset path
+    // (for example /index.html) instead of the SPA root. The Android app has
+    // no separate server-side route for that path, so recover to the real
+    // application root instead of trapping the user on the 404 screen.
+    if (isNativeCapacitorApp()) {
+      void router.navigate({ to: "/", replace: true });
+    }
+  }, [router]);
+
+  if (isNativeCapacitorApp()) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="text-sm text-muted-foreground">Opening your workspace…</div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
@@ -104,6 +128,8 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  useEffect(() => { registerPwaServiceWorker(); }, []);
+  useEffect(() => {
+    if (!isNativeCapacitorApp()) registerPwaServiceWorker();
+  }, []);
   return <QueryClientProvider client={queryClient}><Outlet /></QueryClientProvider>;
 }
