@@ -38,7 +38,6 @@ jobs:
           rm -rf dist
           npm run build -- --config vite.android.config.ts
           test -d .output/public
-          rm -rf dist
           mkdir -p dist
           cp -a .output/public/. dist/
           if [ -f dist/_shell.html ]; then
@@ -71,7 +70,7 @@ jobs:
           sudo apt-get install -y imagemagick
           command -v convert
           RES="android/app/src/main/res"
-          SOURCE="public/pwa-icon-transparent.svg"
+          SOURCE="public/android-icon-transparent-512.webp"
           rm -rf "$RES/mipmap-anydpi-v26"
           test -f "$SOURCE"
           for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
@@ -92,7 +91,10 @@ jobs:
           test -f android/capacitor.settings.gradle
           test -f android/app/capacitor.build.gradle
           test -f dist/index.html
-          grep -R "fluid-glass-studio.lovable.app" -n dist android/app/src/main/assets 2>/dev/null && exit 1 || true
+          if grep -R "fluid-glass-studio.lovable.app" -n dist android/app/src/main/assets 2>/dev/null; then
+            echo "Standalone APK must not contain the Lovable runtime URL" >&2
+            exit 1
+          fi
 
       - name: Build installable standalone debug APK
         working-directory: android
