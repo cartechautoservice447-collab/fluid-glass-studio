@@ -1,8 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <defs>
-    <clipPath id="icon-shape" clipPathUnits="userSpaceOnUse">
-      <rect x="58" y="56" width="396" height="396" rx="84" ry="84" />
-    </clipPath>
-  </defs>
-  <image href="pwa-icon-exact-512.webp" x="0" y="0" width="512" height="512" preserveAspectRatio="none" clip-path="url(#icon-shape)" />
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><defs><clipPath id="icon-shape" clipPathUnits="userSpaceOnUse"><rect x="58" y="56" width="396" height="396" rx="84" ry="84"/></clipPath></defs><image href="pwa-icon-exact-192.webp" x="0" y="0" width="512" height="512" preserveAspectRatio="none" clip-path="url(#icon-shape)"/></svg>
