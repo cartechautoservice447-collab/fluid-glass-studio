@@ -37,7 +37,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Install Capacitor tooling
         run: npm install --no-save @capacitor/core @capacitor/cli @capacitor/android
@@ -61,9 +60,29 @@ jobs:
           EOF
           npx cap add android
 
+      - name: Apply uploaded Liquid Glass Studio icon
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+          RES="android/app/src/main/res"
+          ICON="public/pwa-icon-exact-512.webp"
+          rm -rf "$RES/mipmap-anydpi-v26"
+          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            case "$density" in
+              mdpi) size=48 ;;
+              hdpi) size=72 ;;
+              xhdpi) size=96 ;;
+              xxhdpi) size=144 ;;
+              xxxhdpi) size=192 ;;
+            esac
+            mkdir -p "$RES/mipmap-$density"
+            magick "$ICON" -resize "${size}x${size}!" -strip "$RES/mipmap-$density/ic_launcher.png"
+            cp "$RES/mipmap-$density/ic_launcher.png" "$RES/mipmap-$density/ic_launcher_round.png"
+          done
+
       - name: Build installable debug APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew clean assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
