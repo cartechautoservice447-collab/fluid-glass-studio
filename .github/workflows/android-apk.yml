@@ -92,14 +92,32 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Ensure Android notification runtime permission is declared
+      - name: Ensure Android notification runtime permissions are declared
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           test -f "$MANIFEST"
           if ! grep -q 'android.permission.POST_NOTIFICATIONS' "$MANIFEST"; then
             sed -i '/<manifest[^>]*>/a\    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' "$MANIFEST"
           fi
+          if ! grep -q 'android.permission.SCHEDULE_EXACT_ALARM' "$MANIFEST"; then
+            sed -i '/<manifest[^>]*>/a\    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />' "$MANIFEST"
+          fi
           grep -q 'android.permission.POST_NOTIFICATIONS' "$MANIFEST"
+          grep -q 'android.permission.SCHEDULE_EXACT_ALARM' "$MANIFEST"
+
+      - name: Add Android notification icon
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+          command -v convert
+          RES="android/app/src/main/res"
+          SOURCE="public/pwa-icon-exact-512.webp"
+          test -f "$SOURCE"
+          mkdir -p "$RES/drawable"
+          # Notification small icons must be simple alpha/white artwork rather than
+          # the full-color launcher icon.
+          convert "$SOURCE" -alpha extract -threshold 8% -fill white -colorize 100% -strip "$RES/drawable/ic_stat_pomodoro.png"
+          test -s "$RES/drawable/ic_stat_pomodoro.png"
 
       - name: Optimize Android release APK for smaller size
         run: |
@@ -119,14 +137,9 @@ jobs:
 
       - name: Apply high quality rounded Liquid Glass Studio icon
         run: |
-          sudo apt-get update
-          sudo apt-get install -y imagemagick
-          command -v convert
           RES="android/app/src/main/res"
           SOURCE="public/pwa-icon-exact-512.webp"
-          rm -rf "$RES/mipmap-anydpi-v26"
           test -f "$SOURCE"
-          identify "$SOURCE"
           for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
             case "$density" in
               mdpi) size=48 ;;
@@ -145,9 +158,11 @@ jobs:
           test -f android/capacitor.settings.gradle
           test -f android/app/capacitor.build.gradle
           test -f android/app/src/main/AndroidManifest.xml
+          test -f android/app/src/main/res/drawable/ic_stat_pomodoro.png
           test -f dist/index.html
           test -s dist/android-notifications-bootstrap.js
           grep -q 'android.permission.POST_NOTIFICATIONS' android/app/src/main/AndroidManifest.xml
+          grep -q 'android.permission.SCHEDULE_EXACT_ALARM' android/app/src/main/AndroidManifest.xml
           # Authentication callback URLs are data used by the auth flow and are
           # not a remote runtime. Only reject an actual Capacitor remote server.
           if grep -R -E "server[[:space:]]*:[[:space:]]*\\{|server\\.url|serverUrl" -n capacitor.config.ts android/app/src/main/assets/capacitor.config.json 2>/dev/null; then
@@ -177,5 +192,5 @@ jobs:
           gh release create "$TAG" "$APK" \
             --repo "$GITHUB_REPOSITORY" \
             --title "$TITLE" \
-            --notes "Standalone installable Liquid Glass Studio Android APK built from commit ${GITHUB_SHA}. The application bundle is packaged inside the APK and does not use a remote website as its runtime page. Android-only native local notifications are bundled with a dedicated notification channel and runtime permission. The release build is optimized for a smaller APK." \
+            --notes "Standalone installable Liquid Glass Studio Android APK built from commit ${GITHUB_SHA}. The application bundle is packaged inside the APK and does not use a remote website as its runtime page. Android-only native local notifications are bundled with a dedicated notification channel, notification icon, runtime permission, and scheduled background delivery. The Android build also includes the Android-only Mobile/Laptop device mode switch. The release build is optimized for a smaller APK." \
             --prerelease
