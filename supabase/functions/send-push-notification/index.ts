@@ -70,7 +70,7 @@ Deno.serve(async (request) => {
           );
           return { id: subscription.id, ok: true };
         } catch (error) {
-          const statusCode = error instanceof webpush.WebPushError ? error.statusCode : undefined;
+          const statusCode = Number((error as { statusCode?: number } | null)?.statusCode);
           if (statusCode === 404 || statusCode === 410) {
             await admin.from("push_subscriptions").delete().eq("id", subscription.id);
           }
