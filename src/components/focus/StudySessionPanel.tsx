@@ -40,6 +40,7 @@ const PATTERNS: Record<StudySessionPattern, { title: string; description: string
 const MAX_FOCUS_MINUTES = 150;
 const MIN_FOCUS_MINUTES = 30;
 const TESTER_DURATION_SECONDS = 30;
+const TESTER_MINUTES = TESTER_DURATION_SECONDS / 60;
 const STUDY_SESSION_KEY = "liquid-glass-study-session";
 
 type Props = {
@@ -124,8 +125,18 @@ export function StudySessionPanel({ onStartSession }: Props) {
   }, [testerRunning]);
 
   const startTester = () => {
-    if (testerRemaining === 0) setTesterRemaining(TESTER_DURATION_SECONDS);
-    setTesterRunning(true);
+    const testSchedule: StudySessionSegment[] = [
+      { label: "Focus", minutes: TESTER_MINUTES, kind: "focus" },
+      { label: "Rest", minutes: TESTER_MINUTES, kind: "rest" },
+    ];
+    setTesterRunning(false);
+    setTesterRemaining(TESTER_DURATION_SECONDS);
+    onStartSession({
+      pattern,
+      title: `${selected.title} — 30s Test`,
+      focusMinutes: TESTER_MINUTES,
+      schedule: testSchedule,
+    });
   };
 
   const resetTester = () => {
@@ -214,7 +225,7 @@ export function StudySessionPanel({ onStartSession }: Props) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold text-foreground">30s Tester</p>
-            <p className="mt-1 text-[10px] leading-4 text-muted-foreground">Quickly test the Study Session countdown without starting a real session.</p>
+            <p className="mt-1 text-[10px] leading-4 text-muted-foreground">Run the existing Study Session flow with 30-second Focus and Rest blocks to test locking, video pause, and refresh persistence.</p>
           </div>
           <span className="rounded-lg border border-white/10 bg-black/20 px-2 py-1 font-mono text-[10px] text-muted-foreground">30 sec</span>
         </div>
@@ -222,7 +233,7 @@ export function StudySessionPanel({ onStartSession }: Props) {
           <div className="min-w-[92px] rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-center font-mono text-lg font-semibold tabular-nums text-foreground" aria-live="polite">{formatTesterTime(testerRemaining)}</div>
           <Button type="button" size="sm" variant="outline" onClick={testerRunning ? () => setTesterRunning(false) : startTester} className="rounded-xl">
             {testerRunning ? <Pause className="mr-1.5 size-3.5" /> : <Play className="mr-1.5 size-3.5" />}
-            {testerRunning ? "Pause" : testerRemaining === 0 ? "Run again" : "Start"}
+            {testerRunning ? "Pause" : "Start"}
           </Button>
           <Button type="button" size="sm" variant="ghost" onClick={resetTester} className="rounded-xl" aria-label="Reset 30 second tester">
             <RotateCcw className="mr-1.5 size-3.5" />Reset
