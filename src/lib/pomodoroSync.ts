@@ -162,9 +162,9 @@ export async function broadcastRestStart(userId: string, minutes: number) {
   const seconds = getActiveRestSeconds(minutes);
 
   showRestStartNotification(seconds);
-  scheduleRestFinishedNotification(seconds);
 
   const sourceEndpoint = await ensurePushSubscription(userId);
+  scheduleRestFinishedNotification(seconds, userId, sourceEndpoint);
   void sendCrossDevicePush(
     userId,
     "Rest time started",
@@ -172,7 +172,6 @@ export async function broadcastRestStart(userId: string, minutes: number) {
     "liquid-glass-pomodoro-rest",
     sourceEndpoint,
   );
-  scheduleRestFinishedNotification(seconds, userId, sourceEndpoint);
 
   try {
     const channel = supabase.channel(pomodoroChannelName(userId), { config: { broadcast: { self: false } } });
