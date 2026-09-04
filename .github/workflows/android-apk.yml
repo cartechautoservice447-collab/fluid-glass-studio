@@ -48,7 +48,7 @@ jobs:
           test -f dist/index.html
 
       - name: Install Capacitor tooling and native notifications
-        run: npm install --no-save @capacitor/core @capacitor/cli @capacitor/android @capacitor/local-notifications
+        run: npm install --no-save @capacitor/core @capacitor/cli @capacitor/android @capacitor/local-notifications esbuild
 
       - name: Add Android-only native notification bootstrap
         run: |
