@@ -2,17 +2,12 @@ name: Build Android APK
 
 on:
   workflow_dispatch:
-    inputs:
-      app_url:
-        description: "HTTPS URL of the deployed Liquid Glass Studio web app"
-        required: true
-        type: string
 
 jobs:
   build-apk:
     runs-on: ubuntu-latest
     env:
-      APP_URL: ${{ github.event.inputs.app_url }}
+      APP_URL: https://fluid-glass-studio.lovable.app
     steps:
       - name: Checkout
         uses: actions/checkout@v4
