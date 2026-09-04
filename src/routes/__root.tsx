@@ -14,8 +14,13 @@ import pomodoroPlainTimerCss from "../pomodoro-plain-timer.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { registerPwaServiceWorker } from "../lib/pwa";
 
+type NativeWindow = typeof window & {
+  Capacitor?: { isNativePlatform?: () => boolean };
+};
+
 function isNativeCapacitorApp(): boolean {
-  return typeof window !== "undefined" && Boolean(window.Capacitor?.isNativePlatform?.());
+  if (typeof window === "undefined") return false;
+  return Boolean((window as NativeWindow).Capacitor?.isNativePlatform?.());
 }
 
 function NotFoundComponent() {
