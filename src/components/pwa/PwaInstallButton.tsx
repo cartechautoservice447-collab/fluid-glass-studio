@@ -12,11 +12,13 @@ export function PwaInstallButton() {
   const [installed, setInstalled] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
     const handleBeforeInstall = (event: Event) => {
       event.preventDefault();
-      setInstallEvent(event as BeforeInstallPromptEvent);
+      if (mounted) setInstallEvent(event as BeforeInstallPromptEvent);
     };
     const handleInstalled = () => {
+      if (!mounted) return;
       setInstalled(true);
       setInstallEvent(null);
     };
@@ -32,7 +34,14 @@ export function PwaInstallButton() {
     const standalone = window.matchMedia("(display-mode: standalone)").matches;
     if (standalone) setInstalled(true);
 
+    if ("serviceWorker" in navigator) {
+      void navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch((error) => {
+        console.error("PWA service worker registration failed", error);
+      });
+    }
+
     return () => {
+      mounted = false;
       window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
       window.removeEventListener("appinstalled", handleInstalled);
       window.removeEventListener("online", handleOnline);

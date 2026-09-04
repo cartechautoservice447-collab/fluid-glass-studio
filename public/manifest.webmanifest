@@ -11,6 +11,12 @@
   "background_color": "#07070c",
   "icons": [
     {
+      "src": "/pwa-icon-exact-192.webp",
+      "sizes": "192x192",
+      "type": "image/webp",
+      "purpose": "any"
+    },
+    {
       "src": "/pwa-icon-exact-512.webp",
       "sizes": "512x512",
       "type": "image/webp",
