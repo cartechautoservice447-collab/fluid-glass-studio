@@ -33,21 +33,42 @@ function getActiveRestSeconds(fallbackMinutes: number) {
   return readDeadline(STUDY_SESSION_KEY) ?? readDeadline(POMODORO_SESSION_KEY) ?? fallbackSeconds;
 }
 
-function showRestFinishedNotification() {
+type AppNotificationOptions = NotificationOptions & { tag?: string; vibrate?: number[] };
+
+async function showAppNotification(title: string, options: AppNotificationOptions) {
   if (typeof window === "undefined" || !("Notification" in window) || Notification.permission !== "granted") return;
+
   try {
-    const n = new Notification("Rest finished!", {
-      body: "Your rest is over. Focus time is starting.",
-      icon: "/pwa-icon-192.svg",
-      tag: "liquid-glass-pomodoro-rest-finished",
-    });
-    n.onclick = () => {
+    if ("serviceWorker" in navigator) {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification(title, options);
+      return;
+    }
+  } catch {
+    // Fall through to the desktop-only constructor when no usable service worker exists.
+  }
+
+  try {
+    const notification = new Notification(title, options);
+    notification.onclick = () => {
       window.focus();
-      n.close();
+      notification.close();
     };
   } catch {
-    /* Some mobile browsers block the Notification constructor. */
+    /* Mobile browsers intentionally reject the Notification constructor. */
   }
+}
+
+function showRestFinishedNotification() {
+  void showAppNotification("Rest finished!", {
+    body: "Your rest is over. Focus time is starting.",
+    icon: "/pwa-icon-192.svg",
+    badge: "/pwa-icon-192.svg",
+    tag: "liquid-glass-pomodoro-rest-finished",
+    renotify: true,
+    vibrate: [200, 100, 200],
+    data: { url: "/" },
+  });
 }
 
 function scheduleRestFinishedNotification(seconds: number) {
@@ -100,19 +121,15 @@ export function usePomodoroRestSync(userId: string | null, onRestStart?: (payloa
         onRestStart?.({ minutes: safeMinutes, seconds: safeSeconds });
 
         if (!("Notification" in window) || Notification.permission !== "granted") return;
-        try {
-          const n = new Notification("Break time!", {
-            body: `Rest for ${safeSeconds < 60 ? `${safeSeconds} sec` : `${Math.ceil(safeSeconds / 60)} min`}. Step away from the screen.`,
-            icon: "/pwa-icon-192.svg",
-            tag: "liquid-glass-pomodoro-rest",
-          });
-          n.onclick = () => {
-            window.focus();
-            n.close();
-          };
-        } catch {
-          /* Some mobile browsers block the Notification constructor. */
-        }
+        void showAppNotification("Break time!", {
+          body: `Rest for ${safeSeconds < 60 ? `${safeSeconds} sec` : `${Math.ceil(safeSeconds / 60)} min`}. Step away from the screen.`,
+          icon: "/pwa-icon-192.svg",
+          badge: "/pwa-icon-192.svg",
+          tag: "liquid-glass-pomodoro-rest",
+          renotify: true,
+          vibrate: [200, 100, 200],
+          data: { url: "/" },
+        });
 
         if (restFinishedTimerRef.current !== null) window.clearTimeout(restFinishedTimerRef.current);
         restFinishedTimerRef.current = window.setTimeout(() => {
