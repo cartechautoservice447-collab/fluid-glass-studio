@@ -72,7 +72,7 @@ jobs:
           sudo apt-get install -y imagemagick
           command -v convert
           RES="android/app/src/main/res"
-          SOURCE="public/android-icon-transparent-512.webp"
+          SOURCE="public/pwa-icon-exact-512.webp"
           rm -rf "$RES/mipmap-anydpi-v26"
           test -f "$SOURCE"
           identify "$SOURCE"
