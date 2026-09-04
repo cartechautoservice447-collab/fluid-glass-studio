@@ -66,6 +66,15 @@ jobs:
           npx cap add android
           npx cap sync android
 
+      - name: Ensure Android notification runtime permission is declared
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          test -f "$MANIFEST"
+          if ! grep -q 'android.permission.POST_NOTIFICATIONS' "$MANIFEST"; then
+            sed -i '/<manifest[^>]*>/a\    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' "$MANIFEST"
+          fi
+          grep -q 'android.permission.POST_NOTIFICATIONS' "$MANIFEST"
+
       - name: Apply high quality rounded Liquid Glass Studio icon
         run: |
           sudo apt-get update
@@ -93,7 +102,9 @@ jobs:
         run: |
           test -f android/capacitor.settings.gradle
           test -f android/app/capacitor.build.gradle
+          test -f android/app/src/main/AndroidManifest.xml
           test -f dist/index.html
+          grep -q 'android.permission.POST_NOTIFICATIONS' android/app/src/main/AndroidManifest.xml
           # Authentication callback URLs are data used by the auth flow and are
           # not a remote runtime. Only reject an actual Capacitor remote server.
           if grep -R -E "server[[:space:]]*:[[:space:]]*\\{|server\\.url|serverUrl" -n capacitor.config.ts android/app/src/main/assets/capacitor.config.json 2>/dev/null; then
