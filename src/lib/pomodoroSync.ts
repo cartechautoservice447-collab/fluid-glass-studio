@@ -25,6 +25,44 @@ function getNativeLocalNotifications(): NativeLocalNotifications | null {
   return capacitor.Plugins?.LocalNotifications ?? null;
 }
 
+export async function getDeviceNotificationStatus(): Promise<"granted" | "default" | "denied" | "unsupported"> {
+  const nativePlugin = getNativeLocalNotifications();
+  if (nativePlugin) {
+    try {
+      const permission = await nativePlugin.checkPermissions?.();
+      if (permission?.display === "granted") return "granted";
+      if (permission?.display === "denied") return "denied";
+      return "default";
+    } catch {
+      return "denied";
+    }
+  }
+
+  if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
+  return Notification.permission;
+}
+
+export async function requestDeviceNotificationPermission(): Promise<"granted" | "default" | "denied" | "unsupported"> {
+  const nativePlugin = getNativeLocalNotifications();
+  if (nativePlugin) {
+    try {
+      const permission = await nativePlugin.requestPermissions?.();
+      if (permission?.display === "granted") return "granted";
+      if (permission?.display === "denied") return "denied";
+      return "default";
+    } catch {
+      return "denied";
+    }
+  }
+
+  if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
+  try {
+    return await Notification.requestPermission();
+  } catch {
+    return "denied";
+  }
+}
+
 async function ensureNativeNotificationPermission(plugin: NativeLocalNotifications) {
   try {
     const current = await plugin.checkPermissions?.();
