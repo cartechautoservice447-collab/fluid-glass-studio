@@ -2,14 +2,15 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
   tanstackStart: {
+    server: {
+      entry: "server",
+    },
     spa: {
       enabled: true,
     },
   },
-  // The SPA shell is prerendered by TanStack Start during the build.
-  // Use a Node-executable Nitro target for that temporary preview server;
-  // the Android APK itself still packages only the generated static public bundle.
-  nitro: {
-    preset: "node-server",
-  },
+  // Android uses the static SPA shell only. Disable the repository's
+  // default Nitro build for this Android-only configuration so TanStack
+  // Start emits the server entry where its SPA prerender expects it.
+  nitro: false,
 });
