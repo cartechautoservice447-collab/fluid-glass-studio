@@ -50,6 +50,32 @@ jobs:
       - name: Install Capacitor tooling and native notifications
         run: npm install --no-save @capacitor/core @capacitor/cli @capacitor/android @capacitor/local-notifications
 
+      - name: Add Android-only native notification bootstrap
+        run: |
+          test -f scripts/android-notifications-bootstrap.js
+          node --input-type=module <<'NODE'
+          import { build } from "esbuild";
+          await build({
+            entryPoints: ["scripts/android-notifications-bootstrap.js"],
+            bundle: true,
+            format: "esm",
+            platform: "browser",
+            minify: true,
+            outfile: "dist/android-notifications-bootstrap.js",
+          });
+          NODE
+          test -s dist/android-notifications-bootstrap.js
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("dist/index.html")
+          html = path.read_text()
+          marker = '<script type="module" src="/android-notifications-bootstrap.js"></script>'
+          if marker not in html:
+              html = html.replace("</head>", f"{marker}</head>", 1)
+          path.write_text(html)
+          PY
+          grep -q 'android-notifications-bootstrap.js' dist/index.html
+
       - name: Create bundled Capacitor Android app
         run: |
           cat > capacitor.config.ts <<'EOF'
@@ -74,6 +100,22 @@ jobs:
             sed -i '/<manifest[^>]*>/a\    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' "$MANIFEST"
           fi
           grep -q 'android.permission.POST_NOTIFICATIONS' "$MANIFEST"
+
+      - name: Optimize Android release APK for smaller size
+        run: |
+          APP_GRADLE="android/app/build.gradle"
+          test -f "$APP_GRADLE"
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("android/app/build.gradle")
+          text = path.read_text()
+          old = """release {\n            minifyEnabled false\n            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'\n        }"""
+          new = """release {\n            minifyEnabled true\n            shrinkResources true\n            signingConfig signingConfigs.debug\n            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'\n        }"""
+          if old not in text:
+              raise SystemExit("Expected Capacitor release block was not found")
+          path.write_text(text.replace(old, new, 1))
+          PY
+          grep -A5 -n 'release {' "$APP_GRADLE"
 
       - name: Apply high quality rounded Liquid Glass Studio icon
         run: |
@@ -104,6 +146,7 @@ jobs:
           test -f android/app/capacitor.build.gradle
           test -f android/app/src/main/AndroidManifest.xml
           test -f dist/index.html
+          test -s dist/android-notifications-bootstrap.js
           grep -q 'android.permission.POST_NOTIFICATIONS' android/app/src/main/AndroidManifest.xml
           # Authentication callback URLs are data used by the auth flow and are
           # not a remote runtime. Only reject an actual Capacitor remote server.
@@ -112,26 +155,27 @@ jobs:
             exit 1
           fi
 
-      - name: Build installable standalone debug APK
+      - name: Build installable standalone release APK
         working-directory: android
-        run: ./gradlew clean assembleDebug --no-daemon
+        run: ./gradlew clean assembleRelease --no-daemon
 
-      - name: Verify APK
+      - name: Verify APK size and installation package
         run: |
-          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          APK="android/app/build/outputs/apk/release/app-release.apk"
           test -s "$APK"
           ls -lh "$APK"
+          du -h "$APK"
 
       - name: Publish APK as GitHub Release asset
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          APK="android/app/build/outputs/apk/release/app-release.apk"
           TAG="android-apk-${GITHUB_RUN_NUMBER}"
           TITLE="Liquid Glass Studio Standalone Android APK ${GITHUB_RUN_NUMBER}"
           gh release create "$TAG" "$APK" \
             --repo "$GITHUB_REPOSITORY" \
             --title "$TITLE" \
-            --notes "Standalone installable Liquid Glass Studio Android APK built from commit ${GITHUB_SHA}. The application bundle is packaged inside the APK and does not use a remote website as its runtime page. Includes native Android local notifications and the current rounded Liquid Glass icon." \
+            --notes "Standalone installable Liquid Glass Studio Android APK built from commit ${GITHUB_SHA}. The application bundle is packaged inside the APK and does not use a remote website as its runtime page. Android-only native local notifications are bundled with a dedicated notification channel and runtime permission. The release build is optimized for a smaller APK." \
             --prerelease
