@@ -14,7 +14,7 @@ export function ThemeToggle() {
       aria-label={isDark ? "Switch to day mode" : "Switch to night mode"}
       aria-pressed={isDark}
       className="relative flex h-10 w-[4.75rem] items-center rounded-full border border-white/30 bg-white/15 px-1 backdrop-blur-xl transition-colors hover:bg-white/25"
-      style={{ backdropFilter: "blur(var(--liquid-density)) saturate(160%)" }}
+      style={{ backdropFilter: "blur(var(--liquid-blur-effective, var(--liquid-density, 12px))) saturate(160%)" }}
     >
       <motion.span
         layout
