@@ -59,26 +59,6 @@ export function EngineSettingsModal({ trigger = "button", userId }: Props) {
     return () => window.removeEventListener(PERFORMANCE_EVENT, onExternalChange);
   }, [userId]);
 
-  useEffect(() => {
-    setDropShadow(readNumberSetting("liquid-glass-drop-shadow-v1", userId, 100, 0, 100));
-    setInnerShadow(readNumberSetting("liquid-glass-inner-shadow-v1", userId, 100, 0, 100));
-    setBlur(readNumberSetting("liquid-glass-blur-v1", userId, 12, 0, 40));
-  }, [userId]);
-
-  useEffect(() => {
-    document.documentElement.style.setProperty("--liquid-drop-shadow", `${dropShadow / 100}`);
-    try { localStorage.setItem(visualKey("liquid-glass-drop-shadow-v1", userId), String(dropShadow)); } catch {}
-  }, [dropShadow, userId]);
-
-  useEffect(() => {
-    document.documentElement.style.setProperty("--liquid-inner-shadow", `${innerShadow / 100}`);
-    try { localStorage.setItem(visualKey("liquid-glass-inner-shadow-v1", userId), String(innerShadow)); } catch {}
-  }, [innerShadow, userId]);
-
-  useEffect(() => {
-    document.documentElement.style.setProperty("--liquid-blur", `${blur}px`);
-    try { localStorage.setItem(visualKey("liquid-glass-blur-v1", userId), String(blur)); } catch {}
-  }, [blur, userId]);
 
   const setPerformanceMode = (mode: "high" | "ultra") => {
     setPerformance(mode);
