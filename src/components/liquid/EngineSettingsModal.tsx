@@ -94,6 +94,13 @@ export function EngineSettingsModal({ trigger = "button", userId }: Props) {
     window.dispatchEvent(new CustomEvent(PERFORMANCE_EVENT, { detail: { userId, mode } }));
   };
 
+  const resetEngineDefaults = () => {
+    reset();
+    setDropShadow(100);
+    setInnerShadow(100);
+    setBlur(12);
+  };
+
   return <>
     <style>{UI_TEXT_CLARITY_CSS}</style>
     <Dialog open={open} onOpenChange={setOpen}>
@@ -118,7 +125,7 @@ export function EngineSettingsModal({ trigger = "button", userId }: Props) {
             <LiquidSlider label="Blur" hint="Controls the backdrop blur of existing glass surfaces." value={blur} min={0} max={40} display={`${blur}px`} onChange={setBlur} />
           </div>
           <div className="space-y-4 rounded-2xl border border-white/20 bg-white/5 p-4"><LiquidSlider label="Liquid Bounce · Stiffness" hint="Spring stiffness driving the gel bounce on hover, click and drag." value={liquid.bounceStiffness} min={100} max={500} step={5} display={`${liquid.bounceStiffness}`} onChange={(bounceStiffness) => setLiquid({ bounceStiffness })} /><LiquidSlider label="Liquid Bounce · Damping" hint="Lower damping = wobblier liquid; higher damping settles instantly." value={liquid.bounceDamping} min={10} max={40} display={`${liquid.bounceDamping}`} onChange={(bounceDamping) => setLiquid({ bounceDamping })} /></div>
-          <Button variant="secondary" className="w-full" onClick={reset}><RotateCcw className="mr-2 size-4" />Reset engine defaults</Button>
+          <Button variant="secondary" className="w-full" onClick={resetEngineDefaults}><RotateCcw className="mr-2 size-4" />Reset engine defaults</Button>
         </section>
       </DialogContent>
     </Dialog>
