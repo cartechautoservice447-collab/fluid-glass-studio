@@ -35,9 +35,13 @@ export function EngineSettingsModal({ trigger = "button", userId }: Props) {
   const { liquid, setLiquid, liquidVisual, setLiquidVisual, reset, theme, displayName, setDisplayName, pureBlack, setPureBlack, backgroundThemeEnabled, setBackgroundThemeEnabled, backgroundOpacity, setBackgroundOpacity, fullDarkBackground, setFullDarkBackground, uiTextClarity, setUITextClarity } = useCustomization();
   const [open, setOpen] = useState(false);
   const [performance, setPerformance] = useState<"high" | "ultra">(() => localStorage.getItem(performanceKey(userId)) === "ultra" ? "ultra" : "high");
-  const [dropShadow, setDropShadow] = useState(() => readNumberSetting("liquid-glass-drop-shadow-v1", userId, 100, 0, 100));
-  const [innerShadow, setInnerShadow] = useState(() => readNumberSetting("liquid-glass-inner-shadow-v1", userId, 100, 0, 100));
-  const [blur, setBlur] = useState(() => readNumberSetting("liquid-glass-blur-v1", userId, 12, 0, 40));
+  const dropShadow = liquidVisual.dropShadow;
+  const innerShadow = liquidVisual.innerShadow;
+  const blur = liquidVisual.blur;
+  const setDropShadow = (value: number) => setLiquidVisual({ dropShadow: value });
+  const setInnerShadow = (value: number) => setLiquidVisual({ innerShadow: value });
+  const setBlur = (value: number) => setLiquidVisual({ blur: value });
+
 
   useEffect(() => {
     const key = performanceKey(userId);
