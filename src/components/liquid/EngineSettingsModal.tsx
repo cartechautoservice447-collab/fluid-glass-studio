@@ -1,6 +1,7 @@
 import { Settings2, RotateCcw, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { BubbleGlassTestPiece } from "@/components/liquid/BubbleGlassTestPiece";
 import { LiquidSlider } from "@/components/liquid/LiquidSlider";
 import { ThemeToggle } from "@/components/liquid/ThemeToggle";
 import { Button } from "@/components/ui/button";
