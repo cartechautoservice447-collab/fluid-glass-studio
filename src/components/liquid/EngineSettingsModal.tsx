@@ -32,7 +32,7 @@ html[data-ui-text-clarity="punchy"] .notes-pulse-glow { text-shadow: 0 0 0.3px c
 `;
 
 export function EngineSettingsModal({ trigger = "button", userId }: Props) {
-  const { liquid, setLiquid, reset, theme, displayName, setDisplayName, pureBlack, setPureBlack, backgroundThemeEnabled, setBackgroundThemeEnabled, backgroundOpacity, setBackgroundOpacity, fullDarkBackground, setFullDarkBackground, uiTextClarity, setUITextClarity } = useCustomization();
+  const { liquid, setLiquid, liquidVisual, setLiquidVisual, reset, theme, displayName, setDisplayName, pureBlack, setPureBlack, backgroundThemeEnabled, setBackgroundThemeEnabled, backgroundOpacity, setBackgroundOpacity, fullDarkBackground, setFullDarkBackground, uiTextClarity, setUITextClarity } = useCustomization();
   const [open, setOpen] = useState(false);
   const [performance, setPerformance] = useState<"high" | "ultra">(() => localStorage.getItem(performanceKey(userId)) === "ultra" ? "ultra" : "high");
   const [dropShadow, setDropShadow] = useState(() => readNumberSetting("liquid-glass-drop-shadow-v1", userId, 100, 0, 100));
