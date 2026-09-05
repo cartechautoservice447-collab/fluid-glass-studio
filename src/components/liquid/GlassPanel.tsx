@@ -31,7 +31,7 @@ export function GlassPanel({
   const gel = liquid.gel / 100;
   const drop = liquidVisual.dropShadow / 100;
   const inner = liquidVisual.innerShadow / 100;
-  const blurPx = liquidVisual.blur;
+  const blurPx = Math.max(0, liquid.density + (liquidVisual.blur - 12));
   const topInnerAlpha = (0.35 + gel * 0.3) * inner;
   const bottomInnerAlpha = (0.16 + gel * 0.2) * inner;
   const outerShadowAlpha = (0.2 + gel * 0.22) * drop;
