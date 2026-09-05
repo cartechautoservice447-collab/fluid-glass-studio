@@ -17,9 +17,9 @@
       "purpose": "any"
     },
     {
-      "src": "/pwa-icon-exact-512.webp",
+      "src": "/pwa-icon-512-v2.svg",
       "sizes": "512x512",
-      "type": "image/webp",
+      "type": "image/svg+xml",
       "purpose": "maskable"
     }
   ]
