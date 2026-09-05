@@ -11,6 +11,8 @@ type LiquidSliderProps = {
   onChange: (value: number) => void;
 };
 
+const VISUAL_CONTROL_LABELS = new Set(["Drop Shadow", "Inner Shadow", "Blur"]);
+
 export function LiquidSlider({
   label,
   hint,
@@ -21,6 +23,17 @@ export function LiquidSlider({
   display,
   onChange,
 }: LiquidSliderProps) {
+  const handleChange = (nextValue: number) => {
+    onChange(nextValue);
+    if (typeof window !== "undefined" && VISUAL_CONTROL_LABELS.has(label)) {
+      window.dispatchEvent(
+        new CustomEvent("liquid-visual-control-changed", {
+          detail: { label, value: nextValue },
+        }),
+      );
+    }
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex items-baseline justify-between gap-3">
@@ -34,7 +47,7 @@ export function LiquidSlider({
         min={min}
         max={max}
         step={step}
-        onValueChange={(vals) => onChange(vals[0] ?? value)}
+        onValueChange={(vals) => handleChange(vals[0] ?? value)}
         aria-label={label}
       />
       <p className="text-xs leading-relaxed text-muted-foreground">{hint}</p>
