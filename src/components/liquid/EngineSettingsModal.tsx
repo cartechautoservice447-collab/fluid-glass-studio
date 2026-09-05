@@ -13,17 +13,6 @@ type Props = { trigger?: "button" | "icon"; userId?: string };
 
 const PERFORMANCE_EVENT = "glass-performance-changed";
 const performanceKey = (userId?: string) => userId ? `liquid-glass-performance-mode:${userId}` : "liquid-glass-performance-mode";
-const visualKey = (base: string, userId?: string) => userId ? `${base}:${userId}` : base;
-const readNumberSetting = (base: string, userId: string | undefined, fallback: number, min: number, max: number) => {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const raw = localStorage.getItem(visualKey(base, userId));
-    const value = Number(raw ?? fallback);
-    return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
-  } catch {
-    return fallback;
-  }
-};
 
 const UI_TEXT_CLARITY_CSS = `
 html[data-ui-text-clarity="smooth"] body { text-rendering: optimizeLegibility; }
