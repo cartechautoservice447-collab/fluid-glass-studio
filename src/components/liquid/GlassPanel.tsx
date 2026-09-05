@@ -19,7 +19,7 @@ export function GlassPanel({
   onClick,
   interactive = Boolean(onClick),
 }: GlassPanelProps) {
-  const { liquid } = useCustomization();
+  const { liquid, liquidVisual } = useCustomization();
 
   const spring = {
     type: "spring" as const,
@@ -29,9 +29,12 @@ export function GlassPanel({
   };
 
   const gel = liquid.gel / 100;
-  const topInnerAlpha = 0.35 + gel * 0.3;
-  const bottomInnerAlpha = 0.16 + gel * 0.2;
-  const outerShadowAlpha = 0.2 + gel * 0.22;
+  const drop = liquidVisual.dropShadow / 100;
+  const inner = liquidVisual.innerShadow / 100;
+  const blurPx = liquidVisual.blur;
+  const topInnerAlpha = (0.35 + gel * 0.3) * inner;
+  const bottomInnerAlpha = (0.16 + gel * 0.2) * inner;
+  const outerShadowAlpha = (0.2 + gel * 0.22) * drop;
 
   return (
     <motion.div
@@ -45,11 +48,12 @@ export function GlassPanel({
       transition={spring}
       style={{
         backgroundColor: "var(--water-gel-bg)",
-        backdropFilter: "blur(var(--liquid-blur, 12px)) saturate(200%) contrast(105%)",
+        backdropFilter: `blur(${blurPx}px) saturate(200%) contrast(105%)`,
+        WebkitBackdropFilter: `blur(${blurPx}px) saturate(200%) contrast(105%)`,
         borderRadius: `${18 + gel * 26}px`,
         border: "1px solid rgba(255, 255, 255, 0.22)",
         borderTopColor: "rgba(255, 255, 255, 0.4)",
-        boxShadow: `inset 0 ${1 + gel * 1.5}px ${2 + gel * 3}px 0 rgba(255, 255, 255, calc(${topInnerAlpha} * var(--liquid-inner-shadow, 1))), inset 0 -${2 + gel * 3}px ${4 + gel * 6}px 0 rgba(0, 0, 0, calc(${bottomInnerAlpha} * var(--liquid-inner-shadow, 1))), 0 ${8 + gel * 10}px ${32 + gel * 24}px 0 rgba(0, 0, 0, calc(${outerShadowAlpha} * var(--liquid-drop-shadow, 1)))`,
+        boxShadow: `inset 0 ${1 + gel * 1.5}px ${2 + gel * 3}px 0 rgba(255, 255, 255, ${topInnerAlpha}), inset 0 -${2 + gel * 3}px ${4 + gel * 6}px 0 rgba(0, 0, 0, ${bottomInnerAlpha}), 0 ${8 + gel * 10}px ${32 + gel * 24}px 0 rgba(0, 0, 0, ${outerShadowAlpha})`,
       }}
       className={cn(
         "liquid-panel relative overflow-hidden p-6 will-change-transform",
