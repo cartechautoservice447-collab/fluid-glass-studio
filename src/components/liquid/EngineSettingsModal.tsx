@@ -13,6 +13,17 @@ type Props = { trigger?: "button" | "icon"; userId?: string };
 
 const PERFORMANCE_EVENT = "glass-performance-changed";
 const performanceKey = (userId?: string) => userId ? `liquid-glass-performance-mode:${userId}` : "liquid-glass-performance-mode";
+const visualKey = (base: string, userId?: string) => userId ? `${base}:${userId}` : base;
+const readNumberSetting = (base: string, userId: string | undefined, fallback: number, min: number, max: number) => {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = localStorage.getItem(visualKey(base, userId));
+    const value = Number(raw ?? fallback);
+    return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
+  } catch {
+    return fallback;
+  }
+};
 
 const UI_TEXT_CLARITY_CSS = `
 html[data-ui-text-clarity="smooth"] body { text-rendering: optimizeLegibility; }
@@ -35,6 +46,9 @@ export function EngineSettingsModal({ trigger = "button", userId }: Props) {
   const { liquid, setLiquid, reset, theme, displayName, setDisplayName, pureBlack, setPureBlack, backgroundThemeEnabled, setBackgroundThemeEnabled, backgroundOpacity, setBackgroundOpacity, fullDarkBackground, setFullDarkBackground, uiTextClarity, setUITextClarity } = useCustomization();
   const [open, setOpen] = useState(false);
   const [performance, setPerformance] = useState<"high" | "ultra">(() => localStorage.getItem(performanceKey(userId)) === "ultra" ? "ultra" : "high");
+  const [dropShadow, setDropShadow] = useState(() => readNumberSetting("liquid-glass-drop-shadow-v1", userId, 100, 0, 100));
+  const [innerShadow, setInnerShadow] = useState(() => readNumberSetting("liquid-glass-inner-shadow-v1", userId, 100, 0, 100));
+  const [blur, setBlur] = useState(() => readNumberSetting("liquid-glass-blur-v1", userId, 12, 0, 40));
 
   useEffect(() => {
     const key = performanceKey(userId);
@@ -51,6 +65,27 @@ export function EngineSettingsModal({ trigger = "button", userId }: Props) {
     window.addEventListener(PERFORMANCE_EVENT, onExternalChange);
     return () => window.removeEventListener(PERFORMANCE_EVENT, onExternalChange);
   }, [userId]);
+
+  useEffect(() => {
+    setDropShadow(readNumberSetting("liquid-glass-drop-shadow-v1", userId, 100, 0, 100));
+    setInnerShadow(readNumberSetting("liquid-glass-inner-shadow-v1", userId, 100, 0, 100));
+    setBlur(readNumberSetting("liquid-glass-blur-v1", userId, 12, 0, 40));
+  }, [userId]);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty("--liquid-drop-shadow", `${dropShadow / 100}`);
+    try { localStorage.setItem(visualKey("liquid-glass-drop-shadow-v1", userId), String(dropShadow)); } catch {}
+  }, [dropShadow, userId]);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty("--liquid-inner-shadow", `${innerShadow / 100}`);
+    try { localStorage.setItem(visualKey("liquid-glass-inner-shadow-v1", userId), String(innerShadow)); } catch {}
+  }, [innerShadow, userId]);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty("--liquid-blur", `${blur}px`);
+    try { localStorage.setItem(visualKey("liquid-glass-blur-v1", userId), String(blur)); } catch {}
+  }, [blur, userId]);
 
   const setPerformanceMode = (mode: "high" | "ultra") => {
     setPerformance(mode);
@@ -77,6 +112,11 @@ export function EngineSettingsModal({ trigger = "button", userId }: Props) {
           <LiquidSlider label="Liquid Transparency" hint="Alpha blending — how much of the world behind shows through the panel." value={liquid.transparency} min={5} max={95} display={`${liquid.transparency}%`} onChange={(transparency) => setLiquid({ transparency })} />
           <LiquidSlider label="Liquid Clearness" hint="Distortion & glare clarity — SVG turbulence index on refracted edges." value={liquid.clearness} min={0} max={100} display={`${liquid.clearness} idx`} onChange={(clearness) => setLiquid({ clearness })} />
           <LiquidSlider label="Liquid Gel" hint="Surface tension curves, 3D inner bevel and drop shadow depth." value={liquid.gel} min={0} max={100} display={`${liquid.gel}%`} onChange={(gel) => setLiquid({ gel })} />
+          <div className="space-y-4 rounded-2xl border border-white/20 bg-white/5 p-4">
+            <LiquidSlider label="Drop Shadow" hint="Controls only the outer shadow strength of existing glass surfaces." value={dropShadow} min={0} max={100} display={`${dropShadow}%`} onChange={setDropShadow} />
+            <LiquidSlider label="Inner Shadow" hint="Controls only the inner glass edge and bevel shadow strength." value={innerShadow} min={0} max={100} display={`${innerShadow}%`} onChange={setInnerShadow} />
+            <LiquidSlider label="Blur" hint="Controls the backdrop blur of existing glass surfaces." value={blur} min={0} max={40} display={`${blur}px`} onChange={setBlur} />
+          </div>
           <div className="space-y-4 rounded-2xl border border-white/20 bg-white/5 p-4"><LiquidSlider label="Liquid Bounce · Stiffness" hint="Spring stiffness driving the gel bounce on hover, click and drag." value={liquid.bounceStiffness} min={100} max={500} step={5} display={`${liquid.bounceStiffness}`} onChange={(bounceStiffness) => setLiquid({ bounceStiffness })} /><LiquidSlider label="Liquid Bounce · Damping" hint="Lower damping = wobblier liquid; higher damping settles instantly." value={liquid.bounceDamping} min={10} max={40} display={`${liquid.bounceDamping}`} onChange={(bounceDamping) => setLiquid({ bounceDamping })} /></div>
           <Button variant="secondary" className="w-full" onClick={reset}><RotateCcw className="mr-2 size-4" />Reset engine defaults</Button>
         </section>
