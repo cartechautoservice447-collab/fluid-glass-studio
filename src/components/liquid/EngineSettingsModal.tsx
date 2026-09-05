@@ -1,6 +1,7 @@
 import { Settings2, RotateCcw, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { BubbleGlassTestPiece } from "@/components/liquid/BubbleGlassTestPiece";
 import { LiquidSlider } from "@/components/liquid/LiquidSlider";
 import { ThemeToggle } from "@/components/liquid/ThemeToggle";
 import { Button } from "@/components/ui/button";
@@ -97,6 +98,8 @@ export function EngineSettingsModal({ trigger = "button", userId }: Props) {
             <LiquidSlider label="Inner Shadow" hint="Controls only the inner glass edge and bevel shadow strength." value={innerShadow} min={0} max={100} display={`${innerShadow}%`} onChange={setInnerShadow} />
             <LiquidSlider label="Blur" hint="Controls the backdrop blur of existing glass surfaces." value={blur} min={0} max={40} display={`${blur}px`} onChange={setBlur} />
           </div>
+          <BubbleGlassTestPiece />
+
           <div className="space-y-4 rounded-2xl border border-white/20 bg-white/5 p-4"><LiquidSlider label="Liquid Bounce · Stiffness" hint="Spring stiffness driving the gel bounce on hover, click and drag." value={liquid.bounceStiffness} min={100} max={500} step={5} display={`${liquid.bounceStiffness}`} onChange={(bounceStiffness) => setLiquid({ bounceStiffness })} /><LiquidSlider label="Liquid Bounce · Damping" hint="Lower damping = wobblier liquid; higher damping settles instantly." value={liquid.bounceDamping} min={10} max={40} display={`${liquid.bounceDamping}`} onChange={(bounceDamping) => setLiquid({ bounceDamping })} /></div>
           <Button variant="secondary" className="w-full" onClick={resetEngineDefaults}><RotateCcw className="mr-2 size-4" />Reset engine defaults</Button>
         </section>
