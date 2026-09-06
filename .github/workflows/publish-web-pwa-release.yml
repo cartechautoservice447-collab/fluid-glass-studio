@@ -58,8 +58,8 @@ jobs:
               assert actual == size, f'{path} is {actual}, expected {size}'
               # Guard against truncated uploads: a valid icon ends with IEND.
               with open(path, 'rb') as handle:
-                  handle.seek(-8, 2)
-                  assert handle.read()[4:] == b'IEND', f'{path} is truncated'
+                  handle.seek(-12, 2)
+                  assert handle.read()[4:8] == b'IEND', f'{path} is truncated'
           print('web install icons verified')
           PY
 
