@@ -9,7 +9,7 @@ export const REST_START_EVENT = "rest-start";
 
 const STUDY_SESSION_KEY = "liquid-glass-study-session";
 const POMODORO_SESSION_KEY = "liquid-glass-pomodoro-session";
-const WEB_PUSH_PUBLIC_KEY = import.meta.env.VITE_WEB_PUSH_PUBLIC_KEY || "BOMQ0gr879geMIiymoRz_NkMobpvHh04WX5-XYiyp54FacZnEltC8QxRVmyIGEl1OW6rdUI1-uszdH9wWbO-56g";
+const WEB_PUSH_PUBLIC_KEY = import.meta.env['VITE_WEB_PUSH_PUBLIC_KEY'] || "BOMQ0gr879geMIiymoRz_NkMobpvHh04WX5-XYiyp54FacZnEltC8QxRVmyIGEl1OW6rdUI1-uszdH9wWbO-56g";
 const WEB_NOTIFICATION_ICON = "/pwa-icon-exact-192.webp";
 const WEB_NOTIFICATION_BADGE = "/pwa-icon-exact-192.webp";
 const REST_END_NOTIFICATION_DELAY_BUFFER_MS = 250;
@@ -83,7 +83,7 @@ function getActiveRestSeconds(fallbackMinutes: number) {
   return readDeadline(STUDY_SESSION_KEY) ?? readDeadline(POMODORO_SESSION_KEY) ?? fallbackSeconds;
 }
 
-type AppNotificationOptions = NotificationOptions & { tag?: string; vibrate?: number[] };
+type AppNotificationOptions = NotificationOptions & { tag?: string; vibrate?: number[]; renotify?: boolean };
 
 async function getWebNotificationRegistration() {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
@@ -154,7 +154,7 @@ async function ensurePushSubscription(userId: string) {
     }
 
     const json = subscription.toJSON();
-    if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) return null;
+    if (!json.endpoint || !json.keys?.['p256dh'] || !json.keys['auth']) return null;
 
     const { error } = await (supabase as any)
       .from("push_subscriptions")
@@ -162,8 +162,8 @@ async function ensurePushSubscription(userId: string) {
         {
           user_id: userId,
           endpoint: json.endpoint,
-          p256dh: json.keys.p256dh,
-          auth: json.keys.auth,
+          p256dh: json.keys['p256dh'],
+          auth: json.keys['auth'],
         },
         { onConflict: "endpoint" },
       );
