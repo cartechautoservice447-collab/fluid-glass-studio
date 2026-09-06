@@ -34,7 +34,9 @@ html[data-ui-text-clarity="punchy"] .notes-pulse-glow { text-shadow: 0 0 0.3px c
 export function EngineSettingsModal({ trigger = "button", userId }: Props) {
   const { liquid, setLiquid, reset, theme, displayName, setDisplayName, pureBlack, setPureBlack, backgroundThemeEnabled, setBackgroundThemeEnabled, backgroundOpacity, setBackgroundOpacity, fullDarkBackground, setFullDarkBackground, uiTextClarity, setUITextClarity } = useCustomization();
   const [open, setOpen] = useState(false);
-  const [performance, setPerformance] = useState<"high" | "ultra">(() => localStorage.getItem(performanceKey(userId)) === "ultra" ? "ultra" : "high");
+  // Stored preference is read in the effect below: reading it here would run
+  // during server rendering (no localStorage) and break SSR for this page.
+  const [performance, setPerformance] = useState<"high" | "ultra">("high");
 
   useEffect(() => {
     const key = performanceKey(userId);
