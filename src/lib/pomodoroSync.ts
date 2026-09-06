@@ -88,6 +88,8 @@ type AppNotificationOptions = NotificationOptions & { tag?: string; vibrate?: nu
 async function getWebNotificationRegistration() {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
   try {
+    const { isPwaProductionContext } = await import("@/lib/pwa");
+    if (!isPwaProductionContext()) return null;
     const registration = await navigator.serviceWorker.getRegistration("/") ?? await navigator.serviceWorker.register("/sw.js", { scope: "/" });
     await navigator.serviceWorker.ready;
     return registration;
