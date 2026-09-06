@@ -94,14 +94,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Liquid Glass Studio — Glass course workspaces & notes" },
+      {
+        name: "description",
+        content:
+          "Liquid Glass Studio keeps your course folders, notes, study sessions and engine settings in one installable glass workspace.",
+      },
+      { property: "og:title", content: "Liquid Glass Studio — Glass course workspaces & notes" },
+      {
+        property: "og:description",
+        content:
+          "Course folders, markdown notes, Pomodoro and Study Hub inside one Liquid Glass workspace that installs to your device.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
       { name: "theme-color", content: "#07070c" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
@@ -112,8 +118,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: appCss },
       { rel: "stylesheet", href: pomodoroPlainTimerCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/pwa-icon-exact-192-new.png", type: "image/png", sizes: "192x192" },
       { rel: "manifest", href: "/manifest.webmanifest" },
-      { rel: "apple-touch-icon", href: "/pwa-icon-192.svg", sizes: "192x192", type: "image/svg+xml" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon-180.png", sizes: "180x180" },
     ],
   }),
   shellComponent: RootShell,
