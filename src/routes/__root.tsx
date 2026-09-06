@@ -117,10 +117,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "stylesheet", href: pomodoroPlainTimerCss },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "icon", href: "/pwa-icon-exact-192-new.png", type: "image/png", sizes: "192x192" },
       { rel: "manifest", href: "/manifest.webmanifest" },
-      { rel: "apple-touch-icon", href: "/apple-touch-icon-180.png", sizes: "180x180" },
+      { rel: "apple-touch-icon", href: "/pwa-icon-exact-192-new.png", sizes: "192x192" },
     ],
   }),
   shellComponent: RootShell,
