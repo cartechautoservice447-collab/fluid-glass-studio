@@ -2,6 +2,22 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppDownloadCenter } from "@/components/pwa/AppDownloadCenter";
 
 export const Route = createFileRoute("/download-app")({
+  head: () => ({
+    meta: [
+      { title: "Install Liquid Glass Studio — App downloads" },
+      {
+        name: "description",
+        content: "Install Liquid Glass Studio to your device, or grab a platform package when a signed release is available.",
+      },
+      { property: "og:title", content: "Install Liquid Glass Studio — App downloads" },
+      {
+        property: "og:description",
+        content: "Install the Liquid Glass Studio workspace as an app on your phone, tablet or desktop.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: DownloadAppPage,
 });
 
