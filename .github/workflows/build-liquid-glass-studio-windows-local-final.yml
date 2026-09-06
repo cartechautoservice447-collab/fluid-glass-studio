@@ -10,8 +10,7 @@ jobs:
   build-windows-local-final:
     runs-on: windows-2022
     permissions:
-      contents: read
-      actions: write
+      contents: write
 
     steps:
       - name: Checkout
@@ -131,27 +130,19 @@ jobs:
           )
           $installLines -join [Environment]::NewLine | Set-Content "$bundle/INSTALL.txt" -Encoding UTF8
 
-      - name: Free old Windows Actions artifacts only
+      - name: Create Windows release bundle
+        shell: pwsh
+        run: |
+          Compress-Archive -Path 'windows-app/local-final/Liquid Glass Studio.msix','windows-app/local-final/Liquid Glass Studio Local Signing.cer','windows-app/local-final/INSTALL.txt' -DestinationPath 'windows-app/Liquid-Glass-Studio-Windows.zip' -Force
+          if (-not (Test-Path 'windows-app/Liquid-Glass-Studio-Windows.zip')) { throw 'Windows release ZIP was not created.' }
+
+      - name: Publish Windows GitHub release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: windows-final-${{ github.run_id }}
         run: |
-          $page = 1
-          do {
-            $response = gh api "repos/${{ github.repository }}/actions/artifacts?per_page=100&page=$page" | ConvertFrom-Json
-            foreach ($artifact in $response.artifacts) {
-              if ($artifact.name -eq 'liquid-glass-studio-windows-local-final') {
-                Write-Host "Deleting old Windows artifact $($artifact.id) ($($artifact.name))"
-                gh api --method DELETE "repos/${{ github.repository }}/actions/artifacts/$($artifact.id)"
-                if ($LASTEXITCODE -ne 0) { throw "Failed to delete Windows artifact $($artifact.id)." }
-              }
-            }
-            $page++
-          } while ($response.artifacts.Count -eq 100)
-
-      - name: Upload signed Windows installation bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: liquid-glass-studio-windows-local-final
-          path: windows-app/local-final/
-          retention-days: 1
+          gh release create "$env:RELEASE_TAG" `
+            'windows-app/Liquid-Glass-Studio-Windows.zip' `
+            --title "Liquid Glass Studio Windows" `
+            --notes 'Windows desktop release of Liquid Glass Studio. Contains the MSIX, local signing certificate, and INSTALL.txt. This release contains the updated Windows 120x120 icon.'
