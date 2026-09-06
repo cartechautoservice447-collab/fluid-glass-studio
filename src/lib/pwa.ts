@@ -16,7 +16,13 @@ export function registerPwaServiceWorker(): void {
   // The production worker must never control Vite's development preview. A
   // worker left behind by an earlier registration can otherwise serve stale
   // HTML that points at an obsolete optimized dependency graph.
-  if (import.meta.env.DEV) {
+  const isDevelopmentPreview =
+    import.meta.env.DEV ||
+    window.location.hostname === "localhost" ||
+    window.location.hostname.endsWith(".lovableproject.com") ||
+    window.location.hostname.includes("-preview--");
+
+  if (isDevelopmentPreview) {
     void navigator.serviceWorker.getRegistrations().then((registrations) =>
       Promise.all(registrations.map((registration) => registration.unregister())),
     );
