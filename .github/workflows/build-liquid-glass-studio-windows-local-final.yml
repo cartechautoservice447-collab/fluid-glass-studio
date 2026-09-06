@@ -39,14 +39,18 @@ jobs:
           Copy-Item windows-app/publish/* windows-app/package/ -Recurse -Force
           Copy-Item windows-app/Package.appxmanifest windows-app/package/AppxManifest.xml -Force
 
-      - name: Generate package icons
+      - name: Add Windows icon assets
         shell: pwsh
         run: |
-          npm install --global sharp-cli
-          Copy-Item 'windows-app/Assets/Liquid Glass Studio 120x120.png' 'windows-app/package/Assets/Liquid Glass Studio 120x120.png' -Force
-          npx sharp-cli -i 'windows-app/Assets/Liquid Glass Studio 120x120.png' -o windows-app/package/Assets/Square44x44Logo.png resize 44 44
-          npx sharp-cli -i 'windows-app/Assets/Liquid Glass Studio 120x120.png' -o windows-app/package/Assets/Square150x150Logo.png resize 150 150
-          npx sharp-cli -i 'windows-app/Assets/Liquid Glass Studio 120x120.png' -o windows-app/package/Assets/StoreLogo.png resize 50 50
+          $icon = 'windows-app/Assets/Liquid Glass Studio 120x120.png'
+          if (-not (Test-Path $icon)) { throw "Windows icon source missing: $icon" }
+          Copy-Item $icon 'windows-app/package/Assets/Liquid Glass Studio 120x120.png' -Force
+          # Use the supplied 120x120 artwork directly for all Windows logo slots.
+          # The MSIX manifest names are preserved; the package does not require
+          # a runtime image-conversion dependency for these local builds.
+          Copy-Item $icon 'windows-app/package/Assets/Square44x44Logo.png' -Force
+          Copy-Item $icon 'windows-app/package/Assets/Square150x150Logo.png' -Force
+          Copy-Item $icon 'windows-app/package/Assets/StoreLogo.png' -Force
 
       - name: Validate package inputs
         shell: pwsh
@@ -61,11 +65,11 @@ jobs:
       - name: Locate MakeAppx and SignTool
         shell: pwsh
         run: |
-          $roots = @($env:WindowsSdkDir, $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'Windows Kits\\10\\bin' }), $(if (${env:ProgramFiles(x86)}) { Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\\10\\bin' })) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
+          $roots = @($env:WindowsSdkDir, $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'Windows Kits\10\bin' }), $(if (${env:ProgramFiles(x86)}) { Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin' })) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
           $makeAppx = $null; $signTool = $null
           foreach ($root in $roots) {
-            if (-not $makeAppx) { $makeAppx = Get-ChildItem -LiteralPath $root -Recurse -File -Filter MakeAppx.exe -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match '\\\\(x64|arm64)\\\\MakeAppx\\.exe$' } | Sort-Object FullName -Descending | Select-Object -First 1 }
-            if (-not $signTool) { $signTool = Get-ChildItem -LiteralPath $root -Recurse -File -Filter SignTool.exe -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match '\\\\(x64|arm64)\\\\SignTool\\.exe$' } | Sort-Object FullName -Descending | Select-Object -First 1 }
+            if (-not $makeAppx) { $makeAppx = Get-ChildItem -LiteralPath $root -Recurse -File -Filter MakeAppx.exe -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match '\\(x64|arm64)\\MakeAppx\.exe$' } | Sort-Object FullName -Descending | Select-Object -First 1 }
+            if (-not $signTool) { $signTool = Get-ChildItem -LiteralPath $root -Recurse -File -Filter SignTool.exe -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match '\\(x64|arm64)\\SignTool\.exe$' } | Sort-Object FullName -Descending | Select-Object -First 1 }
           }
           if (-not $makeAppx) { $makeAppx = Get-Command MakeAppx.exe -ErrorAction SilentlyContinue }
           if (-not $signTool) { $signTool = Get-Command SignTool.exe -ErrorAction SilentlyContinue }
@@ -80,7 +84,7 @@ jobs:
         shell: pwsh
         run: |
           Set-Location windows-app
-          $output = (Resolve-Path './release').Path + '\\Liquid Glass Studio.msix'
+          $output = (Resolve-Path './release').Path + '\Liquid Glass Studio.msix'
           & $env:MAKEAPPX_PATH pack /v /o /d './package' /p $output 2>&1 | Tee-Object -Variable log
           $exitCode = $LASTEXITCODE
           $log | ForEach-Object { Write-Host $_ }
