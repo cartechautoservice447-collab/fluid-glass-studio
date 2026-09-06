@@ -1,12 +1,9 @@
-const CACHE_NAME = "liquid-glass-studio-v10";
+const CACHE_NAME = "liquid-glass-studio-v11";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
   "/pwa-icon-exact-512-new.png",
   "/pwa-icon-exact-192-new.png",
-  "/pwa-icon-maskable-512.png",
-  "/apple-touch-icon-180.png",
-  "/favicon.ico",
   "/offline.html",
 ];
 
