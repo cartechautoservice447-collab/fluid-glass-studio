@@ -11,6 +11,7 @@ jobs:
     runs-on: windows-2022
     permissions:
       contents: read
+      actions: write
 
     steps:
       - name: Checkout
@@ -45,9 +46,6 @@ jobs:
           $icon = 'windows-app/Assets/Liquid Glass Studio 120x120.png'
           if (-not (Test-Path $icon)) { throw "Windows icon source missing: $icon" }
           Copy-Item $icon 'windows-app/package/Assets/Liquid Glass Studio 120x120.png' -Force
-          # Use the supplied 120x120 artwork directly for all Windows logo slots.
-          # The MSIX manifest names are preserved; the package does not require
-          # a runtime image-conversion dependency for these local builds.
           Copy-Item $icon 'windows-app/package/Assets/Square44x44Logo.png' -Force
           Copy-Item $icon 'windows-app/package/Assets/Square150x150Logo.png' -Force
           Copy-Item $icon 'windows-app/package/Assets/StoreLogo.png' -Force
@@ -133,8 +131,27 @@ jobs:
           )
           $installLines -join [Environment]::NewLine | Set-Content "$bundle/INSTALL.txt" -Encoding UTF8
 
+      - name: Free old Windows Actions artifacts only
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $page = 1
+          do {
+            $response = gh api "repos/${{ github.repository }}/actions/artifacts?per_page=100&page=$page" | ConvertFrom-Json
+            foreach ($artifact in $response.artifacts) {
+              if ($artifact.name -eq 'liquid-glass-studio-windows-local-final') {
+                Write-Host "Deleting old Windows artifact $($artifact.id) ($($artifact.name))"
+                gh api --method DELETE "repos/${{ github.repository }}/actions/artifacts/$($artifact.id)"
+                if ($LASTEXITCODE -ne 0) { throw "Failed to delete Windows artifact $($artifact.id)." }
+              }
+            }
+            $page++
+          } while ($response.artifacts.Count -eq 100)
+
       - name: Upload signed Windows installation bundle
         uses: actions/upload-artifact@v4
         with:
           name: liquid-glass-studio-windows-local-final
           path: windows-app/local-final/
+          retention-days: 1
