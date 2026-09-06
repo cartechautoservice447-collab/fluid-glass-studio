@@ -10,7 +10,7 @@ import { CustomizationProvider, useCustomization } from "@/context/Customization
 import { usePomodoroRestSync } from "@/lib/pomodoroSync";
 import { useCourses, useCourseStats } from "@/hooks/useCourses";
 
-export const Route=createFileRoute("/")({head:()=>({meta:[{title:"Glass Notes — Liquid Glass course workspaces"},{name:"description",content:"Course folders open into an isolated Liquid Glass notes workspace."}]}),component:Page,ssr:false});
+export const Route=createFileRoute("/")({head:()=>({meta:[{title:"Glass Notes — Liquid Glass course workspaces"},{name:"description",content:"Course folders open into an isolated Liquid Glass notes workspace."},{property:"og:title",content:"Glass Notes — Liquid Glass course workspaces"},{property:"og:description",content:"Course folders open into an isolated Liquid Glass notes workspace."},{property:"og:type",content:"website"},{name:"twitter:card",content:"summary_large_image"}]}),component:Page,ssr:false});
 const POMODORO_SESSION_KEY="liquid-glass-pomodoro-session";
 const STUDY_SESSION_KEY="liquid-glass-study-session";
 type PomodoroSession={mode:"focus"|"short"|"long";phase:"working"|"resting";deadline:number;running:boolean};
