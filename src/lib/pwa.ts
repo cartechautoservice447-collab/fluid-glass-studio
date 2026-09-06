@@ -13,6 +13,21 @@ export function registerPwaServiceWorker(): void {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
   if (isNativeCapacitorApp()) return;
 
+  // The production worker must never control Vite's development preview. A
+  // worker left behind by an earlier registration can otherwise serve stale
+  // HTML that points at an obsolete optimized dependency graph.
+  if (import.meta.env.DEV) {
+    void navigator.serviceWorker.getRegistrations().then((registrations) =>
+      Promise.all(registrations.map((registration) => registration.unregister())),
+    );
+    if ("caches" in window) {
+      void caches.keys().then((keys) =>
+        Promise.all(keys.filter((key) => key.startsWith("liquid-glass-studio-")).map((key) => caches.delete(key))),
+      );
+    }
+    return;
+  }
+
   const start = () => {
     if (isNativeCapacitorApp()) return;
     void navigator.serviceWorker

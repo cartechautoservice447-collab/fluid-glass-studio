@@ -7,6 +7,14 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
+  vite: {
+    // TanStack Start renders through Vite's SSR environment in development.
+    // Pre-crawl every source entry so discovering a lazy route cannot trigger a
+    // mid-render dependency re-optimization and split React's hook dispatcher.
+    optimizeDeps: {
+      entries: ["src/**/*.{ts,tsx}"],
+    },
+  },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
