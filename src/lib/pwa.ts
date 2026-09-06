@@ -9,6 +9,16 @@ function isNativeCapacitorApp(): boolean {
 
 const UPDATE_INTERVAL_MS = 60 * 60 * 1000;
 
+export function isPwaProductionContext(): boolean {
+  if (typeof window === "undefined") return false;
+  return !(
+    import.meta.env.DEV ||
+    window.location.hostname === "localhost" ||
+    window.location.hostname.endsWith(".lovableproject.com") ||
+    window.location.hostname.includes("-preview--")
+  );
+}
+
 export function registerPwaServiceWorker(): void {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
   if (isNativeCapacitorApp()) return;
@@ -16,13 +26,7 @@ export function registerPwaServiceWorker(): void {
   // The production worker must never control Vite's development preview. A
   // worker left behind by an earlier registration can otherwise serve stale
   // HTML that points at an obsolete optimized dependency graph.
-  const isDevelopmentPreview =
-    import.meta.env.DEV ||
-    window.location.hostname === "localhost" ||
-    window.location.hostname.endsWith(".lovableproject.com") ||
-    window.location.hostname.includes("-preview--");
-
-  if (isDevelopmentPreview) {
+  if (!isPwaProductionContext()) {
     void navigator.serviceWorker.getRegistrations().then((registrations) =>
       Promise.all(registrations.map((registration) => registration.unregister())),
     );

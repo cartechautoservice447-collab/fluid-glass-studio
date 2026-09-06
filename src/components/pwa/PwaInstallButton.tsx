@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Download, WifiOff } from "lucide-react";
+import { registerPwaServiceWorker } from "@/lib/pwa";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -35,9 +36,7 @@ export function PwaInstallButton() {
     if (standalone) setInstalled(true);
 
     if ("serviceWorker" in navigator) {
-      void navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch((error) => {
-        console.error("PWA service worker registration failed", error);
-      });
+      registerPwaServiceWorker();
     }
 
     return () => {

@@ -13,6 +13,7 @@ export default defineConfig({
     // mid-render dependency re-optimization and split React's hook dispatcher.
     optimizeDeps: {
       entries: ["src/**/*.{ts,tsx}"],
+      include: ["react", "react-dom", "@tanstack/react-router"],
     },
   },
   tanstackStart: {
