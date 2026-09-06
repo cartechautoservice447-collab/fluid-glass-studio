@@ -1,9 +1,6 @@
 name: Publish Liquid Glass Studio Web PWA Release
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
@@ -16,27 +13,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: 20
+          cache: npm
 
       - name: Install dependencies
-        run: bun install
+        run: npm install --no-audit --no-fund
 
       - name: Build production web app
-        run: bun run build
+        run: npm run build
 
       - name: Verify web install assets
         shell: bash
         run: |
           test -f dist/manifest.webmanifest
+          test -f dist/pwa-icon-exact-192-new.png
+          test -f dist/pwa-icon-exact-512-new.png
           grep -q 'pwa-icon-exact-192-new.png' dist/manifest.webmanifest
           grep -q 'pwa-icon-exact-512-new.png' dist/manifest.webmanifest
 
       - name: Create full web PWA bundle
         shell: bash
         run: |
+          rm -rf release
           mkdir -p release
           cd dist
           zip -r ../release/Liquid-Glass-Studio-Web-PWA.zip .
@@ -48,17 +49,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view web-latest >/dev/null 2>&1; then
-            gh release upload web-latest \
-              release/Liquid-Glass-Studio-Web-PWA.zip \
-              --clobber
+            gh release upload web-latest release/Liquid-Glass-Studio-Web-PWA.zip --clobber
           else
             gh release create web-latest \
               release/Liquid-Glass-Studio-Web-PWA.zip \
               --title "Liquid Glass Studio Web App" \
-              --notes "Installable production web/PWA bundle for Liquid Glass Studio. This release is the web app only; it does not contain the Android APK or Windows MSIX."
+              --notes "Full production web/PWA bundle for Liquid Glass Studio. Web app only; no Android APK and no Windows MSIX."
           fi
 
-      - name: Show web release URL
-        run: |
-          echo "Web PWA release: https://github.com/${GITHUB_REPOSITORY}/releases/tag/web-latest"
-          echo "Web PWA bundle: https://github.com/${GITHUB_REPOSITORY}/releases/download/web-latest/Liquid-Glass-Studio-Web-PWA.zip"
+      - name: Show release URL
+        run: echo "https://github.com/${GITHUB_REPOSITORY}/releases/tag/web-latest"
