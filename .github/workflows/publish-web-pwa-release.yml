@@ -30,20 +30,47 @@ jobs:
       - name: Verify web install assets
         shell: bash
         run: |
-          test -f dist/manifest.webmanifest
-          test -f dist/pwa-icon-exact-192-new.png
-          test -f dist/pwa-icon-exact-512-new.png
-          grep -q 'pwa-icon-exact-192-new.png' dist/manifest.webmanifest
-          grep -q 'pwa-icon-exact-512-new.png' dist/manifest.webmanifest
+          # The production build emits static web assets into dist/client.
+          test -f dist/client/manifest.webmanifest
+          test -f dist/client/pwa-icon-exact-192-new.png
+          test -f dist/client/pwa-icon-exact-512-new.png
+          test -f dist/client/pwa-icon-maskable-512.png
+          test -f dist/client/sw.js
+          grep -q 'pwa-icon-exact-192-new.png' dist/client/manifest.webmanifest
+          grep -q 'pwa-icon-exact-512-new.png' dist/client/manifest.webmanifest
+          grep -q 'pwa-icon-maskable-512.png' dist/client/manifest.webmanifest
+          python3 - <<'PY'
+          import struct, sys
+
+          def png_size(path):
+              with open(path, 'rb') as handle:
+                  header = handle.read(24)
+              assert header[:8] == b'\x89PNG\r\n\x1a\n', f'{path} is not a PNG'
+              return struct.unpack('>II', header[16:24])
+
+          expected = {
+              'dist/client/pwa-icon-exact-192-new.png': (192, 192),
+              'dist/client/pwa-icon-exact-512-new.png': (512, 512),
+              'dist/client/pwa-icon-maskable-512.png': (512, 512),
+          }
+          for path, size in expected.items():
+              actual = png_size(path)
+              assert actual == size, f'{path} is {actual}, expected {size}'
+              # Guard against truncated uploads: a valid icon ends with IEND.
+              with open(path, 'rb') as handle:
+                  handle.seek(-12, 2)
+                  assert handle.read()[4:8] == b'IEND', f'{path} is truncated'
+          print('web install icons verified')
+          PY
 
       - name: Create full web PWA bundle
         shell: bash
         run: |
           rm -rf release
           mkdir -p release
-          cd dist
-          zip -r ../release/Liquid-Glass-Studio-Web-PWA.zip .
-          cd ..
+          cd dist/client
+          zip -r ../../release/Liquid-Glass-Studio-Web-PWA.zip .
+          cd ../..
           test -s release/Liquid-Glass-Studio-Web-PWA.zip
 
       - name: Create or update web release

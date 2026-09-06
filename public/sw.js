@@ -1,17 +1,25 @@
-const CACHE_NAME = "liquid-glass-studio-v9";
+const CACHE_NAME = "liquid-glass-studio-v10";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
-  "/pwa-icon-exact-512.webp",
-  "/pwa-icon-exact-192.webp",
+  "/pwa-icon-exact-512-new.png",
+  "/pwa-icon-exact-192-new.png",
+  "/pwa-icon-maskable-512.png",
+  "/apple-touch-icon-180.png",
+  "/favicon.ico",
   "/offline.html",
 ];
 
-const NOTIFICATION_ICON = "/pwa-icon-exact-192.webp";
+const NOTIFICATION_ICON = "/pwa-icon-exact-192-new.png";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()),
+    caches
+      .open(CACHE_NAME)
+      // A single missing entry must not abort the whole install, or the
+      // service worker never activates and offline support silently dies.
+      .then((cache) => Promise.allSettled(APP_SHELL.map((url) => cache.add(new Request(url, { cache: "reload" })))))
+      .then(() => self.skipWaiting()),
   );
 });
 
@@ -26,18 +34,26 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const request = event.request;
-  if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
+  if (request.method !== "GET") return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  // Never cache API traffic or auth callbacks (they carry one-time codes/tokens).
+  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/") || url.pathname === "/reset-password") {
+    return;
+  }
 
   if (request.mode === "navigate") {
     const networkFirst = fetch(request)
       .then((response) => {
-        if (response.ok) {
+        if (response.ok && !url.search && !url.hash) {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         }
         return response;
       })
-      .catch(async () => (await caches.match(request)) || caches.match("/offline.html"));
+      .catch(async () => (await caches.match(request)) || (await caches.match("/")) || caches.match("/offline.html"));
 
     event.respondWith(networkFirst);
     return;
