@@ -16,13 +16,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { COURSE_ACCENTS, type CourseAccent } from "@/hooks/useCourses";
 import { cn } from "@/lib/utils";
 
-const ACCENT_SWATCH: Record<CourseAccent, string> = {
-  sky: "oklch(0.75 0.14 235)",
-  violet: "oklch(0.7 0.19 300)",
-  amber: "oklch(0.8 0.16 80)",
-  emerald: "oklch(0.75 0.16 155)",
-  rose: "oklch(0.72 0.18 15)",
-  cyan: "oklch(0.78 0.13 200)",
+const ACCENT_SWATCH: Record<CourseAccent, { start: string; end: string }> = {
+  sky: { start: "#38bdf8", end: "#0ea5e9" },
+  violet: { start: "#a78bfa", end: "#7c3aed" },
+  amber: { start: "#fbbf24", end: "#f59e0b" },
+  emerald: { start: "#34d399", end: "#10b981" },
+  rose: { start: "#fb7185", end: "#e11d48" },
+  cyan: { start: "#22d3ee", end: "#06b6d4" },
 };
 
 // Keep the full accent type for backwards compatibility with existing courses,
@@ -111,6 +111,7 @@ export function AddCourseModal({ onCreate }: Props) {
                       type="button"
                       aria-label={`${ACCENT_LABEL[accent]} course card color`}
                       aria-pressed={selected}
+                      title={ACCENT_LABEL[accent]}
                       onClick={() => setColor(accent)}
                       className={cn(
                         "group relative flex h-12 items-center justify-center overflow-hidden rounded-2xl border transition-all duration-200",
@@ -119,9 +120,13 @@ export function AddCourseModal({ onCreate }: Props) {
                       )}
                     >
                       <span
-                        className="absolute inset-1 rounded-[14px] opacity-80 transition-opacity group-hover:opacity-100"
-                        style={{ background: `linear-gradient(135deg, color-mix(in oklab, ${ACCENT_SWATCH[accent]} 78%, white 8%), color-mix(in oklab, ${ACCENT_SWATCH[accent]} 42%, transparent))` }}
+                        className="absolute inset-1 rounded-[14px] opacity-95 transition-opacity group-hover:opacity-100"
+                        style={{
+                          background: `linear-gradient(135deg, ${ACCENT_SWATCH[accent].start} 0%, ${ACCENT_SWATCH[accent].end} 100%)`,
+                          boxShadow: `0 0 22px ${ACCENT_SWATCH[accent].end}66`,
+                        }}
                       />
+                      <span className="absolute inset-[1px] rounded-[14px] bg-gradient-to-b from-white/25 via-transparent to-black/15" aria-hidden />
                       {selected && <Check className="relative z-10 size-4 text-white drop-shadow" />}
                     </button>
                   );
