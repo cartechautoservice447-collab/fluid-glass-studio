@@ -27,7 +27,6 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
-
 function createSupabaseClient() {
   // Prefer build/runtime environment variables. The committed public fallbacks
   // keep the published client functional when the hosting layer fails to inject
@@ -36,11 +35,11 @@ function createSupabaseClient() {
   const SUPABASE_URL =
     import.meta.env['VITE_SUPABASE_URL'] ||
     process.env['SUPABASE_URL'] ||
-    'https://qlxllkmuhthlqmbjwseq.supabase.co';
+    'https://asgwpmsuutigtvaxuxmr.supabase.co';
   const SUPABASE_PUBLISHABLE_KEY =
     import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] ||
     process.env['SUPABASE_PUBLISHABLE_KEY'] ||
-    'sb_publishable_hJEpUthl54Sim83HebiHfQ_dtbo4qyh';
+    'sb_publishable_fi3mpoY8ZrymYbnxdpREYw_hnUmTYxG';
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     const missing = [
@@ -74,4 +73,3 @@ export const supabase = new Proxy({} as ReturnType<typeof createSupabaseClient>,
     return Reflect.get(_supabase, prop, receiver);
   },
 });
-
