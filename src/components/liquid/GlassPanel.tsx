@@ -29,11 +29,6 @@ export function GlassPanel({
   };
 
   const gel = liquid.gel / 100;
-  const transparency = liquid.transparency / 100;
-  // Decorative glass layers are proportional to material transparency. This
-  // prevents the fixed diagonal sheen/refraction overlays from becoming a dark
-  // cross-like artifact when transparency is set to its minimum.
-  const materialStrength = Math.min(1, transparency / 0.45);
 
   return (
     <motion.div
@@ -64,16 +59,13 @@ export function GlassPanel({
         className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
         style={{
           background:
-            `linear-gradient(135deg, rgba(255, 255, 255, ${0.14 * materialStrength}) 0%, rgba(255, 255, 255, ${0.02 * materialStrength}) 55%, rgba(255, 255, 255, ${0.09 * materialStrength}) 100%)`,
+            "linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 55%, rgba(255, 255, 255, 0.09) 100%)",
         }}
       />
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] border border-white/35 mix-blend-screen"
-        style={{
-          filter: "url(#liquid-refraction)",
-          opacity: 0.25 * materialStrength,
-        }}
+        className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] border border-white/35 mix-blend-screen opacity-25"
+        style={{ filter: "url(#liquid-refraction)" }}
       />
       <span aria-hidden className="liquid-veil pointer-events-none absolute inset-0 -z-10 rounded-[inherit]" />
       {children}
