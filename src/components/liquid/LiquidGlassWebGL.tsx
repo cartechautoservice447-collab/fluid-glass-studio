@@ -11,6 +11,7 @@ import { exactStudioFragmentShader, exactStudioVertexShader } from "@/shaders/ex
 
 type PerformanceMode = "high" | "ultra";
 const PERFORMANCE_EVENT = "glass-performance-changed";
+const MODAL_SELECTOR = "[data-liquid-glass-modal-overlay][data-state='open']";
 
 function readPerformance(): PerformanceMode {
   if (typeof document === "undefined") return "ultra";
@@ -27,6 +28,7 @@ export function LiquidGlassWebGL() {
   const paramsRef = useRef<LiquidGlassWebGLSettings>(readLiquidGlassSettings());
   const performanceRef = useRef<PerformanceMode>(readPerformance());
   const themeRef = useRef(isLightTheme());
+  const modalOpenRef = useRef(false);
   const threeRef = useRef<{
     renderer: THREE.WebGLRenderer;
     material: THREE.ShaderMaterial;
@@ -69,7 +71,6 @@ export function LiquidGlassWebGL() {
 
     const bgScene = new THREE.Scene();
     bgScene.background = new THREE.Color("#1a1a1a");
-
     const bgCamera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
     bgCamera.position.z = 5;
 
@@ -81,14 +82,13 @@ export function LiquidGlassWebGL() {
 
     const orbGroup = new THREE.Group();
     bgScene.add(orbGroup);
-
     const orbGeometries: THREE.SphereGeometry[] = [];
     const orbMaterials: THREE.MeshPhysicalMaterial[] = [];
     const orbMeshes: THREE.Mesh[] = [];
 
     const createOrb = (color: string, x: number, y: number, z: number, size: number) => {
-      const geometry = new THREE.SphereGeometry(size, 64, 64);
-      const material = new THREE.MeshPhysicalMaterial({
+      const geo = new THREE.SphereGeometry(size, 64, 64);
+      const mat = new THREE.MeshPhysicalMaterial({
         color,
         emissive: color,
         emissiveIntensity: 0.5,
@@ -97,13 +97,13 @@ export function LiquidGlassWebGL() {
         clearcoat: 1,
         clearcoatRoughness: 0.1,
       });
-      const mesh = new THREE.Mesh(geometry, material);
+      const mesh = new THREE.Mesh(geo, mat);
       mesh.position.set(x, y, z);
       mesh.userData = { baseX: x, baseY: y, baseZ: z };
       orbGroup.add(mesh);
       orbMeshes.push(mesh);
-      orbGeometries.push(geometry);
-      orbMaterials.push(material);
+      orbGeometries.push(geo);
+      orbMaterials.push(mat);
     };
 
     createOrb("#ff0055", -3, 2, -4, 1.5);
@@ -124,13 +124,15 @@ export function LiquidGlassWebGL() {
         pointLight.intensity = 2.2;
         const colors = ["#ff0055", "#00b4d8", "#7b2cbf", "#ff9e00"];
         orbMeshes.forEach((mesh, index) => {
-          const material = mesh.material as THREE.MeshPhysicalMaterial;
+          const mat = mesh.material as THREE.MeshPhysicalMaterial;
           const color = colors[index % colors.length];
-          material.color.set(color);
-          material.emissive.set(color);
-          material.emissiveIntensity = 0.35;
-          material.roughness = 0.15;
-          material.metalness = 0.3;
+          mat.color.set(color);
+          mat.emissive.set(color);
+          mat.emissiveIntensity = 0.35;
+          mat.roughness = 0.15;
+          mat.metalness = 0.3;
+          mat.clearcoat = 1;
+          mat.clearcoatRoughness = 0.1;
         });
       } else {
         bgScene.background = new THREE.Color("#1a1a1a");
@@ -139,13 +141,15 @@ export function LiquidGlassWebGL() {
         pointLight.intensity = 2;
         const colors = ["#ff0055", "#00d0ff", "#7000ff", "#ffaa00"];
         orbMeshes.forEach((mesh, index) => {
-          const material = mesh.material as THREE.MeshPhysicalMaterial;
+          const mat = mesh.material as THREE.MeshPhysicalMaterial;
           const color = colors[index % colors.length];
-          material.color.set(color);
-          material.emissive.set(color);
-          material.emissiveIntensity = 0.5;
-          material.roughness = 0.1;
-          material.metalness = 0.8;
+          mat.color.set(color);
+          mat.emissive.set(color);
+          mat.emissiveIntensity = 0.5;
+          mat.roughness = 0.1;
+          mat.metalness = 0.8;
+          mat.clearcoat = 1;
+          mat.clearcoatRoughness = 0.1;
         });
       }
     };
@@ -158,12 +162,12 @@ export function LiquidGlassWebGL() {
       { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat },
     );
 
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const fgScene = new THREE.Scene();
+    const fgCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const boxVectors = Array.from({ length: 64 }, () => new THREE.Vector4());
     const radiiArray = new Float32Array(64);
     const bezelsArray = new Float32Array(64);
-    const params = paramsRef.current;
+    const initialParams = paramsRef.current;
 
     const material = new THREE.ShaderMaterial({
       vertexShader: exactStudioVertexShader,
@@ -176,13 +180,13 @@ export function LiquidGlassWebGL() {
         uBoxCount: { value: 0 },
         uFixedTopBoxIdx: { value: -1 },
         uTime: { value: 0 },
-        uThickness: { value: params.thickness },
-        uIOR: { value: params.ior },
-        uDispersion: { value: params.dispersion },
-        uBlur: { value: params.blur },
-        uSpecular: { value: params.specular },
-        uTint: { value: params.tint },
-        uShadow: { value: params.shadow },
+        uThickness: { value: initialParams.thickness },
+        uIOR: { value: initialParams.ior },
+        uDispersion: { value: initialParams.dispersion },
+        uBlur: { value: initialParams.blur },
+        uSpecular: { value: initialParams.specular },
+        uTint: { value: initialParams.tint },
+        uShadow: { value: initialParams.shadow },
         uRenderBg: { value: 1 },
         uBgTex: { value: renderTarget.texture },
         uBgAspect: { value: width / height },
@@ -192,8 +196,9 @@ export function LiquidGlassWebGL() {
       depthTest: false,
     });
 
-    const plane = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
-    scene.add(plane);
+    const fgPlaneGeo = new THREE.PlaneGeometry(2, 2);
+    const mesh = new THREE.Mesh(fgPlaneGeo, material);
+    fgScene.add(mesh);
 
     threeRef.current = {
       renderer,
@@ -209,6 +214,18 @@ export function LiquidGlassWebGL() {
       rafId: 0,
     };
 
+    const syncModalState = () => {
+      const isOpen = Boolean(document.querySelector(MODAL_SELECTOR));
+      if (modalOpenRef.current === isOpen) return;
+      modalOpenRef.current = isOpen;
+      canvas.style.zIndex = isOpen ? "45" : "1";
+      material.uniforms.uRenderBg.value = isOpen ? 0 : 1;
+    };
+
+    const modalObserver = new MutationObserver(syncModalState);
+    modalObserver.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-state"] });
+    syncModalState();
+
     const renderLoop = (time: number) => {
       const current = threeRef.current;
       if (!current) return;
@@ -220,8 +237,10 @@ export function LiquidGlassWebGL() {
         child.position.z = base.baseZ;
       });
 
-      current.renderer.setRenderTarget(current.renderTarget);
-      current.renderer.render(current.bgScene, current.bgCamera);
+      if (!modalOpenRef.current) {
+        current.renderer.setRenderTarget(current.renderTarget);
+        current.renderer.render(current.bgScene, current.bgCamera);
+      }
 
       const boxes = getGlassBoxes();
       const count = Math.min(boxes.length, 64);
@@ -255,7 +274,7 @@ export function LiquidGlassWebGL() {
       material.uniforms.uShadow.value = currentParams.shadow;
 
       current.renderer.setRenderTarget(null);
-      current.renderer.render(scene, camera);
+      current.renderer.render(fgScene, fgCamera);
       current.rafId = requestAnimationFrame(renderLoop);
     };
 
@@ -293,14 +312,15 @@ export function LiquidGlassWebGL() {
       paramsRef.current = detail ?? readLiquidGlassSettings();
     };
 
-    const observer = new MutationObserver(handleThemeChange);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    const themeObserver = new MutationObserver(handleThemeChange);
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
     window.addEventListener("resize", handleResize);
     window.addEventListener(PERFORMANCE_EVENT, handlePerformance);
     window.addEventListener(LIQUID_GLASS_SETTINGS_EVENT, handleSettings);
 
     return () => {
-      observer.disconnect();
+      modalObserver.disconnect();
+      themeObserver.disconnect();
       window.removeEventListener("resize", handleResize);
       window.removeEventListener(PERFORMANCE_EVENT, handlePerformance);
       window.removeEventListener(LIQUID_GLASS_SETTINGS_EVENT, handleSettings);
@@ -310,7 +330,7 @@ export function LiquidGlassWebGL() {
       wallMat.dispose();
       orbGeometries.forEach((geometry) => geometry.dispose());
       orbMaterials.forEach((orbMaterial) => orbMaterial.dispose());
-      plane.geometry.dispose();
+      fgPlaneGeo.dispose();
       material.dispose();
       renderer.dispose();
       threeRef.current = null;
