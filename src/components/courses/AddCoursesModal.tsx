@@ -25,8 +25,6 @@ const ACCENT_SWATCH: Record<CourseAccent, { start: string; end: string }> = {
   cyan: { start: "#22d3ee", end: "#06b6d4" },
 };
 
-// Keep the full accent type for backwards compatibility with existing courses,
-// while presenting a focused five-color palette for new course cards.
 const COURSE_CARD_COLORS: CourseAccent[] = ["sky", "violet", "emerald", "amber", "rose"];
 
 const ACCENT_LABEL: Record<CourseAccent, string> = {
@@ -71,22 +69,16 @@ export function AddCourseModal({ onCreate }: Props) {
       }}
     >
       <DialogTrigger asChild>
-        <button
-          type="button"
-          className="notes-pulse-glow flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-medium text-white shadow-[0_0_28px_rgba(16,185,129,0.62),0_10px_28px_rgba(5,150,105,0.42)] ring-1 ring-emerald-300/55 transition-all hover:scale-[1.015] hover:bg-emerald-400 hover:shadow-[0_0_34px_rgba(52,211,153,0.74),0_12px_32px_rgba(5,150,105,0.5)] active:scale-[0.985]"
-        >
+        <button type="button" className="notes-pulse-glow flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-medium text-white shadow-[0_0_28px_rgba(16,185,129,0.62),0_10px_28px_rgba(5,150,105,0.42)] ring-1 ring-emerald-300/55 transition-all hover:scale-[1.015] hover:bg-emerald-400 hover:shadow-[0_0_34px_rgba(52,211,153,0.74),0_12px_32px_rgba(5,150,105,0.5)] active:scale-[0.985]">
           <Plus className="size-4 stroke-[2]" />
           Add New Course
         </button>
       </DialogTrigger>
-      <DialogContent className="overflow-hidden border-white/20 bg-[#0f1420]/82 p-0 shadow-[inset_0_1px_1px_rgba(255,255,255,.28),0_24px_80px_rgba(0,0,0,.45)] backdrop-blur-3xl sm:max-w-md">
+      <DialogContent glass glassRadius={32} glassBezel={48} className="overflow-hidden border-white/20 p-0 shadow-none sm:max-w-md">
         <form onSubmit={handleSubmit}>
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.11] via-transparent to-transparent" aria-hidden />
           <DialogHeader className="relative border-b border-white/10 px-6 pb-5 pt-6">
             <DialogTitle className="text-lg tracking-tight">New course</DialogTitle>
-            <DialogDescription>
-              Create a course and choose the accent that will define its card.
-            </DialogDescription>
+            <DialogDescription>Create a course and choose the accent that will define its card.</DialogDescription>
           </DialogHeader>
           <div className="relative space-y-5 px-6 py-5">
             <div className="space-y-1.5">
@@ -98,34 +90,13 @@ export function AddCourseModal({ onCreate }: Props) {
               <Textarea id="course-desc" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What's this course about?" rows={3} />
             </div>
             <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-muted-foreground">Course card color</p>
-                <span className="text-[0.65rem] font-medium text-foreground/70">{ACCENT_LABEL[color]}</span>
-              </div>
+              <div className="flex items-center justify-between"><p className="text-xs font-medium text-muted-foreground">Course card color</p><span className="text-[0.65rem] font-medium text-foreground/70">{ACCENT_LABEL[color]}</span></div>
               <div className="grid grid-cols-5 gap-2">
                 {COURSE_CARD_COLORS.map((accent) => {
                   const selected = color === accent;
                   return (
-                    <button
-                      key={accent}
-                      type="button"
-                      aria-label={`${ACCENT_LABEL[accent]} course card color`}
-                      aria-pressed={selected}
-                      title={ACCENT_LABEL[accent]}
-                      onClick={() => setColor(accent)}
-                      className={cn(
-                        "group relative flex h-12 items-center justify-center overflow-hidden rounded-2xl border transition-all duration-200",
-                        "border-white/10 bg-white/[0.06] hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/[0.1]",
-                        selected && "-translate-y-0.5 border-white/45 bg-white/[0.13] shadow-[inset_0_1px_1px_rgba(255,255,255,.3),0_8px_24px_rgba(0,0,0,.2)]",
-                      )}
-                    >
-                      <span
-                        className="absolute inset-1 rounded-[14px] opacity-95 transition-opacity group-hover:opacity-100"
-                        style={{
-                          background: `linear-gradient(135deg, ${ACCENT_SWATCH[accent].start} 0%, ${ACCENT_SWATCH[accent].end} 100%)`,
-                          boxShadow: `0 0 22px ${ACCENT_SWATCH[accent].end}66`,
-                        }}
-                      />
+                    <button key={accent} type="button" aria-label={`${ACCENT_LABEL[accent]} course card color`} aria-pressed={selected} title={ACCENT_LABEL[accent]} onClick={() => setColor(accent)} className={cn("group relative flex h-12 items-center justify-center overflow-hidden rounded-2xl border transition-all duration-200", "border-white/10 bg-transparent hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/[0.05]", selected && "-translate-y-0.5 border-white/45 bg-white/[0.10] shadow-[inset_0_1px_1px_rgba(255,255,255,.3),0_8px_24px_rgba(0,0,0,.2)]")}>
+                      <span className="absolute inset-1 rounded-[14px] opacity-95 transition-opacity group-hover:opacity-100" style={{ background: `linear-gradient(135deg, ${ACCENT_SWATCH[accent].start} 0%, ${ACCENT_SWATCH[accent].end} 100%)`, boxShadow: `0 0 22px ${ACCENT_SWATCH[accent].end}66` }} />
                       <span className="absolute inset-[1px] rounded-[14px] bg-gradient-to-b from-white/25 via-transparent to-black/15" aria-hidden />
                       {selected && <Check className="relative z-10 size-4 text-white drop-shadow" />}
                     </button>
@@ -134,7 +105,7 @@ export function AddCourseModal({ onCreate }: Props) {
               </div>
             </div>
           </div>
-          <DialogFooter className="relative border-t border-white/10 bg-white/[0.025] px-6 py-4">
+          <DialogFooter className="relative border-t border-white/10 bg-transparent px-6 py-4">
             <Button type="submit" disabled={!name.trim()}>Create course</Button>
           </DialogFooter>
         </form>
