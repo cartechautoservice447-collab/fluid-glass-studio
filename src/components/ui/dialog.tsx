@@ -37,7 +37,7 @@ type GlassDialogContentProps = {
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & GlassDialogContentProps
->(({ className, children, glass = false, glassRadius = 32, glassBezel = 48, ...props }, ref) => {
+>(({ className, children, glass = true, glassRadius = 32, glassBezel = 48, ...props }, ref) => {
   const internalRef = React.useRef<React.ElementRef<typeof DialogPrimitive.Content> | null>(null);
   const idRef = React.useRef(`dialog-glass-${Math.random().toString(36).slice(2)}`);
 
