@@ -25,8 +25,6 @@ const ACCENT_SWATCH: Record<CourseAccent, { start: string; end: string }> = {
   cyan: { start: "#22d3ee", end: "#06b6d4" },
 };
 
-// Keep the full accent type for backwards compatibility with existing courses,
-// while presenting a focused five-color palette for new course cards.
 const COURSE_CARD_COLORS: CourseAccent[] = ["sky", "violet", "emerald", "amber", "rose"];
 
 const ACCENT_LABEL: Record<CourseAccent, string> = {
@@ -79,14 +77,11 @@ export function AddCourseModal({ onCreate }: Props) {
           Add New Course
         </button>
       </DialogTrigger>
-      <DialogContent className="overflow-hidden border-white/20 bg-[#0f1420]/82 p-0 shadow-[inset_0_1px_1px_rgba(255,255,255,.28),0_24px_80px_rgba(0,0,0,.45)] backdrop-blur-3xl sm:max-w-md">
+      <DialogContent className="overflow-hidden border-white/20 bg-transparent p-0 shadow-2xl sm:max-w-md">
         <form onSubmit={handleSubmit}>
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.11] via-transparent to-transparent" aria-hidden />
           <DialogHeader className="relative border-b border-white/10 px-6 pb-5 pt-6">
             <DialogTitle className="text-lg tracking-tight">New course</DialogTitle>
-            <DialogDescription>
-              Create a course and choose the accent that will define its card.
-            </DialogDescription>
+            <DialogDescription>Create a course and choose the accent that will define its card.</DialogDescription>
           </DialogHeader>
           <div className="relative space-y-5 px-6 py-5">
             <div className="space-y-1.5">
@@ -119,13 +114,7 @@ export function AddCourseModal({ onCreate }: Props) {
                         selected && "-translate-y-0.5 border-white/45 bg-white/[0.13] shadow-[inset_0_1px_1px_rgba(255,255,255,.3),0_8px_24px_rgba(0,0,0,.2)]",
                       )}
                     >
-                      <span
-                        className="absolute inset-1 rounded-[14px] opacity-95 transition-opacity group-hover:opacity-100"
-                        style={{
-                          background: `linear-gradient(135deg, ${ACCENT_SWATCH[accent].start} 0%, ${ACCENT_SWATCH[accent].end} 100%)`,
-                          boxShadow: `0 0 22px ${ACCENT_SWATCH[accent].end}66`,
-                        }}
-                      />
+                      <span className="absolute inset-1 rounded-[14px] opacity-95 transition-opacity group-hover:opacity-100" style={{ background: `linear-gradient(135deg, ${ACCENT_SWATCH[accent].start} 0%, ${ACCENT_SWATCH[accent].end} 100%)`, boxShadow: `0 0 22px ${ACCENT_SWATCH[accent].end}66` }} />
                       <span className="absolute inset-[1px] rounded-[14px] bg-gradient-to-b from-white/25 via-transparent to-black/15" aria-hidden />
                       {selected && <Check className="relative z-10 size-4 text-white drop-shadow" />}
                     </button>
@@ -134,7 +123,7 @@ export function AddCourseModal({ onCreate }: Props) {
               </div>
             </div>
           </div>
-          <DialogFooter className="relative border-t border-white/10 bg-white/[0.025] px-6 py-4">
+          <DialogFooter className="relative border-t border-white/10 px-6 py-4">
             <Button type="submit" disabled={!name.trim()}>Create course</Button>
           </DialogFooter>
         </form>
