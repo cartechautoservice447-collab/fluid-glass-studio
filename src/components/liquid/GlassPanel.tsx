@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 import { useEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 
-import { registerGlassElement } from "@/lib/liquidGlassRegistry";
+import { markGlassGeometryDirty, registerGlassElement } from "@/lib/liquidGlassRegistry";
 import { cn } from "@/lib/utils";
 
 type GlassPanelProps = {
@@ -65,14 +65,16 @@ export function GlassPanel({
       data-liquid-glass-id={idRef.current}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
+      onDrag={draggable ? markGlassGeometryDirty : undefined}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
       drag={draggable}
       dragElastic={0.25}
       dragConstraints={{ left: -40, right: 40, top: -30, bottom: 30 }}
       dragSnapToOrigin
-      whileHover={interactive ? { scale: 1.025, y: -4 } : {}}
-      whileTap={interactive ? { scale: 0.96 } : {}}
+      animate={{ scale: 1, y: 0 }}
+      whileHover={interactive ? { opacity: 0.98 } : {}}
+      whileTap={interactive ? { opacity: 0.94 } : {}}
       transition={{ type: "spring", stiffness: 260, damping: 18, mass: 0.6 }}
       className={cn(
         "relative overflow-hidden bg-transparent p-6 text-foreground outline-none",
