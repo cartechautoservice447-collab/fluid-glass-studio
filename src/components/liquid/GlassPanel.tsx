@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 
-import { useCustomization } from "@/context/CustomizationContext";
+import { registerGlassElement } from "@/lib/liquidGlassRegistry";
 import { cn } from "@/lib/utils";
 
 type GlassPanelProps = {
@@ -10,7 +10,16 @@ type GlassPanelProps = {
   draggable?: boolean;
   interactive?: boolean;
   onClick?: () => void;
+  glassId?: string;
+  glassRadius?: number;
+  glassBezel?: number;
 };
+
+let glassPanelId = 0;
+function nextGlassPanelId() {
+  glassPanelId += 1;
+  return `glass-panel-${glassPanelId}`;
+}
 
 export function GlassPanel({
   children,
@@ -18,56 +27,60 @@ export function GlassPanel({
   draggable = false,
   onClick,
   interactive = Boolean(onClick),
+  glassId,
+  glassRadius = 32,
+  glassBezel = 42,
 }: GlassPanelProps) {
-  const { liquid } = useCustomization();
+  const elementRef = useRef<HTMLDivElement | null>(null);
+  const idRef = useRef(glassId ?? nextGlassPanelId());
 
-  const spring = {
-    type: "spring" as const,
-    stiffness: liquid.bounceStiffness,
-    damping: liquid.bounceDamping,
-    mass: 0.6 + liquid.gel / 140,
+  useEffect(() => {
+    const element = elementRef.current;
+    if (!element) return;
+    return registerGlassElement(idRef.current, element, {
+      radius: glassRadius,
+      bezel: glassBezel,
+    });
+  }, [glassBezel, glassRadius]);
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!onClick) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onClick();
+    }
   };
 
-  const gel = liquid.gel / 100;
+  const handleClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (!onClick) return;
+    const target = event.target as HTMLElement;
+    if (target.closest("button, a, input, textarea, select, [role='button']") && target !== event.currentTarget) return;
+    onClick();
+  };
 
   return (
     <motion.div
-      onClick={onClick}
+      ref={elementRef}
+      data-liquid-glass-surface="true"
+      data-liquid-glass-id={idRef.current}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
       drag={draggable}
       dragElastic={0.25}
       dragConstraints={{ left: -40, right: 40, top: -30, bottom: 30 }}
       dragSnapToOrigin
       whileHover={interactive ? { scale: 1.025, y: -4 } : {}}
       whileTap={interactive ? { scale: 0.96 } : {}}
-      transition={spring}
-      style={{
-        backgroundColor: "var(--water-gel-bg)",
-        backdropFilter: "blur(var(--liquid-density, 12px)) saturate(200%) contrast(105%)",
-        borderRadius: `${18 + gel * 26}px`,
-        border: "1px solid rgba(255, 255, 255, 0.22)",
-        borderTopColor: "rgba(255, 255, 255, 0.4)",
-        boxShadow: `inset 0 ${1 + gel * 1.5}px ${2 + gel * 3}px 0 rgba(255, 255, 255, ${0.35 + gel * 0.3}), inset 0 -${2 + gel * 3}px ${4 + gel * 6}px 0 rgba(0, 0, 0, ${0.16 + gel * 0.2}), 0 ${8 + gel * 10}px ${32 + gel * 24}px 0 rgba(0, 0, 0, ${0.2 + gel * 0.22})`,
-      }}
+      transition={{ type: "spring", stiffness: 260, damping: 18, mass: 0.6 }}
       className={cn(
-        "liquid-panel relative overflow-hidden p-6 will-change-transform",
+        "relative overflow-hidden bg-transparent p-6 text-foreground outline-none",
+        onClick && "cursor-pointer focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent",
         draggable && "cursor-grab active:cursor-grabbing",
         className,
       )}
     >
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
-        style={{
-          background:
-            "linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 55%, rgba(255, 255, 255, 0.09) 100%)",
-        }}
-      />
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] border border-white/35 mix-blend-screen opacity-25"
-        style={{ filter: "url(#liquid-refraction)" }}
-      />
-      <span aria-hidden className="liquid-veil pointer-events-none absolute inset-0 -z-10 rounded-[inherit]" />
       {children}
     </motion.div>
   );
