@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode, type RefObject } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, type ReactNode, type RefObject } from "react";
 import * as THREE from "three";
 import { exactStudioFragmentShader, exactStudioVertexShader } from "@/shaders/exactLiquidGlassShader";
 
@@ -77,6 +77,26 @@ export function useLiquidGlassBox(
     if (!element || !context) return;
     return context.register({ id: options.id, element, radius, bezel });
   }, [context, options.id, radius, bezel, ref]);
+}
+
+type LiquidGlassContextBridgeProps = {
+  children: (args: { ref: RefObject<HTMLElement | null>; registrationId: string }) => ReactNode;
+  idPrefix: string;
+  radius?: number;
+  bezel?: number;
+};
+
+export function LiquidGlassContextBridge({
+  children,
+  idPrefix,
+  radius = 40,
+  bezel = 45,
+}: LiquidGlassContextBridgeProps) {
+  const ref = useRef<HTMLElement | null>(null);
+  const generatedId = useId().replace(/:/g, "-");
+  const registrationId = `${idPrefix}-${generatedId}`;
+  useLiquidGlassBox(ref, { id: registrationId, radius, bezel });
+  return children({ ref, registrationId });
 }
 
 export function LiquidGlassProvider({ children }: { children: ReactNode }) {
@@ -262,7 +282,6 @@ function LiquidGlassCanvas({
         uShadow: { value: params.shadow },
         uBgTex: { value: renderTarget.texture },
         uBgAspect: { value: width / height },
-        // Keep the global canvas transparent outside registered glass boxes.
         uRenderBg: { value: 0 },
       },
       transparent: true,
