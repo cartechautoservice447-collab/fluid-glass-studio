@@ -1,40 +1,440 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
-export type LiquidSettings = { density:number; transparency:number; clearness:number; gel:number; bounceStiffness:number; bounceDamping:number };
-export const LIQUID_DEFAULTS:LiquidSettings = { density:12, transparency:45, clearness:35, gel:55, bounceStiffness:200, bounceDamping:24 };
-export type Theme = "light"|"dark";
-export type UITextClarity = "default"|"smooth"|"medium"|"punchy";
-const UI_TEXT_CLARITY_VALUES:UITextClarity[] = ["default","smooth","medium","punchy"];
-const isUITextClarity=(value:unknown):value is UITextClarity=>typeof value==="string"&&UI_TEXT_CLARITY_VALUES.includes(value as UITextClarity);
+export type LiquidSettings = {
+  density: number;
+  transparency: number;
+  clearness: number;
+  gel: number;
+  bounceStiffness: number;
+  bounceDamping: number;
+};
+export const LIQUID_DEFAULTS: LiquidSettings = {
+  density: 12,
+  transparency: 45,
+  clearness: 35,
+  gel: 55,
+  bounceStiffness: 200,
+  bounceDamping: 24,
+};
 
-type Ctx={liquid:LiquidSettings;setLiquid:(patch:Partial<LiquidSettings>)=>void;reset:()=>void;theme:Theme;setTheme:(theme:Theme)=>void;toggleTheme:()=>void;displayName:string;setDisplayName:(name:string)=>void;pureBlack:boolean;setPureBlack:(value:boolean)=>void;backgroundThemeEnabled:boolean;setBackgroundThemeEnabled:(value:boolean)=>void;backgroundOpacity:number;setBackgroundOpacity:(value:number)=>void;fullDarkBackground:boolean;setFullDarkBackground:(value:boolean)=>void;uiTextClarity:UITextClarity;setUITextClarity:(value:UITextClarity)=>void};
-const CustomizationContext=createContext<Ctx|null>(null);
-const LEGACY_KEYS={liquid:"liquid-glass-engine-v1",theme:"liquid-glass-theme-v1",displayName:"liquid-glass-display-name-v1",pureBlack:"liquid-glass-pure-black-v1",backgroundTheme:"liquid-glass-background-theme-v1",backgroundOpacity:"liquid-glass-background-opacity-v1",fullDarkBackground:"liquid-glass-full-dark-background-v1",uiTextClarity:"liquid-glass-ui-text-clarity-v1"};
-const scoped=(key:string,userId:string)=>`${key}:${userId}`;
-function clamp(v:number,min:number,max:number){return Math.min(max,Math.max(min,v));}
-function sanitize(raw:unknown):LiquidSettings{const v=(raw??{})as Partial<LiquidSettings>;const num=(value:unknown,fallback:number,min:number,max:number)=>{const n=Number(value??fallback);return Number.isFinite(n)?clamp(n,min,max):fallback};return{density:num(v.density,LIQUID_DEFAULTS.density,0,40),transparency:num(v.transparency,LIQUID_DEFAULTS.transparency,5,95),clearness:num(v.clearness,LIQUID_DEFAULTS.clearness,0,100),gel:num(v.gel,LIQUID_DEFAULTS.gel,0,100),bounceStiffness:num(v.bounceStiffness,LIQUID_DEFAULTS.bounceStiffness,100,500),bounceDamping:num(v.bounceDamping,LIQUID_DEFAULTS.bounceDamping,10,40)};}
-function readJSON<T>(key:string,fallback:T):T{try{if(typeof window==="undefined")return fallback;const raw=localStorage.getItem(key);return raw?JSON.parse(raw)as T:fallback}catch{return fallback;}}
-function readBool(key:string,userId:string,fallback=false){if(typeof window==="undefined")return fallback;try{return((userId?localStorage.getItem(scoped(key,userId)):null)??localStorage.getItem(key))==="1"}catch{return fallback}}
-function readNumber(key:string,userId:string,fallback:number,min:number,max:number){if(typeof window==="undefined")return fallback;try{const raw=(userId?localStorage.getItem(scoped(key,userId)):null)??localStorage.getItem(key);const n=Number(raw??fallback);return Number.isFinite(n)?clamp(n,min,max):fallback}catch{return fallback}}
-function readUITextClarity(key:string,userId:string):UITextClarity|null{if(typeof window==="undefined")return null;try{const raw=(userId?localStorage.getItem(scoped(key,userId)):null)??localStorage.getItem(key);return isUITextClarity(raw)?raw:null}catch{return null}}
-function initialLiquid(userId:string){if(typeof window==="undefined")return LIQUID_DEFAULTS;const scopedValue=readJSON<unknown>(scoped(LEGACY_KEYS.liquid,userId),null);if(userId&&scopedValue)return sanitize(scopedValue);return sanitize(readJSON<unknown>(LEGACY_KEYS.liquid,null));}
-function initialTheme(userId:string):Theme{if(typeof window==="undefined")return"light";try{const s=(userId?localStorage.getItem(scoped(LEGACY_KEYS.theme,userId)):null)??localStorage.getItem(LEGACY_KEYS.theme);return s==="dark"||s==="light"?s:(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch{return"light"}}
-function initialName(userId:string){if(typeof window==="undefined")return"";try{return(userId?localStorage.getItem(scoped(LEGACY_KEYS.displayName,userId)):null)??localStorage.getItem(LEGACY_KEYS.displayName)??""}catch{return""}}
-function initialBlack(userId:string){return readBool(LEGACY_KEYS.pureBlack,userId,false)}
+export type WebGLLiquidSettings = {
+  thickness: number;
+  bezel: number;
+  ior: number;
+  dispersion: number;
+  blur: number;
+  specular: number;
+  tint: number;
+  shadow: number;
+};
+export const WEBGL_LIQUID_DEFAULTS: WebGLLiquidSettings = {
+  thickness: 50,
+  bezel: 55,
+  ior: 3,
+  dispersion: 1.9,
+  blur: 1.5,
+  specular: 0.55,
+  tint: 0.08,
+  shadow: 0.5,
+};
 
-export function CustomizationProvider({children}:{children:ReactNode}){
-  const[userId,setUserId]=useState<string|null>(null);const[profileReady,setProfileReady]=useState(false);const[liquid,setLiquidState]=useState(LIQUID_DEFAULTS);const[theme,setThemeState]=useState<Theme>("light");const[displayName,setDisplayNameState]=useState("");const[pureBlack,setPureBlackState]=useState(false);const[backgroundThemeEnabled,setBackgroundThemeEnabledState]=useState(false);const[backgroundOpacity,setBackgroundOpacityState]=useState(100);const[fullDarkBackground,setFullDarkBackgroundState]=useState(false);const[uiTextClarity,setUITextClarityState]=useState<UITextClarity>("default");
-  useEffect(()=>{let active=true;const load=async(id:string|null)=>{setUserId(id);setProfileReady(false);const localLiquid=initialLiquid(id??"");const localTheme=initialTheme(id??"");const localName=initialName(id??"");const localBlack=initialBlack(id??"");const localBackgroundTheme=readBool(LEGACY_KEYS.backgroundTheme,id??"");const localBackgroundOpacity=readNumber(LEGACY_KEYS.backgroundOpacity,id??"",100,0,100);const localFullDarkBackground=readBool(LEGACY_KEYS.fullDarkBackground,id??"");const localUITextClarity=readUITextClarity(LEGACY_KEYS.uiTextClarity,id??"");setLiquidState(localLiquid);setThemeState(localTheme);setDisplayNameState(localName);setPureBlackState(localBlack);setBackgroundThemeEnabledState(localBackgroundTheme);setBackgroundOpacityState(localBackgroundOpacity);setFullDarkBackgroundState(localFullDarkBackground);setUITextClarityState(localUITextClarity??"default");if(!id){setProfileReady(true);return;}try{const{data,error}=await supabase.from("profiles").select("theme,display_name,liquid_density,liquid_transparency,liquid_clearness,liquid_gel,liquid_bounce_stiffness,liquid_bounce_damping,pure_black,background_theme_enabled,background_opacity,full_dark_background,ui_text_clarity").eq("id",id).maybeSingle();if(!active)return;if(error){console.warn("Could not load cloud customization",error);setProfileReady(true);return;}if(data){if(!localStorage.getItem(scoped(LEGACY_KEYS.liquid,id)))setLiquidState(prev=>sanitize({...prev,density:data.liquid_density??prev.density,transparency:data.liquid_transparency??prev.transparency,clearness:data.liquid_clearness??prev.clearness,gel:data.liquid_gel??prev.gel,bounceStiffness:data.liquid_bounce_stiffness??prev.bounceStiffness,bounceDamping:data.liquid_bounce_damping??prev.bounceDamping}));if(!localStorage.getItem(scoped(LEGACY_KEYS.theme,id))&&(data.theme==="light"||data.theme==="dark"))setThemeState(data.theme);if(!localStorage.getItem(scoped(LEGACY_KEYS.displayName,id))&&typeof data.display_name==="string")setDisplayNameState(data.display_name);if(!localStorage.getItem(scoped(LEGACY_KEYS.pureBlack,id))&&typeof data.pure_black==="boolean")setPureBlackState(data.pure_black);if(!localStorage.getItem(scoped(LEGACY_KEYS.backgroundTheme,id))&&typeof data.background_theme_enabled==="boolean")setBackgroundThemeEnabledState(data.background_theme_enabled);if(!localStorage.getItem(scoped(LEGACY_KEYS.backgroundOpacity,id))&&data.background_opacity!==null&&data.background_opacity!==undefined)setBackgroundOpacityState(clamp(Number(data.background_opacity),0,100));if(!localStorage.getItem(scoped(LEGACY_KEYS.fullDarkBackground,id))&&typeof data.full_dark_background==="boolean")setFullDarkBackgroundState(data.full_dark_background);if(!localStorage.getItem(scoped(LEGACY_KEYS.uiTextClarity,id))&&isUITextClarity(data.ui_text_clarity))setUITextClarityState(data.ui_text_clarity);}}catch(error){console.warn("Could not load cloud customization",error)}finally{if(active)setProfileReady(true)}};void supabase.auth.getUser().then(({data})=>load(data.user?.id??null)).catch(()=>load(null));const{data:listener}=supabase.auth.onAuthStateChange((_event,session)=>void load(session?.user?.id??null));return()=>{active=false;listener.subscription.unsubscribe()};},[]);
-  useEffect(()=>{const root=document.documentElement;const transparency=liquid.transparency/100;root.style.setProperty("--liquid-density",`${liquid.density}px`);root.style.setProperty("--liquid-transparency",`${transparency}`);root.style.setProperty("--liquid-glass-alpha",`${transparency}`);root.style.setProperty("--liquid-glass-dark-alpha",`${transparency*0.16}`);root.style.setProperty("--liquid-veil-alpha",`${transparency*0.36}`);const darkVeilAlpha=transparency<=0.45?0.0775+0.45*transparency:0.46-0.4*transparency;root.style.setProperty("--liquid-dark-veil-alpha",`${darkVeilAlpha}`);root.style.setProperty("--liquid-clearness",`${liquid.clearness}`);root.style.setProperty("--liquid-gel",`${liquid.gel}`);root.style.setProperty("--liquid-bounce",`${liquid.bounceStiffness}`);root.style.setProperty("--liquid-bounce-damping",`${liquid.bounceDamping}`)},[liquid]);
-  useEffect(()=>{document.documentElement.classList.toggle("dark",theme==="dark");document.documentElement.style.colorScheme=theme;if(!userId||!profileReady)return;try{localStorage.setItem(scoped(LEGACY_KEYS.theme,userId),theme)}catch{}const timer=window.setTimeout(()=>{void supabase.from("profiles").upsert({id:userId,theme})},150);return()=>window.clearTimeout(timer)},[theme,userId,profileReady]);
-  useEffect(()=>{if(!userId||!profileReady)return;try{localStorage.setItem(scoped(LEGACY_KEYS.displayName,userId),displayName)}catch{}const timer=window.setTimeout(()=>{void supabase.from("profiles").upsert({id:userId,display_name:displayName||null})},250);return()=>window.clearTimeout(timer)},[displayName,userId,profileReady]);
-  useEffect(()=>{document.documentElement.classList.toggle("pure-black",pureBlack);if(!userId||!profileReady)return;try{localStorage.setItem(scoped(LEGACY_KEYS.pureBlack,userId),pureBlack?"1":"0")}catch{}const timer=window.setTimeout(()=>{void supabase.from("profiles").upsert({id:userId,pure_black:pureBlack})},150);return()=>window.clearTimeout(timer)},[pureBlack,userId,profileReady]);
-  useEffect(()=>{if(!userId||!profileReady)return;try{localStorage.setItem(scoped(LEGACY_KEYS.liquid,userId),JSON.stringify(liquid))}catch{}const payload={id:userId,liquid_density:liquid.density,liquid_transparency:liquid.transparency,liquid_clearness:liquid.clearness,liquid_gel:liquid.gel,liquid_bounce_stiffness:liquid.bounceStiffness,liquid_bounce_damping:liquid.bounceDamping};const timer=window.setTimeout(()=>{void supabase.from("profiles").upsert(payload)},250);return()=>window.clearTimeout(timer)},[liquid,userId,profileReady]);
-  useEffect(()=>{document.documentElement.dataset["backgroundTheme"]=backgroundThemeEnabled?"on":"off";document.documentElement.dataset["fullDarkBackground"]=backgroundThemeEnabled&&fullDarkBackground?"on":"off";document.documentElement.style.setProperty("--background-opacity",`${backgroundOpacity/100}`);if(!userId||!profileReady)return;try{localStorage.setItem(scoped(LEGACY_KEYS.backgroundTheme,userId),backgroundThemeEnabled?"1":"0");localStorage.setItem(scoped(LEGACY_KEYS.backgroundOpacity,userId),String(backgroundOpacity));localStorage.setItem(scoped(LEGACY_KEYS.fullDarkBackground,userId),fullDarkBackground?"1":"0")}catch{}const timer=window.setTimeout(()=>{void supabase.from("profiles").upsert({id:userId,background_theme_enabled:backgroundThemeEnabled,background_opacity:backgroundOpacity,full_dark_background:fullDarkBackground})},150);return()=>window.clearTimeout(timer)},[backgroundThemeEnabled,backgroundOpacity,fullDarkBackground,userId,profileReady]);
-  useEffect(()=>{document.documentElement.dataset["uiTextClarity"]=uiTextClarity;if(!userId||!profileReady)return;try{localStorage.setItem(scoped(LEGACY_KEYS.uiTextClarity,userId),uiTextClarity)}catch{}const timer=window.setTimeout(()=>{void supabase.from("profiles").upsert({id:userId,ui_text_clarity:uiTextClarity})},150);return()=>window.clearTimeout(timer)},[uiTextClarity,userId,profileReady]);
-  const value=useMemo<Ctx>(()=>({liquid,setLiquid:patch=>setLiquidState(prev=>sanitize({...prev,...patch})),reset:()=>setLiquidState(LIQUID_DEFAULTS),theme,setTheme:setThemeState,toggleTheme:()=>setThemeState(p=>p==="dark"?"light":"dark"),displayName,setDisplayName:name=>setDisplayNameState(name.trim().slice(0,40)),pureBlack,setPureBlack:v=>{if(v)setThemeState("dark");setPureBlackState(v)},backgroundThemeEnabled,setBackgroundThemeEnabled:setBackgroundThemeEnabledState,backgroundOpacity,setBackgroundOpacity:v=>setBackgroundOpacityState(clamp(v,0,100)),fullDarkBackground,setFullDarkBackground:v=>setFullDarkBackgroundState(v),uiTextClarity,setUITextClarity:setUITextClarityState}),[liquid,theme,displayName,pureBlack,backgroundThemeEnabled,backgroundOpacity,fullDarkBackground,uiTextClarity]);
+export type Theme = "light" | "dark";
+export type UITextClarity = "default" | "smooth" | "medium" | "punchy";
+const UI_TEXT_CLARITY_VALUES: UITextClarity[] = ["default", "smooth", "medium", "punchy"];
+const isUITextClarity = (value: unknown): value is UITextClarity =>
+  typeof value === "string" && UI_TEXT_CLARITY_VALUES.includes(value as UITextClarity);
+
+type Ctx = {
+  liquid: LiquidSettings;
+  setLiquid: (patch: Partial<LiquidSettings>) => void;
+  webgl: WebGLLiquidSettings;
+  setWebGL: (patch: Partial<WebGLLiquidSettings>) => void;
+  reset: () => void;
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+  toggleTheme: () => void;
+  displayName: string;
+  setDisplayName: (name: string) => void;
+  pureBlack: boolean;
+  setPureBlack: (value: boolean) => void;
+  backgroundThemeEnabled: boolean;
+  setBackgroundThemeEnabled: (value: boolean) => void;
+  backgroundOpacity: number;
+  setBackgroundOpacity: (value: number) => void;
+  fullDarkBackground: boolean;
+  setFullDarkBackground: (value: boolean) => void;
+  uiTextClarity: UITextClarity;
+  setUITextClarity: (value: UITextClarity) => void;
+};
+
+const CustomizationContext = createContext<Ctx | null>(null);
+const LEGACY_KEYS = {
+  liquid: "liquid-glass-engine-v1",
+  webgl: "liquid-glass-webgl-v1",
+  theme: "liquid-glass-theme-v1",
+  displayName: "liquid-glass-display-name-v1",
+  pureBlack: "liquid-glass-pure-black-v1",
+  backgroundTheme: "liquid-glass-background-theme-v1",
+  backgroundOpacity: "liquid-glass-background-opacity-v1",
+  fullDarkBackground: "liquid-glass-full-dark-background-v1",
+  uiTextClarity: "liquid-glass-ui-text-clarity-v1",
+};
+const scoped = (key: string, userId: string) => `${key}:${userId}`;
+
+function clamp(v: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, v));
+}
+
+function sanitize(raw: unknown): LiquidSettings {
+  const v = (raw ?? {}) as Partial<LiquidSettings>;
+  const num = (value: unknown, fallback: number, min: number, max: number) => {
+    const n = Number(value ?? fallback);
+    return Number.isFinite(n) ? clamp(n, min, max) : fallback;
+  };
+  return {
+    density: num(v.density, LIQUID_DEFAULTS.density, 0, 40),
+    transparency: num(v.transparency, LIQUID_DEFAULTS.transparency, 5, 95),
+    clearness: num(v.clearness, LIQUID_DEFAULTS.clearness, 0, 100),
+    gel: num(v.gel, LIQUID_DEFAULTS.gel, 0, 100),
+    bounceStiffness: num(v.bounceStiffness, LIQUID_DEFAULTS.bounceStiffness, 100, 500),
+    bounceDamping: num(v.bounceDamping, LIQUID_DEFAULTS.bounceDamping, 10, 40),
+  };
+}
+
+function sanitizeWebGL(raw: unknown): WebGLLiquidSettings {
+  const v = (raw ?? {}) as Partial<WebGLLiquidSettings>;
+  const num = (value: unknown, fallback: number, min: number, max: number) => {
+    const n = Number(value ?? fallback);
+    return Number.isFinite(n) ? clamp(n, min, max) : fallback;
+  };
+  return {
+    thickness: num(v.thickness, WEBGL_LIQUID_DEFAULTS.thickness, 10, 100),
+    bezel: num(v.bezel, WEBGL_LIQUID_DEFAULTS.bezel, 8, 120),
+    ior: num(v.ior, WEBGL_LIQUID_DEFAULTS.ior, 1, 5),
+    dispersion: num(v.dispersion, WEBGL_LIQUID_DEFAULTS.dispersion, 0, 5),
+    blur: num(v.blur, WEBGL_LIQUID_DEFAULTS.blur, 0, 20),
+    specular: num(v.specular, WEBGL_LIQUID_DEFAULTS.specular, 0, 1),
+    tint: num(v.tint, WEBGL_LIQUID_DEFAULTS.tint, 0, 0.5),
+    shadow: num(v.shadow, WEBGL_LIQUID_DEFAULTS.shadow, 0, 1),
+  };
+}
+
+function readJSON<T>(key: string, fallback: T): T {
+  try {
+    if (typeof window === "undefined") return fallback;
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function readBool(key: string, userId: string, fallback = false) {
+  if (typeof window === "undefined") return fallback;
+  try {
+    return ((userId ? localStorage.getItem(scoped(key, userId)) : null) ?? localStorage.getItem(key)) === "1";
+  } catch {
+    return fallback;
+  }
+}
+
+function readNumber(key: string, userId: string, fallback: number, min: number, max: number) {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = (userId ? localStorage.getItem(scoped(key, userId)) : null) ?? localStorage.getItem(key);
+    const n = Number(raw ?? fallback);
+    return Number.isFinite(n) ? clamp(n, min, max) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function readUITextClarity(key: string, userId: string): UITextClarity | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = (userId ? localStorage.getItem(scoped(key, userId)) : null) ?? localStorage.getItem(key);
+    return isUITextClarity(raw) ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+function initialLiquid(userId: string) {
+  if (typeof window === "undefined") return LIQUID_DEFAULTS;
+  const scopedValue = readJSON<unknown>(scoped(LEGACY_KEYS.liquid, userId), null);
+  if (userId && scopedValue) return sanitize(scopedValue);
+  return sanitize(readJSON<unknown>(LEGACY_KEYS.liquid, null));
+}
+
+function initialWebGL(userId: string) {
+  if (typeof window === "undefined") return WEBGL_LIQUID_DEFAULTS;
+  const scopedValue = readJSON<unknown>(scoped(LEGACY_KEYS.webgl, userId), null);
+  if (userId && scopedValue) return sanitizeWebGL(scopedValue);
+  return sanitizeWebGL(readJSON<unknown>(LEGACY_KEYS.webgl, null));
+}
+
+function initialTheme(userId: string): Theme {
+  if (typeof window === "undefined") return "light";
+  try {
+    const s = (userId ? localStorage.getItem(scoped(LEGACY_KEYS.theme, userId)) : null) ?? localStorage.getItem(LEGACY_KEYS.theme);
+    return s === "dark" || s === "light" ? s : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
+
+function initialName(userId: string) {
+  if (typeof window === "undefined") return "";
+  try {
+    return (userId ? localStorage.getItem(scoped(LEGACY_KEYS.displayName, userId)) : null) ?? localStorage.getItem(LEGACY_KEYS.displayName) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function initialBlack(userId: string) {
+  return readBool(LEGACY_KEYS.pureBlack, userId, false);
+}
+
+export function CustomizationProvider({ children }: { children: ReactNode }) {
+  const [userId, setUserId] = useState<string | null>(null);
+  const [profileReady, setProfileReady] = useState(false);
+  const [liquid, setLiquidState] = useState(LIQUID_DEFAULTS);
+  const [webgl, setWebGLState] = useState(WEBGL_LIQUID_DEFAULTS);
+  const [theme, setThemeState] = useState<Theme>("light");
+  const [displayName, setDisplayNameState] = useState("");
+  const [pureBlack, setPureBlackState] = useState(false);
+  const [backgroundThemeEnabled, setBackgroundThemeEnabledState] = useState(false);
+  const [backgroundOpacity, setBackgroundOpacityState] = useState(100);
+  const [fullDarkBackground, setFullDarkBackgroundState] = useState(false);
+  const [uiTextClarity, setUITextClarityState] = useState<UITextClarity>("default");
+
+  useEffect(() => {
+    let active = true;
+    const load = async (id: string | null) => {
+      setUserId(id);
+      setProfileReady(false);
+      setLiquidState(initialLiquid(id ?? ""));
+      setWebGLState(initialWebGL(id ?? ""));
+      setThemeState(initialTheme(id ?? ""));
+      setDisplayNameState(initialName(id ?? ""));
+      setPureBlackState(initialBlack(id ?? ""));
+      setBackgroundThemeEnabledState(readBool(LEGACY_KEYS.backgroundTheme, id ?? ""));
+      setBackgroundOpacityState(readNumber(LEGACY_KEYS.backgroundOpacity, id ?? "", 100, 0, 100));
+      setFullDarkBackgroundState(readBool(LEGACY_KEYS.fullDarkBackground, id ?? ""));
+      setUITextClarityState(readUITextClarity(LEGACY_KEYS.uiTextClarity, id ?? "") ?? "default");
+
+      if (!id) {
+        setProfileReady(true);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("theme,display_name,liquid_density,liquid_transparency,liquid_clearness,liquid_gel,liquid_bounce_stiffness,liquid_bounce_damping,pure_black,background_theme_enabled,background_opacity,full_dark_background,ui_text_clarity")
+          .eq("id", id)
+          .maybeSingle();
+        if (!active) return;
+        if (error) {
+          console.warn("Could not load cloud customization", error);
+          setProfileReady(true);
+          return;
+        }
+        if (data) {
+          if (!localStorage.getItem(scoped(LEGACY_KEYS.liquid, id))) {
+            setLiquidState((prev) => sanitize({
+              ...prev,
+              density: data.liquid_density ?? prev.density,
+              transparency: data.liquid_transparency ?? prev.transparency,
+              clearness: data.liquid_clearness ?? prev.clearness,
+              gel: data.liquid_gel ?? prev.gel,
+              bounceStiffness: data.liquid_bounce_stiffness ?? prev.bounceStiffness,
+              bounceDamping: data.liquid_bounce_damping ?? prev.bounceDamping,
+            }));
+          }
+          if (!localStorage.getItem(scoped(LEGACY_KEYS.theme, id)) && (data.theme === "light" || data.theme === "dark")) setThemeState(data.theme);
+          if (!localStorage.getItem(scoped(LEGACY_KEYS.displayName, id)) && typeof data.display_name === "string") setDisplayNameState(data.display_name);
+          if (!localStorage.getItem(scoped(LEGACY_KEYS.pureBlack, id)) && typeof data.pure_black === "boolean") setPureBlackState(data.pure_black);
+          if (!localStorage.getItem(scoped(LEGACY_KEYS.backgroundTheme, id)) && typeof data.background_theme_enabled === "boolean") setBackgroundThemeEnabledState(data.background_theme_enabled);
+          if (!localStorage.getItem(scoped(LEGACY_KEYS.backgroundOpacity, id)) && data.background_opacity !== null && data.background_opacity !== undefined) setBackgroundOpacityState(clamp(Number(data.background_opacity), 0, 100));
+          if (!localStorage.getItem(scoped(LEGACY_KEYS.fullDarkBackground, id)) && typeof data.full_dark_background === "boolean") setFullDarkBackgroundState(data.full_dark_background);
+          if (!localStorage.getItem(scoped(LEGACY_KEYS.uiTextClarity, id)) && isUITextClarity(data.ui_text_clarity)) setUITextClarityState(data.ui_text_clarity);
+        }
+      } catch (error) {
+        console.warn("Could not load cloud customization", error);
+      } finally {
+        if (active) setProfileReady(true);
+      }
+    };
+
+    void supabase.auth.getUser().then(({ data }) => load(data.user?.id ?? null)).catch(() => load(null));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => void load(session?.user?.id ?? null));
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const transparency = liquid.transparency / 100;
+    root.style.setProperty("--liquid-density", `${liquid.density}px`);
+    root.style.setProperty("--liquid-transparency", `${transparency}`);
+    root.style.setProperty("--liquid-glass-alpha", `${transparency}`);
+    root.style.setProperty("--liquid-glass-dark-alpha", `${transparency * 0.16}`);
+    root.style.setProperty("--liquid-veil-alpha", `${transparency * 0.36}`);
+    const darkVeilAlpha = transparency <= 0.45 ? 0.0775 + 0.45 * transparency : 0.46 - 0.4 * transparency;
+    root.style.setProperty("--liquid-dark-veil-alpha", `${darkVeilAlpha}`);
+    root.style.setProperty("--liquid-clearness", `${liquid.clearness}`);
+    root.style.setProperty("--liquid-gel", `${liquid.gel}`);
+    root.style.setProperty("--liquid-bounce", `${liquid.bounceStiffness}`);
+    root.style.setProperty("--liquid-bounce-damping", `${liquid.bounceDamping}`);
+  }, [liquid]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--glass-thickness", `${webgl.thickness}`);
+    root.style.setProperty("--glass-bezel", `${webgl.bezel}`);
+    root.style.setProperty("--glass-ior", `${webgl.ior}`);
+    root.style.setProperty("--glass-dispersion", `${webgl.dispersion}`);
+    root.style.setProperty("--glass-blur", `${webgl.blur}`);
+    root.style.setProperty("--glass-specular", `${webgl.specular}`);
+    root.style.setProperty("--glass-tint", `${webgl.tint}`);
+    root.style.setProperty("--glass-shadow", `${webgl.shadow}`);
+    if (!userId || !profileReady) return;
+    try {
+      localStorage.setItem(scoped(LEGACY_KEYS.webgl, userId), JSON.stringify(webgl));
+    } catch {
+      // Ignore storage failures; runtime WebGL settings still remain active.
+    }
+  }, [webgl, userId, profileReady]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    document.documentElement.style.colorScheme = theme;
+    if (!userId || !profileReady) return;
+    try { localStorage.setItem(scoped(LEGACY_KEYS.theme, userId), theme); } catch {}
+    const timer = window.setTimeout(() => { void supabase.from("profiles").upsert({ id: userId, theme }); }, 150);
+    return () => window.clearTimeout(timer);
+  }, [theme, userId, profileReady]);
+
+  useEffect(() => {
+    if (!userId || !profileReady) return;
+    try { localStorage.setItem(scoped(LEGACY_KEYS.displayName, userId), displayName); } catch {}
+    const timer = window.setTimeout(() => { void supabase.from("profiles").upsert({ id: userId, display_name: displayName || null }); }, 250);
+    return () => window.clearTimeout(timer);
+  }, [displayName, userId, profileReady]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("pure-black", pureBlack);
+    if (!userId || !profileReady) return;
+    try { localStorage.setItem(scoped(LEGACY_KEYS.pureBlack, userId), pureBlack ? "1" : "0"); } catch {}
+    const timer = window.setTimeout(() => { void supabase.from("profiles").upsert({ id: userId, pure_black: pureBlack }); }, 150);
+    return () => window.clearTimeout(timer);
+  }, [pureBlack, userId, profileReady]);
+
+  useEffect(() => {
+    if (!userId || !profileReady) return;
+    try { localStorage.setItem(scoped(LEGACY_KEYS.liquid, userId), JSON.stringify(liquid)); } catch {}
+    const payload = {
+      id: userId,
+      liquid_density: liquid.density,
+      liquid_transparency: liquid.transparency,
+      liquid_clearness: liquid.clearness,
+      liquid_gel: liquid.gel,
+      liquid_bounce_stiffness: liquid.bounceStiffness,
+      liquid_bounce_damping: liquid.bounceDamping,
+    };
+    const timer = window.setTimeout(() => { void supabase.from("profiles").upsert(payload); }, 250);
+    return () => window.clearTimeout(timer);
+  }, [liquid, userId, profileReady]);
+
+  useEffect(() => {
+    document.documentElement.dataset["backgroundTheme"] = backgroundThemeEnabled ? "on" : "off";
+    document.documentElement.dataset["fullDarkBackground"] = backgroundThemeEnabled && fullDarkBackground ? "on" : "off";
+    document.documentElement.style.setProperty("--background-opacity", `${backgroundOpacity / 100}`);
+    if (!userId || !profileReady) return;
+    try {
+      localStorage.setItem(scoped(LEGACY_KEYS.backgroundTheme, userId), backgroundThemeEnabled ? "1" : "0");
+      localStorage.setItem(scoped(LEGACY_KEYS.backgroundOpacity, userId), String(backgroundOpacity));
+      localStorage.setItem(scoped(LEGACY_KEYS.fullDarkBackground, userId), fullDarkBackground ? "1" : "0");
+    } catch {}
+    const timer = window.setTimeout(() => {
+      void supabase.from("profiles").upsert({ id: userId, background_theme_enabled: backgroundThemeEnabled, background_opacity: backgroundOpacity, full_dark_background: fullDarkBackground });
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [backgroundThemeEnabled, backgroundOpacity, fullDarkBackground, userId, profileReady]);
+
+  useEffect(() => {
+    document.documentElement.dataset["uiTextClarity"] = uiTextClarity;
+    if (!userId || !profileReady) return;
+    try { localStorage.setItem(scoped(LEGACY_KEYS.uiTextClarity, userId), uiTextClarity); } catch {}
+    const timer = window.setTimeout(() => { void supabase.from("profiles").upsert({ id: userId, ui_text_clarity: uiTextClarity }); }, 150);
+    return () => window.clearTimeout(timer);
+  }, [uiTextClarity, userId, profileReady]);
+
+  const value = useMemo<Ctx>(() => ({
+    liquid,
+    setLiquid: (patch) => setLiquidState((prev) => sanitize({ ...prev, ...patch })),
+    webgl,
+    setWebGL: (patch) => setWebGLState((prev) => sanitizeWebGL({ ...prev, ...patch })),
+    reset: () => {
+      setLiquidState(LIQUID_DEFAULTS);
+      setWebGLState(WEBGL_LIQUID_DEFAULTS);
+    },
+    theme,
+    setTheme: setThemeState,
+    toggleTheme: () => setThemeState((p) => p === "dark" ? "light" : "dark"),
+    displayName,
+    setDisplayName: (name) => setDisplayNameState(name.trim().slice(0, 40)),
+    pureBlack,
+    setPureBlack: (value) => {
+      if (value) setThemeState("dark");
+      setPureBlackState(value);
+    },
+    backgroundThemeEnabled,
+    setBackgroundThemeEnabled: setBackgroundThemeEnabledState,
+    backgroundOpacity,
+    setBackgroundOpacity: (value) => setBackgroundOpacityState(clamp(value, 0, 100)),
+    fullDarkBackground,
+    setFullDarkBackground: setFullDarkBackgroundState,
+    uiTextClarity,
+    setUITextClarity: setUITextClarityState,
+  }), [liquid, webgl, theme, displayName, pureBlack, backgroundThemeEnabled, backgroundOpacity, fullDarkBackground, uiTextClarity]);
+
   return <CustomizationContext.Provider value={value}>{children}</CustomizationContext.Provider>;
 }
-const FALLBACK_CTX:Ctx={liquid:LIQUID_DEFAULTS,setLiquid:()=>{},reset:()=>{},theme:"light",setTheme:()=>{},toggleTheme:()=>{},displayName:"",setDisplayName:()=>{},pureBlack:false,setPureBlack:()=>{},backgroundThemeEnabled:false,setBackgroundThemeEnabled:()=>{},backgroundOpacity:100,setBackgroundOpacity:()=>{},fullDarkBackground:false,setFullDarkBackground:()=>{},uiTextClarity:"default",setUITextClarity:()=>{}};
-export function useCustomization(){const ctx=useContext(CustomizationContext);if(!ctx){if(import.meta.env.DEV)console.warn("useCustomization used outside CustomizationProvider (stale module?), using defaults");return FALLBACK_CTX}return ctx}
+
+const FALLBACK_CTX: Ctx = {
+  liquid: LIQUID_DEFAULTS,
+  setLiquid: () => {},
+  webgl: WEBGL_LIQUID_DEFAULTS,
+  setWebGL: () => {},
+  reset: () => {},
+  theme: "light",
+  setTheme: () => {},
+  toggleTheme: () => {},
+  displayName: "",
+  setDisplayName: () => {},
+  pureBlack: false,
+  setPureBlack: () => {},
+  backgroundThemeEnabled: false,
+  setBackgroundThemeEnabled: () => {},
+  backgroundOpacity: 100,
+  setBackgroundOpacity: () => {},
+  fullDarkBackground: false,
+  setFullDarkBackground: () => {},
+  uiTextClarity: "default",
+  setUITextClarity: () => {},
+};
+
+export function useCustomization() {
+  const ctx = useContext(CustomizationContext);
+  if (!ctx) {
+    if (import.meta.env.DEV) console.warn("useCustomization used outside CustomizationProvider (stale module?), using defaults");
+    return FALLBACK_CTX;
+  }
+  return ctx;
+}
