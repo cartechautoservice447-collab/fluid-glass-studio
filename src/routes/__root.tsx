@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import pomodoroPlainTimerCss from "../pomodoro-plain-timer.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { registerPwaServiceWorker } from "../lib/pwa";
+import { LiquidGlassProvider } from "@/components/liquid/LiquidGlassWebGL";
 
 type NativeWindow = typeof window & {
   Capacitor?: { isNativePlatform?: () => boolean };
@@ -27,10 +28,6 @@ function NotFoundComponent() {
   const router = useRouter();
 
   useEffect(() => {
-    // Capacitor's local WebView can occasionally restore a stale asset path
-    // (for example /index.html) instead of the SPA root. The Android app has
-    // no separate server-side route for that path, so recover to the real
-    // application root instead of trapping the user on the 404 screen.
     if (isNativeCapacitorApp()) {
       void router.navigate({ to: "/", replace: true });
     }
@@ -142,5 +139,11 @@ function RootComponent() {
   useEffect(() => {
     if (!isNativeCapacitorApp()) registerPwaServiceWorker();
   }, []);
-  return <QueryClientProvider client={queryClient}><Outlet /></QueryClientProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <LiquidGlassProvider>
+        <Outlet />
+      </LiquidGlassProvider>
+    </QueryClientProvider>
+  );
 }
