@@ -17,7 +17,7 @@ type Props = {
 export function StudySessionModal({ open, onOpenChange, onStartSession }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl overflow-hidden rounded-[28px] border-white/20 bg-black/35 p-0 text-foreground shadow-2xl backdrop-blur-2xl [&>button]:hidden">
+      <DialogContent className="max-w-2xl overflow-hidden rounded-[28px] border-white/20 bg-transparent p-0 text-foreground shadow-2xl [&>button]:hidden">
         <div className="relative max-h-[88vh] overflow-y-auto p-6 sm:p-8">
           <div className="pointer-events-none absolute -right-20 -top-24 size-56 rounded-full bg-primary/20 blur-3xl" />
           <div className="relative">
