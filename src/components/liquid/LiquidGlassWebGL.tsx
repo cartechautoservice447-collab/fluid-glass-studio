@@ -14,19 +14,8 @@ type LiquidGlassContextValue = {
 };
 
 const LiquidGlassContext = createContext<LiquidGlassContextValue | null>(null);
-
 const MAX_BOXES = 64;
-const DEFAULTS = {
-  thick: 50,
-  bezel: 55,
-  ior: 3,
-  blur: 1.5,
-  spec: 0.55,
-  tint: 0.08,
-  shadow: 0.5,
-  dispersion: 1.9,
-};
-
+const DEFAULTS = { thick: 50, bezel: 55, ior: 3, blur: 1.5, spec: 0.55, tint: 0.08, shadow: 0.5, dispersion: 1.9 };
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 function readNumber(name: string, fallback: number) {
@@ -37,20 +26,15 @@ function readNumber(name: string, fallback: number) {
 }
 
 function getShaderParams() {
-  const density = readNumber("--liquid-density", 12);
-  const transparency = readNumber("--liquid-transparency", 0.45);
-  const clearness = readNumber("--liquid-clearness", 35);
-  const gel = readNumber("--liquid-gel", 55);
-
   return {
-    thick: clamp(DEFAULTS.thick * (gel / 55), 25, 90),
-    bezel: clamp(DEFAULTS.bezel * (gel / 55), 28, 85),
-    ior: DEFAULTS.ior,
-    blur: clamp(density / 8, 0.25, 4),
-    spec: clamp(DEFAULTS.spec * (0.5 + 0.5 * (clearness / 35)), 0.2, 0.9),
-    tint: clamp(DEFAULTS.tint * (transparency / 0.45), 0.02, 0.18),
-    shadow: clamp(DEFAULTS.shadow * (0.6 + 0.4 * (gel / 55)), 0.2, 0.7),
-    dispersion: clamp(DEFAULTS.dispersion * (clearness / 35), 0.35, 3.2),
+    thick: clamp(readNumber("--glass-thickness", DEFAULTS.thick), 10, 100),
+    bezel: clamp(readNumber("--glass-bezel", DEFAULTS.bezel), 8, 120),
+    ior: clamp(readNumber("--glass-ior", DEFAULTS.ior), 1, 5),
+    blur: clamp(readNumber("--glass-blur", DEFAULTS.blur), 0, 20),
+    spec: clamp(readNumber("--glass-specular", DEFAULTS.spec), 0, 1),
+    tint: clamp(readNumber("--glass-tint", DEFAULTS.tint), 0, 0.5),
+    shadow: clamp(readNumber("--glass-shadow", DEFAULTS.shadow), 0, 1),
+    dispersion: clamp(readNumber("--glass-dispersion", DEFAULTS.dispersion), 0, 5),
   };
 }
 
@@ -64,10 +48,7 @@ function isDarkTheme() {
   return document.documentElement.classList.contains("dark") || document.documentElement.classList.contains("pure-black");
 }
 
-export function useLiquidGlassBox(
-  ref: RefObject<HTMLElement | null>,
-  options: { id: string; radius?: number; bezel?: number },
-) {
+export function useLiquidGlassBox(ref: RefObject<HTMLElement | null>, options: { id: string; radius?: number; bezel?: number }) {
   const context = useContext(LiquidGlassContext);
   const radius = options.radius ?? 40;
   const bezel = options.bezel ?? 45;
@@ -86,12 +67,7 @@ type LiquidGlassContextBridgeProps = {
   bezel?: number;
 };
 
-export function LiquidGlassContextBridge({
-  children,
-  idPrefix,
-  radius = 40,
-  bezel = 45,
-}: LiquidGlassContextBridgeProps) {
+export function LiquidGlassContextBridge({ children, idPrefix, radius = 40, bezel = 45 }: LiquidGlassContextBridgeProps) {
   const ref = useRef<HTMLElement | null>(null);
   const generatedId = useId().replace(/:/g, "-");
   const registrationId = `${idPrefix}-${generatedId}`;
@@ -101,7 +77,6 @@ export function LiquidGlassContextBridge({
 
 export function LiquidGlassProvider({ children }: { children: ReactNode }) {
   const registrations = useRef(new Map<string, GlassBoxRegistration>());
-
   const register = useCallback((entry: GlassBoxRegistration) => {
     registrations.current.set(entry.id, entry);
     return () => {
@@ -109,7 +84,6 @@ export function LiquidGlassProvider({ children }: { children: ReactNode }) {
       if (current?.element === entry.element) registrations.current.delete(entry.id);
     };
   }, []);
-
   const value = useMemo(() => ({ register }), [register]);
 
   return (
@@ -120,11 +94,7 @@ export function LiquidGlassProvider({ children }: { children: ReactNode }) {
   );
 }
 
-function LiquidGlassCanvas({
-  registrations,
-}: {
-  registrations: RefObject<Map<string, GlassBoxRegistration>>;
-}) {
+function LiquidGlassCanvas({ registrations }: { registrations: RefObject<Map<string, GlassBoxRegistration>> }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stateRef = useRef<{
     renderer: THREE.WebGLRenderer;
@@ -153,12 +123,7 @@ function LiquidGlassCanvas({
 
     let renderer: THREE.WebGLRenderer;
     try {
-      renderer = new THREE.WebGLRenderer({
-        canvas,
-        alpha: true,
-        antialias: true,
-        powerPreference: "high-performance",
-      });
+      renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "high-performance" });
     } catch (error) {
       console.warn("WebGL initialization failed:", error);
       return;
@@ -169,7 +134,6 @@ function LiquidGlassCanvas({
     const performance = getPerformanceMode();
     const pixelRatio = performance === "ultra" ? Math.min(window.devicePixelRatio || 1, 2) : 1;
     const rtScale = performance === "ultra" ? 1 : 0.75;
-
     renderer.setPixelRatio(pixelRatio);
     renderer.setSize(width, height);
 
@@ -190,15 +154,7 @@ function LiquidGlassCanvas({
 
     const createOrb = (color: string, x: number, y: number, z: number, size: number) => {
       const geometry = new THREE.SphereGeometry(size, 64, 64);
-      const material = new THREE.MeshPhysicalMaterial({
-        color,
-        emissive: color,
-        emissiveIntensity: 0.5,
-        roughness: 0.1,
-        metalness: 0.8,
-        clearcoat: 1,
-        clearcoatRoughness: 0.1,
-      });
+      const material = new THREE.MeshPhysicalMaterial({ color, emissive: color, emissiveIntensity: 0.5, roughness: 0.1, metalness: 0.8, clearcoat: 1, clearcoatRoughness: 0.1 });
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.set(x, y, z);
       mesh.userData = { baseX: x, baseY: y, baseZ: z };
@@ -249,12 +205,7 @@ function LiquidGlassCanvas({
       }
     };
 
-    const renderTarget = new THREE.WebGLRenderTarget(
-      Math.max(1, Math.round(width * rtScale)),
-      Math.max(1, Math.round(height * rtScale)),
-      { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat },
-    );
-
+    const renderTarget = new THREE.WebGLRenderTarget(Math.max(1, Math.round(width * rtScale)), Math.max(1, Math.round(height * rtScale)), { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat });
     const fgScene = new THREE.Scene();
     const fgCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const boxes = Array.from({ length: MAX_BOXES }, () => new THREE.Vector4());
@@ -292,26 +243,7 @@ function LiquidGlassCanvas({
     const planeGeometry = new THREE.PlaneGeometry(2, 2);
     fgScene.add(new THREE.Mesh(planeGeometry, material));
 
-    const state = {
-      renderer,
-      material,
-      fgScene,
-      fgCamera,
-      bgScene,
-      bgCamera,
-      renderTarget,
-      orbGroup,
-      orbGeometries,
-      orbMaterials,
-      wallGeometry,
-      wallMaterial,
-      planeGeometry,
-      boxes,
-      radii,
-      bezels,
-      rafId: 0,
-      dark: isDarkTheme(),
-    };
+    const state = { renderer, material, fgScene, fgCamera, bgScene, bgCamera, renderTarget, orbGroup, orbGeometries, orbMaterials, wallGeometry, wallMaterial, planeGeometry, boxes, radii, bezels, rafId: 0, dark: isDarkTheme() };
     stateRef.current = state;
     updateTheme(state.dark);
 
@@ -410,13 +342,5 @@ function LiquidGlassCanvas({
     };
   }, [registrations]);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      id="liquid-glass-webgl-canvas"
-      aria-hidden="true"
-      className="pointer-events-none fixed inset-0 h-full w-full"
-      style={{ zIndex: 20 }}
-    />
-  );
+  return <canvas ref={canvasRef} id="liquid-glass-webgl-canvas" aria-hidden="true" className="pointer-events-none fixed inset-0 h-full w-full" style={{ zIndex: 20 }} />;
 }
