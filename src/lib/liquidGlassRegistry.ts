@@ -90,15 +90,39 @@ export function updateGlassElement(id: string, options: { radius?: number; bezel
   markDirty();
 }
 
+function activeModalRoots(): HTMLElement[] {
+  if (typeof document === "undefined") return [];
+
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-liquid-glass-surface="true"][data-state="open"]'));
+}
+
+function activeModalOverlayExists(): boolean {
+  if (typeof document === "undefined") return false;
+  return Boolean(document.querySelector('[data-liquid-glass-modal-overlay][data-state="open"]'));
+}
+
+function belongsToActiveModal(element: HTMLElement, roots: HTMLElement[], overlayOpen: boolean) {
+  if (!roots.length && !overlayOpen) return true;
+
+  if (roots.some((root) => root === element || root.contains(element))) return true;
+  if (overlayOpen && element.closest('[data-liquid-glass-modal-overlay][data-state="open"]')) return true;
+
+  return false;
+}
+
 function measure() {
   cachedBoxes.length = 0;
 
   if (typeof window === "undefined") return;
 
   const viewportHeight = window.innerHeight;
+  const modalRoots = activeModalRoots();
+  const overlayOpen = activeModalOverlayExists();
+
   for (const descriptor of registry.values()) {
     const element = descriptor.element;
     if (!element.isConnected) continue;
+    if (!belongsToActiveModal(element, modalRoots, overlayOpen)) continue;
 
     const style = window.getComputedStyle(element);
     if (style.display === "none" || style.visibility === "hidden") continue;
