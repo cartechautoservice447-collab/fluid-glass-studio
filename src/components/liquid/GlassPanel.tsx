@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { useRef, type ReactNode } from "react";
+import { useId, useRef, type ReactNode } from "react";
 
 import { useCustomization } from "@/context/CustomizationContext";
 import { useLiquidGlassBox } from "@/components/liquid/LiquidGlassWebGL";
@@ -28,8 +28,8 @@ export function GlassPanel({
 }: GlassPanelProps) {
   const { liquid } = useCustomization();
   const ref = useRef<HTMLDivElement | null>(null);
-  const generatedId = useRef(`glass-panel-${Math.random().toString(36).slice(2)}`);
-  const registrationId = glassId ?? generatedId.current;
+  const generatedId = useId().replace(/:/g, "-");
+  const registrationId = glassId ?? `glass-panel-${generatedId}`;
 
   useLiquidGlassBox(ref, {
     id: registrationId,
