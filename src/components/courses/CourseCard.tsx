@@ -28,36 +28,16 @@ export function CourseCard({ course, noteCount, lastEditedAt, onOpen, onDelete }
   const { liquid } = useCustomization();
   const accent = ACCENT_COLOR[course.color] ?? ACCENT_COLOR.sky;
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const confirmDelete = (event: React.MouseEvent) => {
-    event.stopPropagation();
-    setConfirmOpen(true);
-  };
+  const confirmDelete = (event: React.MouseEvent) => { event.stopPropagation(); setConfirmOpen(true); };
   const cancelDelete = () => setConfirmOpen(false);
-  const performDelete = () => {
-    setConfirmOpen(false);
-    onDelete();
-  };
+  const performDelete = () => { setConfirmOpen(false); onDelete(); };
 
   return (
     <>
-      <motion.div
-        className="relative h-52 w-full"
-        whileHover={{ scale: 1.03, y: -6 }}
-        whileTap={{ scale: 0.97 }}
-        transition={{ type: "spring", stiffness: liquid.bounceStiffness, damping: liquid.bounceDamping }}
-      >
-        <GlassPanel
-          glassId={`course-card-${course.id}`}
-          glassRadius={44}
-          glassBezel={45}
-          className="h-full w-full !p-0"
-        >
+      <motion.div className="relative h-52 w-full" whileHover={{ scale: 1.03, y: -6 }} whileTap={{ scale: 0.97 }} transition={{ type: "spring", stiffness: liquid.bounceStiffness, damping: liquid.bounceDamping }}>
+        <GlassPanel glassId={`course-card-${course.id}`} glassRadius={44} glassBezel={45} className="h-full w-full !p-0">
           <button type="button" onClick={onOpen} className="group relative flex h-full w-full flex-col justify-between overflow-hidden p-5 text-left">
-            <span
-              aria-hidden
-              className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
-              style={{ background: `radial-gradient(140% 100% at 0% 0%, color-mix(in oklab, ${accent} 35%, transparent) 0%, transparent 60%)` }}
-            />
+            <span aria-hidden className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit]" style={{ background: `radial-gradient(140% 100% at 0% 0%, color-mix(in oklab, ${accent} 35%, transparent) 0%, transparent 60%)` }} />
             <div className="flex items-start justify-between">
               <span className="flex size-11 items-center justify-center rounded-2xl" style={{ backgroundColor: `color-mix(in oklab, ${accent} 55%, transparent)` }}>
                 <Folder className="size-5 text-white drop-shadow" />
@@ -69,9 +49,7 @@ export function CourseCard({ course, noteCount, lastEditedAt, onOpen, onDelete }
             </div>
             <div className="min-w-0 space-y-1.5">
               <h3 className="truncate text-base font-semibold text-foreground">{course.name}</h3>
-              <span className="inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.15em] text-foreground" style={{ backgroundColor: `color-mix(in oklab, ${accent} 30%, transparent)` }}>
-                {course.color}
-              </span>
+              <span className="inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.15em] text-foreground" style={{ backgroundColor: `color-mix(in oklab, ${accent} 30%, transparent)` }}>{course.color}</span>
               {course.description && <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{course.description}</p>}
             </div>
             <div className="flex items-center border-t border-white/10 pt-3">
@@ -85,8 +63,8 @@ export function CourseCard({ course, noteCount, lastEditedAt, onOpen, onDelete }
       </motion.div>
       {confirmOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/35 p-5 backdrop-blur-md" role="alertdialog" aria-modal="true" aria-labelledby={`delete-course-${course.id}`}>
-          <div className="relative w-full max-w-sm overflow-hidden rounded-[30px] border border-white/25 bg-black/20 p-6 text-foreground shadow-2xl">
-            <button type="button" onClick={cancelDelete} className="absolute right-4 top-4 z-10 flex size-8 items-center justify-center rounded-full text-foreground/60 transition hover:bg-white/10 hover:text-foreground" aria-label="Close">
+          <GlassPanel glassId={`delete-course-${course.id}`} glassRadius={30} glassBezel={40} className="relative w-full max-w-sm !p-6 text-foreground">
+            <button type="button" onClick={cancelDelete} className="absolute right-4 top-4 z-40 flex size-8 items-center justify-center rounded-full text-foreground/60 transition hover:bg-white/10 hover:text-foreground" aria-label="Close">
               <X className="size-4" />
             </button>
             <div className="relative">
@@ -100,7 +78,7 @@ export function CourseCard({ course, noteCount, lastEditedAt, onOpen, onDelete }
                 <button type="button" onClick={performDelete} className="rounded-2xl border border-white/15 bg-white/[0.14] px-4 py-2.5 text-sm font-semibold transition hover:bg-white/[0.2]">Delete</button>
               </div>
             </div>
-          </div>
+          </GlassPanel>
         </div>
       )}
     </>
