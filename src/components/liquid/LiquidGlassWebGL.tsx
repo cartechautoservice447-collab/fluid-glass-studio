@@ -44,6 +44,24 @@ export function LiquidGlassWebGL() {
   } | null>(null);
 
   useEffect(() => {
+    const style = document.createElement("style");
+    style.dataset.liquidGlassBridge = "true";
+    style.textContent = `
+      [data-liquid-glass-surface="true"] {
+        background: transparent !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        box-shadow: none !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      style.remove();
+    };
+  }, []);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
