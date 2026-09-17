@@ -4,20 +4,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/*
- * Design system definition.
- *
- * The @theme inline block maps CSS custom properties to Tailwind utility
- * classes (e.g. --color-primary -> bg-primary, text-primary).
- *
- * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
- *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
- */
-
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -132,29 +118,6 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
-/* --- Apple Liquid Glass Engine tokens ------------------------------------ */
-:root {
-  --liquid-density: 12px;
-  --liquid-transparency: 0.45;
-  --liquid-clearness: 35;
-  --liquid-gel: 55;
-  --liquid-bounce: 260;
-  --liquid-bounce-damping: 18;
-
-  --glass-tint: oklch(1 0 0);
-  --glass-tint-2: oklch(0.95 0.03 245);
-  --glass-shade: oklch(0.25 0.07 265);
-  --liquid-sheen: oklch(1 0 0);
-
-  /* 3D water-gel lens tint */
-  --water-gel-bg: rgb(255 255 255 / var(--liquid-glass-alpha, 0.45));
-
-  --background: oklch(0.55 0.16 255);
-  --foreground: oklch(0.17 0.05 265);
-  --muted-foreground: oklch(0.32 0.05 265);
-  --accent-foreground: oklch(0.38 0.15 255);
-}
-
 @layer base {
   * {
     border-color: var(--color-border);
@@ -170,120 +133,8 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
   }
-
 }
 
-/* Night mode: deep liquid obsidian glass */
-.dark {
-  --glass-tint: oklch(0.62 0.05 265);
-  --glass-tint-2: oklch(0.38 0.06 275);
-  --glass-shade: oklch(0.08 0.03 265);
-  --liquid-sheen: oklch(0.95 0.06 250);
-  --water-gel-bg: rgb(255 255 255 / var(--liquid-glass-dark-alpha, 0.07));
-
-  --background: oklch(0.16 0.03 265);
-  --foreground: oklch(0.97 0.01 250);
-  --card: oklch(0.22 0.04 265);
-  --card-foreground: oklch(0.97 0.01 250);
-  --popover: oklch(0.2 0.04 265);
-  --popover-foreground: oklch(0.97 0.01 250);
-  --muted: oklch(0.27 0.04 265);
-  --muted-foreground: oklch(0.78 0.03 260);
-  --accent: oklch(0.3 0.05 265);
-  --accent-foreground: oklch(0.84 0.13 220);
-  --secondary: oklch(0.28 0.04 265);
-  --secondary-foreground: oklch(0.97 0.01 250);
-  --primary: oklch(0.8 0.13 235);
-  --primary-foreground: oklch(0.18 0.04 265);
-  --border: oklch(1 0 0 / 14%);
-  --input: oklch(1 0 0 / 18%);
-}
-
-.liquid-stage {
-  background:
-    radial-gradient(120% 90% at 10% 0%, oklch(0.62 0.18 250) 0%, transparent 60%),
-    radial-gradient(100% 80% at 100% 10%, oklch(0.58 0.17 285) 0%, transparent 55%),
-    linear-gradient(170deg, oklch(0.5 0.17 258), oklch(0.36 0.15 268));
-  transition:
-    background 600ms ease,
-    color 400ms ease;
-}
-
-.dark .liquid-stage {
-  background:
-    radial-gradient(120% 90% at 10% 0%, oklch(0.32 0.11 265) 0%, transparent 60%),
-    radial-gradient(100% 80% at 100% 10%, oklch(0.27 0.12 320) 0%, transparent 55%),
-    linear-gradient(170deg, oklch(0.17 0.04 265), oklch(0.11 0.03 275));
-}
-
-.dark .liquid-orb {
-  opacity: 0.45;
-}
-
-.dark .liquid-orb-a {
-  background: oklch(0.55 0.2 265);
-}
-
-.dark .liquid-orb-b {
-  background: oklch(0.5 0.2 330);
-}
-
-.dark .liquid-orb-c {
-  background: oklch(0.55 0.16 195);
-}
-
-.liquid-orb {
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(60px);
-  opacity: 0.75;
-  pointer-events: none;
-  animation: liquid-drift 18s ease-in-out infinite;
-}
-
-.liquid-orb-a {
-  width: 26rem;
-  height: 26rem;
-  top: -6rem;
-  left: -5rem;
-  background: oklch(0.75 0.19 250);
-}
-
-.liquid-orb-b {
-  width: 22rem;
-  height: 22rem;
-  bottom: -7rem;
-  right: -4rem;
-  background: oklch(0.78 0.2 330);
-  animation-delay: -6s;
-}
-
-.liquid-orb-c {
-  width: 18rem;
-  height: 18rem;
-  top: 45%;
-  left: 55%;
-  background: oklch(0.85 0.17 190);
-  animation-delay: -12s;
-}
-
-@keyframes liquid-drift {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(4rem, -3rem, 0) scale(1.12);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .liquid-orb {
-    animation: none;
-  }
-}
-
-/* Text over the raw blue stage (outside glass) stays light in both modes */
 .on-stage {
   color: oklch(0.98 0.01 250);
 }
@@ -292,45 +143,20 @@
   color: oklch(0.9 0.03 250);
 }
 
-/* Glass interiors: frosted-light in day, obsidian in night — text tokens
-   below guarantee contrast inside the panel in both themes. */
-.liquid-panel {
-  --panel-fg: var(--foreground);
-  --panel-fg-muted: var(--muted-foreground);
-  --panel-fg-accent: var(--accent-foreground);
-  color: var(--panel-fg);
-}
-
-.liquid-panel .text-foreground {
-  color: var(--panel-fg);
-}
-
-.liquid-panel .text-muted-foreground {
-  color: var(--panel-fg-muted);
-}
-
-.liquid-panel .text-accent-foreground {
-  color: var(--panel-fg-accent);
-}
-
-.liquid-veil {
-  background: rgb(255 255 255 / var(--liquid-veil-alpha, 0.16));
-}
-
-.dark .liquid-veil {
-  background: rgb(6 10 26 / var(--liquid-dark-veil-alpha, 0.28));
-}
-
 @keyframes notes-pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 45%, transparent); }
-  50% { box-shadow: 0 0 26px 4px color-mix(in oklab, var(--primary) 28%, transparent); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 26px 4px color-mix(in oklab, var(--primary) 28%, transparent);
+  }
 }
+
 .notes-pulse-glow {
   animation: notes-pulse-glow 3.2s ease-in-out infinite;
 }
 
-
-/* A restrained, translucent scrollbar for scrollable glass interiors. */
 .glass-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgb(255 255 255 / 0.52) transparent;
@@ -376,7 +202,6 @@
   background-clip: padding-box;
 }
 
-/* Fixed laptop canvas: exact 1440x900 desktop layout, scaled to fit any screen */
 .laptop-canvas {
   width: 1440px;
   height: 900px;
@@ -384,34 +209,7 @@
   transform-origin: center center;
 }
 
-/* Mobile notes reuse desktop panels but hide their minimize controls. */
 .mobile-notes-panel button[aria-label*="Minimize"],
 .mobile-notes-panel button[title*="Minimize"] {
   display: none;
-}
-
-/* Pure Black: additive flat-black variant of the stage background.
-   Only ever applies alongside .dark — never changes light mode or
-   any glass panel styling. */
-.dark.pure-black .liquid-stage {
-  background:
-    radial-gradient(120% 90% at 10% 0%, oklch(0.24 0.01 265) 0%, transparent 60%),
-    radial-gradient(100% 80% at 100% 10%, oklch(0.2 0.01 285) 0%, transparent 55%),
-    linear-gradient(170deg, oklch(0.16 0.008 265), oklch(0.11 0.006 265));
-}
-
-.dark.pure-black .liquid-orb {
-  opacity: 0.2;
-}
-
-.dark.pure-black .liquid-orb-a {
-  background: oklch(0.34 0.12 265);
-}
-
-.dark.pure-black .liquid-orb-b {
-  background: oklch(0.32 0.12 330);
-}
-
-.dark.pure-black .liquid-orb-c {
-  background: oklch(0.34 0.1 195);
 }
