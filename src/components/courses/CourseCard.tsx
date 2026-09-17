@@ -1,5 +1,5 @@
 import { FileText, Folder, Trash2, X } from "lucide-react";
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 
 import { GlassPanel } from "@/components/liquid/GlassPanel";
 import type { Course } from "@/hooks/useCourses";
@@ -26,7 +26,7 @@ export function CourseCard({ course, noteCount, lastEditedAt, onOpen, onDelete }
   const accent = ACCENT_COLOR[course.color] ?? ACCENT_COLOR.sky;
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const confirmDelete = (event: React.MouseEvent) => {
+  const confirmDelete = (event: MouseEvent) => {
     event.stopPropagation();
     setConfirmOpen(true);
   };
