@@ -1,46 +1,16 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
-import { exactStudioFragmentShader, exactStudioVertexShader } from "@/shaders/exactLiquidGlassShader";
 import { getGlassBoxes } from "@/lib/liquidGlassRegistry";
+import {
+  LIQUID_GLASS_SETTINGS_EVENT,
+  readLiquidGlassSettings,
+  type LiquidGlassWebGLSettings,
+} from "@/lib/liquidGlassSettings";
+import { exactStudioFragmentShader, exactStudioVertexShader } from "@/shaders/exactLiquidGlassShader";
 
 type PerformanceMode = "high" | "ultra";
-
-type GlassParams = {
-  thick: number;
-  ior: number;
-  blur: number;
-  spec: number;
-  tint: number;
-  shadow: number;
-  dispersion: number;
-  bezel: number;
-};
-
-const DEFAULT_PARAMS: GlassParams = {
-  thick: 50,
-  bezel: 55,
-  ior: 3,
-  blur: 1.5,
-  spec: 0.55,
-  tint: 0.08,
-  shadow: 0.5,
-  dispersion: 1.9,
-};
-
-const SETTINGS_KEY = "liquid-glass-webgl-settings-v1";
 const PERFORMANCE_EVENT = "glass-performance-changed";
-const SETTINGS_EVENT = "liquid-glass-settings-changed";
-
-function readParams(): GlassParams {
-  if (typeof window === "undefined") return DEFAULT_PARAMS;
-  try {
-    const raw = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null") as Partial<GlassParams> | null;
-    return { ...DEFAULT_PARAMS, ...(raw ?? {}) };
-  } catch {
-    return DEFAULT_PARAMS;
-  }
-}
 
 function readPerformance(): PerformanceMode {
   if (typeof document === "undefined") return "ultra";
@@ -54,7 +24,7 @@ function isLightTheme() {
 
 export function LiquidGlassWebGL() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const paramsRef = useRef<GlassParams>(readParams());
+  const paramsRef = useRef<LiquidGlassWebGLSettings>(readLiquidGlassSettings());
   const performanceRef = useRef<PerformanceMode>(readPerformance());
   const themeRef = useRef(isLightTheme());
   const threeRef = useRef<{
@@ -193,6 +163,7 @@ export function LiquidGlassWebGL() {
     const boxVectors = Array.from({ length: 64 }, () => new THREE.Vector4());
     const radiiArray = new Float32Array(64);
     const bezelsArray = new Float32Array(64);
+    const params = paramsRef.current;
 
     const material = new THREE.ShaderMaterial({
       vertexShader: exactStudioVertexShader,
@@ -205,13 +176,13 @@ export function LiquidGlassWebGL() {
         uBoxCount: { value: 0 },
         uFixedTopBoxIdx: { value: -1 },
         uTime: { value: 0 },
-        uThickness: { value: paramsRef.current.thick },
-        uIOR: { value: paramsRef.current.ior },
-        uDispersion: { value: paramsRef.current.dispersion },
-        uBlur: { value: paramsRef.current.blur },
-        uSpecular: { value: paramsRef.current.spec },
-        uTint: { value: paramsRef.current.tint },
-        uShadow: { value: paramsRef.current.shadow },
+        uThickness: { value: params.thickness },
+        uIOR: { value: params.ior },
+        uDispersion: { value: params.dispersion },
+        uBlur: { value: params.blur },
+        uSpecular: { value: params.specular },
+        uTint: { value: params.tint },
+        uShadow: { value: params.shadow },
         uRenderBg: { value: 1 },
         uBgTex: { value: renderTarget.texture },
         uBgAspect: { value: width / height },
@@ -274,14 +245,14 @@ export function LiquidGlassWebGL() {
       material.uniforms.uFixedTopBoxIdx.value = boxes.findIndex((box) => box.id === "dock");
       material.uniforms.uTime.value = time * 0.001;
 
-      const params = paramsRef.current;
-      material.uniforms.uThickness.value = params.thick;
-      material.uniforms.uIOR.value = params.ior;
-      material.uniforms.uDispersion.value = params.dispersion;
-      material.uniforms.uBlur.value = params.blur;
-      material.uniforms.uSpecular.value = params.spec;
-      material.uniforms.uTint.value = params.tint;
-      material.uniforms.uShadow.value = params.shadow;
+      const currentParams = paramsRef.current;
+      material.uniforms.uThickness.value = currentParams.thickness;
+      material.uniforms.uIOR.value = currentParams.ior;
+      material.uniforms.uDispersion.value = currentParams.dispersion;
+      material.uniforms.uBlur.value = currentParams.blur;
+      material.uniforms.uSpecular.value = currentParams.specular;
+      material.uniforms.uTint.value = currentParams.tint;
+      material.uniforms.uShadow.value = currentParams.shadow;
 
       current.renderer.setRenderTarget(null);
       current.renderer.render(scene, camera);
@@ -296,7 +267,10 @@ export function LiquidGlassWebGL() {
       const ultra = performanceRef.current === "ultra";
       renderer.setPixelRatio(ultra ? Math.min(window.devicePixelRatio || 1, 2) : 1);
       renderer.setSize(w, h);
-      renderTarget.setSize(Math.max(1, Math.round(w * (ultra ? 1 : 0.75))), Math.max(1, Math.round(h * (ultra ? 1 : 0.75))));
+      renderTarget.setSize(
+        Math.max(1, Math.round(w * (ultra ? 1 : 0.75))),
+        Math.max(1, Math.round(h * (ultra ? 1 : 0.75))),
+      );
       material.uniforms.uResolution.value.set(w, h);
       material.uniforms.uBgAspect.value = w / h;
       bgCamera.aspect = w / h;
@@ -314,21 +288,22 @@ export function LiquidGlassWebGL() {
       handleResize();
     };
 
-    const handleSettings = () => {
-      paramsRef.current = readParams();
+    const handleSettings = (event: Event) => {
+      const detail = (event as CustomEvent<LiquidGlassWebGLSettings>).detail;
+      paramsRef.current = detail ?? readLiquidGlassSettings();
     };
 
     const observer = new MutationObserver(handleThemeChange);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
     window.addEventListener("resize", handleResize);
     window.addEventListener(PERFORMANCE_EVENT, handlePerformance);
-    window.addEventListener(SETTINGS_EVENT, handleSettings);
+    window.addEventListener(LIQUID_GLASS_SETTINGS_EVENT, handleSettings);
 
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", handleResize);
       window.removeEventListener(PERFORMANCE_EVENT, handlePerformance);
-      window.removeEventListener(SETTINGS_EVENT, handleSettings);
+      window.removeEventListener(LIQUID_GLASS_SETTINGS_EVENT, handleSettings);
       if (threeRef.current?.rafId) cancelAnimationFrame(threeRef.current.rafId);
       renderTarget.dispose();
       wallGeo.dispose();
