@@ -8,6 +8,7 @@ import {
   type LiquidGlassWebGLSettings,
 } from "@/lib/liquidGlassSettings";
 import { exactStudioFragmentShader, exactStudioVertexShader } from "@/shaders/exactLiquidGlassShader";
+import { drawBackgroundPreset, type BackgroundPresetId } from "@/lib/backgroundPresets";
 
 type PerformanceMode = "high" | "ultra";
 const PERFORMANCE_EVENT = "glass-performance-changed";
@@ -28,6 +29,7 @@ export function LiquidGlassWebGL() {
   const paramsRef = useRef<LiquidGlassWebGLSettings>(readLiquidGlassSettings());
   const performanceRef = useRef<PerformanceMode>(readPerformance());
   const themeRef = useRef(isLightTheme());
+  const backgroundPresetRef = useRef<BackgroundPresetId>("classic");
   const modalOpenRef = useRef(false);
   const threeRef = useRef<{
     renderer: THREE.WebGLRenderer;
@@ -100,6 +102,26 @@ export function LiquidGlassWebGL() {
 
     const orbGroup = new THREE.Group();
     bgScene.add(orbGroup);
+
+    // Static premium backgrounds are rendered into a true 2048x1152 texture so the
+    // liquid-glass shader can refract them just like the original WebGL scene.
+    const backgroundCanvas = document.createElement("canvas");
+    const backgroundTexture = new THREE.CanvasTexture(backgroundCanvas);
+    backgroundTexture.colorSpace = THREE.SRGBColorSpace;
+    backgroundTexture.minFilter = THREE.LinearFilter;
+    backgroundTexture.magFilter = THREE.LinearFilter;
+    const backgroundPlaneMaterial = new THREE.MeshBasicMaterial({
+      map: backgroundTexture,
+      depthWrite: false,
+    });
+    const backgroundPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(100, 100),
+      backgroundPlaneMaterial,
+    );
+    backgroundPlane.position.z = -8;
+    backgroundPlane.visible = false;
+    bgScene.add(backgroundPlane);
+
     const orbGeometries: THREE.SphereGeometry[] = [];
     const orbMaterials: THREE.MeshPhysicalMaterial[] = [];
     const orbMeshes: THREE.Mesh[] = [];
@@ -170,6 +192,28 @@ export function LiquidGlassWebGL() {
           mat.clearcoatRoughness = 0.1;
         });
       }
+    };
+
+    const applyBackgroundPreset = () => {
+      const active = document.documentElement.dataset.backgroundTheme === "on";
+      const rawPreset = document.documentElement.dataset.backgroundPreset as BackgroundPresetId | undefined;
+      const preset: BackgroundPresetId = active && rawPreset && rawPreset !== "classic" ? rawPreset : "classic";
+      backgroundPresetRef.current = preset;
+
+      if (preset === "classic") {
+        backgroundPlane.visible = false;
+        wall.visible = true;
+        orbGroup.visible = true;
+        updateTheme(themeRef.current);
+        return;
+      }
+
+      drawBackgroundPreset(backgroundCanvas, preset);
+      backgroundTexture.needsUpdate = true;
+      backgroundPlane.visible = true;
+      wall.visible = false;
+      orbGroup.visible = false;
+      bgScene.background = new THREE.Color("#070b17");
     };
 
     updateTheme(themeRef.current);
@@ -243,6 +287,7 @@ export function LiquidGlassWebGL() {
     const modalObserver = new MutationObserver(syncModalState);
     modalObserver.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-state"] });
     syncModalState();
+    applyBackgroundPreset();
 
     const renderLoop = (time: number) => {
       const current = threeRef.current;
@@ -332,6 +377,8 @@ export function LiquidGlassWebGL() {
 
     const themeObserver = new MutationObserver(handleThemeChange);
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    const backgroundObserver = new MutationObserver(applyBackgroundPreset);
+    backgroundObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-background-theme", "data-background-preset"] });
     window.addEventListener("resize", handleResize);
     window.addEventListener(PERFORMANCE_EVENT, handlePerformance);
     window.addEventListener(LIQUID_GLASS_SETTINGS_EVENT, handleSettings);
@@ -339,6 +386,7 @@ export function LiquidGlassWebGL() {
     return () => {
       modalObserver.disconnect();
       themeObserver.disconnect();
+      backgroundObserver.disconnect();
       window.removeEventListener("resize", handleResize);
       window.removeEventListener(PERFORMANCE_EVENT, handlePerformance);
       window.removeEventListener(LIQUID_GLASS_SETTINGS_EVENT, handleSettings);
@@ -346,6 +394,9 @@ export function LiquidGlassWebGL() {
       renderTarget.dispose();
       wallGeo.dispose();
       wallMat.dispose();
+      backgroundPlane.geometry.dispose();
+      backgroundPlaneMaterial.dispose();
+      backgroundTexture.dispose();
       orbGeometries.forEach((geometry) => geometry.dispose());
       orbMaterials.forEach((orbMaterial) => orbMaterial.dispose());
       fgPlaneGeo.dispose();
