@@ -3,6 +3,8 @@ import { supabase } from "@/lib/supabaseClient";
 
 export type Theme = "light" | "dark";
 export type UITextClarity = "default" | "smooth" | "medium" | "punchy";
+export type BackgroundPreset = "classic" | "aurora-luxe" | "emerald-sapphire" | "royal-violet" | "arctic-amethyst";
+const BACKGROUND_PRESET_VALUES: BackgroundPreset[] = ["classic", "aurora-luxe", "emerald-sapphire", "royal-violet", "arctic-amethyst"];
 
 const UI_TEXT_CLARITY_VALUES: UITextClarity[] = ["default", "smooth", "medium", "punchy"];
 const isUITextClarity = (value: unknown): value is UITextClarity =>
@@ -22,6 +24,8 @@ type Ctx = {
   setBackgroundOpacity: (value: number) => void;
   fullDarkBackground: boolean;
   setFullDarkBackground: (value: boolean) => void;
+  backgroundPreset: BackgroundPreset;
+  setBackgroundPreset: (value: BackgroundPreset) => void;
   uiTextClarity: UITextClarity;
   setUITextClarity: (value: UITextClarity) => void;
 };
@@ -35,6 +39,7 @@ const LEGACY_KEYS = {
   backgroundTheme: "liquid-glass-background-theme-v1",
   backgroundOpacity: "liquid-glass-background-opacity-v1",
   fullDarkBackground: "liquid-glass-full-dark-background-v1",
+  backgroundPreset: "liquid-glass-background-preset-v1",
   uiTextClarity: "liquid-glass-ui-text-clarity-v1",
 };
 
@@ -61,6 +66,16 @@ function readNumber(key: string, userId: string, fallback: number, min: number, 
     return Number.isFinite(value) ? clamp(value, min, max) : fallback;
   } catch {
     return fallback;
+  }
+}
+
+function readBackgroundPreset(key: string, userId: string): BackgroundPreset | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = (userId ? localStorage.getItem(scoped(key, userId)) : null) ?? localStorage.getItem(key);
+    return typeof raw === "string" && BACKGROUND_PRESET_VALUES.includes(raw as BackgroundPreset) ? raw as BackgroundPreset : null;
+  } catch {
+    return null;
   }
 }
 
@@ -108,6 +123,7 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
   const [backgroundThemeEnabled, setBackgroundThemeEnabledState] = useState(false);
   const [backgroundOpacity, setBackgroundOpacityState] = useState(100);
   const [fullDarkBackground, setFullDarkBackgroundState] = useState(false);
+  const [backgroundPreset, setBackgroundPresetState] = useState<BackgroundPreset>("classic");
   const [uiTextClarity, setUITextClarityState] = useState<UITextClarity>("default");
 
   useEffect(() => {
@@ -123,6 +139,7 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
       const localBackgroundTheme = readBool(LEGACY_KEYS.backgroundTheme, id ?? "", false);
       const localBackgroundOpacity = readNumber(LEGACY_KEYS.backgroundOpacity, id ?? "", 100, 0, 100);
       const localFullDarkBackground = readBool(LEGACY_KEYS.fullDarkBackground, id ?? "", false);
+      const localBackgroundPreset = readBackgroundPreset(LEGACY_KEYS.backgroundPreset, id ?? "");
       const localUITextClarity = readUITextClarity(LEGACY_KEYS.uiTextClarity, id ?? "");
 
       setThemeState(localTheme);
@@ -131,6 +148,7 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
       setBackgroundThemeEnabledState(localBackgroundTheme);
       setBackgroundOpacityState(localBackgroundOpacity);
       setFullDarkBackgroundState(localFullDarkBackground);
+      setBackgroundPresetState(localBackgroundPreset ?? "classic");
       setUITextClarityState(localUITextClarity ?? "default");
 
       if (!id) {
@@ -141,7 +159,7 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
       try {
         const { data, error } = await supabase
           .from("profiles")
-          .select("theme,display_name,pure_black,background_theme_enabled,background_opacity,full_dark_background,ui_text_clarity")
+          .select("theme,display_name,pure_black,background_theme_enabled,background_opacity,full_dark_background,background_preset,ui_text_clarity")
           .eq("id", id)
           .maybeSingle();
 
@@ -170,6 +188,9 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
           }
           if (!localStorage.getItem(scoped(LEGACY_KEYS.fullDarkBackground, id)) && typeof data.full_dark_background === "boolean") {
             setFullDarkBackgroundState(data.full_dark_background);
+          }
+          if (!localStorage.getItem(scoped(LEGACY_KEYS.backgroundPreset, id)) && typeof data.background_preset === "string" && BACKGROUND_PRESET_VALUES.includes(data.background_preset as BackgroundPreset)) {
+            setBackgroundPresetState(data.background_preset as BackgroundPreset);
           }
           if (!localStorage.getItem(scoped(LEGACY_KEYS.uiTextClarity, id)) && isUITextClarity(data.ui_text_clarity)) {
             setUITextClarityState(data.ui_text_clarity);
@@ -217,6 +238,7 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.dataset["backgroundTheme"] = backgroundThemeEnabled ? "on" : "off";
+    document.documentElement.dataset["backgroundPreset"] = backgroundThemeEnabled ? backgroundPreset : "classic";
     document.documentElement.dataset["fullDarkBackground"] = backgroundThemeEnabled && fullDarkBackground ? "on" : "off";
     document.documentElement.style.setProperty("--background-opacity", `${backgroundOpacity / 100}`);
     if (!userId || !profileReady) return;
@@ -231,10 +253,11 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
         background_theme_enabled: backgroundThemeEnabled,
         background_opacity: backgroundOpacity,
         full_dark_background: fullDarkBackground,
+        background_preset: backgroundPreset,
       });
     }, 150);
     return () => window.clearTimeout(timer);
-  }, [backgroundThemeEnabled, backgroundOpacity, fullDarkBackground, userId, profileReady]);
+  }, [backgroundThemeEnabled, backgroundOpacity, fullDarkBackground, backgroundPreset, userId, profileReady]);
 
   useEffect(() => {
     document.documentElement.dataset["uiTextClarity"] = uiTextClarity;
@@ -261,9 +284,15 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
     setBackgroundOpacity: (value) => setBackgroundOpacityState(clamp(value, 0, 100)),
     fullDarkBackground,
     setFullDarkBackground: setFullDarkBackgroundState,
+    backgroundPreset,
+    setBackgroundPreset: (value) => {
+      if (!BACKGROUND_PRESET_VALUES.includes(value)) return;
+      setBackgroundPresetState(value);
+      if (value !== "classic") setBackgroundThemeEnabledState(true);
+    },
     uiTextClarity,
     setUITextClarity: setUITextClarityState,
-  }), [theme, displayName, pureBlack, backgroundThemeEnabled, backgroundOpacity, fullDarkBackground, uiTextClarity]);
+  }), [theme, displayName, pureBlack, backgroundThemeEnabled, backgroundOpacity, fullDarkBackground, backgroundPreset, uiTextClarity]);
 
   return <CustomizationContext.Provider value={value}>{children}</CustomizationContext.Provider>;
 }
@@ -282,6 +311,8 @@ const FALLBACK_CTX: Ctx = {
   setBackgroundOpacity: () => {},
   fullDarkBackground: false,
   setFullDarkBackground: () => {},
+  backgroundPreset: "classic",
+  setBackgroundPreset: () => {},
   uiTextClarity: "default",
   setUITextClarity: () => {},
 };
