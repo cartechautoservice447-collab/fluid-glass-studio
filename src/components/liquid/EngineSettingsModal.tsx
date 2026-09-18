@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useCustomization } from "@/context/CustomizationContext";
+import { BACKGROUND_PRESETS } from "@/lib/backgroundPresets";
 import {
   LIQUID_GLASS_DEFAULTS,
   readLiquidGlassSettings,
@@ -48,6 +49,8 @@ export function EngineSettingsModal({ trigger = "button", userId }: Props) {
     setBackgroundOpacity,
     fullDarkBackground,
     setFullDarkBackground,
+    backgroundPreset,
+    setBackgroundPreset,
     uiTextClarity,
     setUITextClarity,
   } = useCustomization();
@@ -177,8 +180,34 @@ export function EngineSettingsModal({ trigger = "button", userId }: Props) {
               </div>
 
               <div className="space-y-4 rounded-2xl border border-white/10 bg-transparent p-4">
-                <div className="flex items-center justify-between gap-4"><div><p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-foreground">Background Theme</p><p className="mt-1 text-xs text-muted-foreground">Independent controls for the scene behind the glass UI.</p></div><Switch checked={backgroundThemeEnabled} onCheckedChange={setBackgroundThemeEnabled} aria-label="Enable background theme controls" /></div>
-                {backgroundThemeEnabled && <div className="space-y-5 border-t border-white/10 pt-4"><LiquidSlider label="Background Opacity" hint="Controls the non-glass background layer." value={backgroundOpacity} min={0} max={100} display={`${backgroundOpacity}%`} onChange={setBackgroundOpacity} /><div className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-transparent p-3"><div><p className="text-sm font-medium text-foreground">Fully Dark Theme</p><p className="mt-1 text-xs text-muted-foreground">Use a uniform deep-dark scene behind the WebGL glass.</p></div><Switch checked={fullDarkBackground} onCheckedChange={setFullDarkBackground} aria-label="Toggle fully dark background" /></div></div>}
+                <div className="flex items-center justify-between gap-4">
+                  <div><p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-foreground">Background Theme</p><p className="mt-1 text-xs text-muted-foreground">Independent controls for the scene behind the glass UI.</p></div>
+                  <Switch checked={backgroundThemeEnabled} onCheckedChange={setBackgroundThemeEnabled} aria-label="Enable background theme controls" />
+                </div>
+                <div className="space-y-3 border-t border-white/10 pt-4">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Premium Static Backgrounds</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Four still 2K-quality gradient scenes — no orbs, particles or motion.</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {BACKGROUND_PRESETS.map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => setBackgroundPreset(preset.id)}
+                        aria-pressed={backgroundPreset === preset.id}
+                        className={"group overflow-hidden rounded-2xl border p-1 text-left transition " + (backgroundPreset === preset.id ? "border-white/55 bg-white/[0.12] shadow-[0_0_0_1px_rgba(255,255,255,.10)]" : "border-white/12 bg-white/[0.035] hover:border-white/25 hover:bg-white/[0.06]")}
+                      >
+                        <span className="block h-20 w-full rounded-[13px] border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,.18)]" style={{ background: preset.preview }} aria-hidden />
+                        <span className="block px-2 pb-2 pt-1.5">
+                          <span className="block text-xs font-semibold text-foreground">{preset.label}</span>
+                          <span className="mt-0.5 block text-[10px] leading-4 text-muted-foreground">{preset.description}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {backgroundThemeEnabled && <div className="space-y-5 border-t border-white/10 pt-4"><LiquidSlider label="Background Opacity" hint="Controls the non-glass background layer." value={backgroundOpacity} min={0} max={100} display={backgroundOpacity + "%"} onChange={setBackgroundOpacity} /><div className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-transparent p-3"><div><p className="text-sm font-medium text-foreground">Fully Dark Theme</p><p className="mt-1 text-xs text-muted-foreground">Use a uniform deep-dark scene behind the WebGL glass.</p></div><Switch checked={fullDarkBackground} onCheckedChange={setFullDarkBackground} aria-label="Toggle fully dark background" /></div></div>}
               </div>
 
               <div className="flex items-center gap-3"><h3 className="text-[0.68rem] font-bold uppercase tracking-[0.28em] text-foreground">WebGL Liquid Glass Physics</h3><span className="h-px flex-1 bg-gradient-to-r from-white/40 to-transparent" /></div>
