@@ -178,6 +178,7 @@ export type Database = {
         Row: {
           background_opacity: number
           background_theme_enabled: boolean
+          background_preset: string
           created_at: string
           display_name: string | null
           full_dark_background: boolean
@@ -199,6 +200,7 @@ export type Database = {
         Insert: {
           background_opacity?: number
           background_theme_enabled?: boolean
+          background_preset?: string
           created_at?: string
           display_name?: string | null
           full_dark_background?: boolean
