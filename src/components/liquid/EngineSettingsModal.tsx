@@ -165,7 +165,7 @@ export function EngineSettingsModal({ trigger = "button", userId }: Props) {
                 <p className="text-xs text-muted-foreground">Shown in the welcome greeting on your course grid.</p>
               </div>
 
-                            <div className="space-y-3 rounded-2xl border border-white/10 bg-transparent p-4">
+              <div className="space-y-3 rounded-2xl border border-white/10 bg-transparent p-4">
                 <div>
                   <p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-foreground">Liquid Glass Type</p>
                   <p className="mt-1 text-xs text-muted-foreground">Four audited Mobile-liquid-glass surface languages layered over the existing WebGL renderer.</p>
@@ -194,7 +194,7 @@ export function EngineSettingsModal({ trigger = "button", userId }: Props) {
                 </div>
               </div>
 
-<div className="space-y-3 rounded-2xl border border-white/10 bg-transparent p-4">
+              <div className="space-y-3 rounded-2xl border border-white/10 bg-transparent p-4">
                 <div>
                   <p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-foreground">UI Text Clarity</p>
                   <p className="mt-1 text-xs text-muted-foreground">Normal interface text only. WebGL optics are unaffected.</p>
