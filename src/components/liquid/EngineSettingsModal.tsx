@@ -11,6 +11,14 @@ import { Switch } from "@/components/ui/switch";
 import { useCustomization } from "@/context/CustomizationContext";
 import { BACKGROUND_PRESETS } from "@/lib/backgroundPresets";
 import {
+  LIQUID_GLASS_THEME_EVENT,
+  LIQUID_GLASS_THEME_OPTIONS,
+  applyLiquidGlassTheme,
+  readLiquidGlassTheme,
+  writeLiquidGlassTheme,
+  type LiquidGlassThemeId,
+} from "@/lib/liquidGlassThemes";
+import {
   LIQUID_GLASS_DEFAULTS,
   readLiquidGlassSettings,
   resetLiquidGlassSettings,
@@ -58,6 +66,7 @@ export function EngineSettingsModal({ trigger = "button", userId }: Props) {
   const [open, setOpen] = useState(false);
   const [performance, setPerformance] = useState<"high" | "ultra">("high");
   const [glass, setGlass] = useState<LiquidGlassWebGLSettings>(readLiquidGlassSettings);
+  const [glassTheme, setGlassTheme] = useState<LiquidGlassThemeId>(readLiquidGlassTheme);
 
   useEffect(() => {
     const key = performanceKey(userId);
@@ -78,8 +87,24 @@ export function EngineSettingsModal({ trigger = "button", userId }: Props) {
   }, [userId]);
 
   useEffect(() => {
+    const initial = readLiquidGlassTheme();
+    setGlassTheme(initial);
+    applyLiquidGlassTheme(initial);
+
+    const onThemeChange = (event: Event) => {
+      const detail = (event as CustomEvent<LiquidGlassThemeId>).detail;
+      if (detail) setGlassTheme(detail);
+    };
+    window.addEventListener(LIQUID_GLASS_THEME_EVENT, onThemeChange);
+    return () => window.removeEventListener(LIQUID_GLASS_THEME_EVENT, onThemeChange);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     setGlass(readLiquidGlassSettings());
+    const currentTheme = readLiquidGlassTheme();
+    setGlassTheme(currentTheme);
+    applyLiquidGlassTheme(currentTheme);
   }, [open]);
 
   const setPerformanceMode = (mode: "high" | "ultra") => {
@@ -97,6 +122,10 @@ export function EngineSettingsModal({ trigger = "button", userId }: Props) {
   const resetGlass = () => {
     const next = resetLiquidGlassSettings();
     setGlass(next);
+  };
+
+  const setGlassThemeMode = (theme: LiquidGlassThemeId) => {
+    setGlassTheme(writeLiquidGlassTheme(theme));
   };
 
   return (
@@ -134,6 +163,35 @@ export function EngineSettingsModal({ trigger = "button", userId }: Props) {
                 <p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-foreground">Profile</p>
                 <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Your name" maxLength={40} className="border-white/20 bg-transparent" />
                 <p className="text-xs text-muted-foreground">Shown in the welcome greeting on your course grid.</p>
+              </div>
+
+              <div className="space-y-3 rounded-2xl border border-white/10 bg-transparent p-4">
+                <div>
+                  <p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-foreground">Liquid Glass Type</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Four audited Mobile-liquid-glass surface languages layered over the existing WebGL renderer.</p>
+                </div>
+                <div className="engine-glass-theme-grid" aria-label="Liquid Glass Type">
+                  {LIQUID_GLASS_THEME_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setGlassThemeMode(option.id)}
+                      aria-pressed={glassTheme === option.id}
+                      className={`engine-glass-theme ${glassTheme === option.id ? "active" : ""}`}
+                    >
+                      <span
+                        className="engine-glass-theme-sample"
+                        data-glass-preview={option.id}
+                        style={{ background: option.preview }}
+                        aria-hidden="true"
+                      />
+                      <span className="engine-glass-theme-copy">
+                        <strong>{option.label}</strong>
+                        <small>{option.description}</small>
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="space-y-3 rounded-2xl border border-white/10 bg-transparent p-4">

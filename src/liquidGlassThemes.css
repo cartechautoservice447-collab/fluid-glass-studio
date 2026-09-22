@@ -1,0 +1,178 @@
+/* Four Mobile-liquid-glass surface recipes layered over the existing WebGL renderer.
+   The WebGL canvas remains the optical/refraction layer; these rules only add the
+   audited surface language (sheen, border, radius, shadow and controlled blur). */
+
+html[data-glass-theme="type-1"] {
+  --glass-theme-sheen: linear-gradient(
+    135deg,
+    rgba(255,255,255,.14) 0%,
+    rgba(255,255,255,.02) 55%,
+    rgba(255,255,255,.09) 100%
+  );
+  --glass-theme-border: rgba(255,255,255,.22);
+  --glass-theme-top-border: rgba(255,255,255,.40);
+  --glass-theme-radius: calc(18px + var(--liquid-gel,.55) * 26px);
+  --glass-theme-shadow: inset 0 1px 2px rgba(255,255,255,.35),
+    inset 0 -2px 4px rgba(0,0,0,.18),
+    0 8px 32px rgba(0,0,0,.22);
+  --glass-theme-blur: var(--liquid-density,12px);
+  --glass-theme-saturation: 200%;
+}
+
+html[data-glass-theme="type-2"] {
+  --glass-theme-sheen: linear-gradient(
+    145deg,
+    rgba(255,255,255,.17),
+    rgba(255,255,255,.035) 55%,
+    rgba(255,255,255,.10)
+  );
+  --glass-theme-border: rgba(210,239,255,.24);
+  --glass-theme-top-border: rgba(255,255,255,.46);
+  --glass-theme-radius: calc(18px + var(--liquid-gel,.55) * 26px);
+  --glass-theme-shadow: inset 0 1px 2px rgba(255,255,255,.48),
+    inset 0 -3px 7px rgba(8,12,50,.20),
+    0 10px 30px rgba(0,0,0,.24);
+  --glass-theme-blur: var(--liquid-density,12px);
+  --glass-theme-saturation: 200%;
+}
+
+html[data-glass-theme="type-3"] {
+  --glass-theme-sheen: linear-gradient(
+    180deg,
+    rgba(255,255,255,.10),
+    rgba(255,255,255,.025)
+  );
+  --glass-theme-border: rgba(190,235,255,.14);
+  --glass-theme-top-border: rgba(255,255,255,.28);
+  --glass-theme-radius: 16px;
+  --glass-theme-shadow: inset 0 1px 1px rgba(255,255,255,.16),
+    inset 0 -2px 6px rgba(0,0,0,.12),
+    0 10px 26px rgba(0,0,0,.14);
+  --glass-theme-blur: calc(var(--liquid-density,12px) * .9);
+  --glass-theme-saturation: 180%;
+}
+
+html[data-glass-theme="type-4"] {
+  --glass-theme-sheen: linear-gradient(
+    145deg,
+    rgba(255,255,255,.18) 0%,
+    rgba(255,255,255,.055) 42%,
+    rgba(255,255,255,.02) 62%,
+    rgba(255,255,255,.11) 100%
+  );
+  --glass-theme-border: rgba(220,240,255,.30);
+  --glass-theme-top-border: rgba(255,255,255,.52);
+  --glass-theme-radius: calc(18px + var(--liquid-gel,.55) * 26px);
+  --glass-theme-shadow: inset 0 1px 2px rgba(255,255,255,.50),
+    inset 0 -3px 7px rgba(10,14,55,.22),
+    0 9px 28px rgba(0,0,0,.28);
+  --glass-theme-blur: var(--liquid-density,12px);
+  --glass-theme-saturation: 200%;
+}
+
+/* Keep the existing WebGL liquid glass intact and layer the selected recipe
+   above it with the same audited surface language used by Mobile-liquid-glass. */
+html[data-glass-theme] [data-liquid-glass-surface="true"] {
+  background-color: transparent !important;
+  background-image: var(--glass-theme-sheen) !important;
+  border-color: var(--glass-theme-border) !important;
+  border-top-color: var(--glass-theme-top-border) !important;
+  border-radius: var(--glass-theme-radius) !important;
+  box-shadow: var(--glass-theme-shadow) !important;
+  backdrop-filter: blur(var(--glass-theme-blur)) saturate(var(--glass-theme-saturation)) contrast(105%) !important;
+  -webkit-backdrop-filter: blur(var(--glass-theme-blur)) saturate(var(--glass-theme-saturation)) contrast(105%) !important;
+}
+
+/* Type 3 is intentionally quieter, matching the lighter progress-surface recipe. */
+html[data-glass-theme="type-3"] [data-liquid-glass-surface="true"] {
+  box-shadow: var(--glass-theme-shadow) !important;
+}
+
+/* Type 4 carries the strongest inner-light veil without replacing the WebGL layer. */
+html[data-glass-theme="type-4"] [data-liquid-glass-surface="true"] {
+  background-image:
+    radial-gradient(120% 140% at 0% 0%,rgba(255,255,255,.12),transparent 55%),
+    var(--glass-theme-sheen) !important;
+}
+
+/* The Mobile-liquid-glass preview language, adapted to the existing settings UI. */
+.engine-glass-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 10px;
+}
+
+.engine-glass-theme {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 18px;
+  color: #fff;
+  background: rgba(255,255,255,.055);
+  box-shadow: inset 0 1px rgba(255,255,255,.12);
+  text-align: left;
+  cursor: pointer;
+}
+
+.engine-glass-theme:hover {
+  background: rgba(255,255,255,.09);
+}
+
+.engine-glass-theme.active {
+  border-color: rgba(160,225,255,.58);
+  background: rgba(255,255,255,.105);
+  box-shadow: inset 0 1px rgba(255,255,255,.24),
+    0 0 0 1px rgba(130,210,255,.12);
+}
+
+.engine-glass-theme-sample {
+  width: 52px;
+  height: 40px;
+  border-radius: 14px;
+  display: block;
+  border: 1px solid rgba(255,255,255,.24);
+  box-shadow: inset 0 1px rgba(255,255,255,.28),
+    0 8px 18px rgba(0,0,0,.14);
+  backdrop-filter: blur(10px) saturate(180%);
+}
+
+.engine-glass-theme-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.engine-glass-theme-copy strong {
+  font-size: 12px;
+}
+
+.engine-glass-theme-copy small {
+  color: rgba(255,255,255,.48);
+  font-size: 9px;
+  line-height: 1.3;
+}
+
+@media (max-width: 430px) {
+  .engine-glass-theme-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .engine-glass-theme {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .engine-glass-theme-sample {
+    width: 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-glass-theme] [data-liquid-glass-surface="true"] {
+    transition: none !important;
+  }
+}
